@@ -4,9 +4,12 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // Subruta del sitio de GitHub Pages (repo de proyecto, no de usuario/org).
-// Se define una sola vez y se reusa en el manifest para que nunca queden
-// desincronizados entre si.
-const BASE_PATH = '/ingenieria-sol-service-portal/'
+// Se calcula a partir de GITHUB_REPOSITORY (formato "owner/repo", variable
+// automatica de GitHub Actions) para que el mismo workflow sirva sin cambios
+// sin importar a que repo se despliegue (ej. un fork); fuera de CI (build
+// local) usa el nombre del repo original como default. Se define una sola
+// vez y se reusa en el manifest para que nunca queden desincronizados.
+const BASE_PATH = `/${process.env.GITHUB_REPOSITORY?.split('/')[1] ?? 'ingenieria-sol-service-portal'}/`
 
 // https://vite.dev/config/
 export default defineConfig({
