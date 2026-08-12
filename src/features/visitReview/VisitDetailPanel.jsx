@@ -1,4 +1,14 @@
-import { CHECKLIST_ITEM_STATUS, SERVICE_TYPE_LABELS, VISIT_CHECKLIST_ITEMS, VISIT_STATUS_LABELS } from '../../lib/constants'
+import {
+  CHECKLIST_ITEM_STATUS,
+  SERVICE_TYPE_LABELS,
+  VISIT_CHECKLIST_ITEMS,
+  VISIT_STATUS_LABELS,
+  VISIT_CHANGES_FIELDS,
+  VISIT_CHANGE_FIELD_TYPE,
+  SI_NO_LABELS,
+  resolveSpec,
+  isValueOutOfSpec,
+} from '../../lib/constants'
 import { formatDate, formatDateTime } from '../../lib/dateUtils'
 import StatusChip from '../../components/ui/StatusChip'
 import Timeline from '../../components/ui/Timeline'
@@ -52,7 +62,7 @@ export default function VisitDetailPanel({ visit, parameters, events, actions })
       {actions && <div className="p-md border-b border-outline-variant flex flex-wrap gap-sm">{actions}</div>}
 
       <div className="p-md grid grid-cols-1 md:grid-cols-2 gap-md">
-        <div className="border border-outline-variant rounded p-md">
+        <div className="border border-outline-variant rounded p-md md:col-span-2">
           <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Detalles del Equipo</h3>
           <dl className="grid grid-cols-2 gap-y-xs font-body-sm text-body-sm">
             <dt className="text-on-surface-variant">Motor / Generador</dt>
@@ -70,13 +80,18 @@ export default function VisitDetailPanel({ visit, parameters, events, actions })
           </dl>
         </div>
 
-        <div className="border border-outline-variant rounded p-md">
+        <div className="border border-outline-variant rounded p-md md:col-span-2">
           <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Validación Técnica</h3>
           <ul className="space-y-xs">
             {VISIT_CHECKLIST_ITEMS.map((item) => {
               const status = visit.checklist_data?.[item.key]
               const display = CHECKLIST_STATUS_ICON[status]
               const measurementValue = item.measurement ? visit.checklist_data?.[item.measurement.key] : null
+              // Sin snapshot (a diferencia de visit_parameters): el fuera de
+              // rango se calcula en vivo contra el voltaje actual del
+              // equipo, y puede cambiar retroactivamente si ese dato se edita.
+              const { specMin, specMax } = item.measurement ? resolveSpec(item.measurement, visit.equipment) : {}
+              const outOfSpec = item.measurement ? isValueOutOfSpec(measurementValue, specMin, specMax) : false
               return (
                 <li key={item.key} className="flex items-center gap-xs font-body-sm text-body-sm text-on-surface">
                   <span className={`material-symbols-outlined text-[1.6rem] ${display?.className ?? 'text-on-surface-variant'}`}>
@@ -84,8 +99,9 @@ export default function VisitDetailPanel({ visit, parameters, events, actions })
                   </span>
                   <span>{item.label}</span>
                   {measurementValue != null && measurementValue !== '' && (
-                    <span className="font-label-sm text-label-sm text-on-surface-variant">
-                      ({measurementValue} {item.measurement.unit})
+                    <span className={`font-label-sm text-label-sm ${outOfSpec ? 'text-error' : 'text-on-surface-variant'}`}>
+                      ({measurementValue} {item.measurement.unit}
+                      {outOfSpec ? ' · fuera de rango' : ''})
                     </span>
                   )}
                   {!display && <span className="font-label-sm text-label-sm text-on-surface-variant">(sin registrar)</span>}
@@ -98,6 +114,37 @@ export default function VisitDetailPanel({ visit, parameters, events, actions })
         <div className="border border-outline-variant rounded p-md md:col-span-2">
           <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Parámetros Registrados</h3>
           <ParametersTable parameters={parameters} />
+        </div>
+
+        <div className="border border-outline-variant rounded p-md md:col-span-2">
+          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Cambios y Agregados</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-outline-variant">
+                  <th className="font-label-sm text-label-sm text-on-surface-variant uppercase py-xs pr-sm">Campo</th>
+                  <th className="font-label-sm text-label-sm text-on-surface-variant uppercase py-xs">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {VISIT_CHANGES_FIELDS.map((field) => {
+                  const value = visit.changes_data?.[field.key]
+                  const display =
+                    field.type === VISIT_CHANGE_FIELD_TYPE.SI_NO
+                      ? SI_NO_LABELS[value ?? field.defaultValue]
+                      : value != null && value !== ''
+                        ? `${value} ${field.unit}`
+                        : '—'
+                  return (
+                    <tr key={field.key} className="border-b border-outline-variant/50">
+                      <td className="font-body-sm text-body-sm text-on-surface-variant py-xs pr-sm">{field.label}</td>
+                      <td className="font-body-sm text-body-sm text-on-surface py-xs">{display}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {visit.fault_reported && (

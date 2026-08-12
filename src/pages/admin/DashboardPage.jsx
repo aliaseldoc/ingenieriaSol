@@ -61,7 +61,7 @@ export default function DashboardPage() {
         Estado general de los equipos y las visitas planificadas para este mes.
       </p>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-md mb-md justify-items-center">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-md mb-md justify-items-center">
         <KpiCard
           icon="precision_manufacturing"
           label="Grupos Activos"
@@ -81,15 +81,15 @@ export default function DashboardPage() {
         <KpiCard icon="local_gas_station" label="Alertas de Combustible" value={fuelAlerts.length} sublabel="Equipos con ≤ 30% de combustible" tone="soft" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-md">
-        <div className="md:col-span-3 bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-md">
+        <div className="lg:col-span-3 bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
           <h2 className="list-title-bar font-label-md text-label-md uppercase tracking-wide p-md">
             Actividad Reciente
           </h2>
           <RecentActivityFeed events={recentEvents} onSelectEvent={(visitId) => navigate(`${ROLE_HOME_PATH[profile.role]}/visita/${visitId}`)} />
         </div>
 
-        <div className="md:col-span-3 bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
+        <div className="lg:col-span-3 bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
           <h2 className="list-title-bar font-label-md text-label-md uppercase tracking-wide p-md">
             Hojas de Ruta por Técnico
           </h2>
@@ -100,14 +100,14 @@ export default function DashboardPage() {
           />
         </div>
 
-        <div className="md:col-span-3 bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
+        <div className="lg:col-span-3 bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
           <h2 className="list-title-bar font-label-md text-label-md uppercase tracking-wide p-md">
             Alertas de Service Anual
           </h2>
           <AnnualServiceAlerts equipment={equipment} alerts={alerts} onSelectEquipment={setHistoryEquipment} />
         </div>
 
-        <div className="md:col-span-3 bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
+        <div className="lg:col-span-3 bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
           <h2 className="list-title-bar font-label-md text-label-md uppercase tracking-wide p-md">
             Alertas de Combustible
           </h2>

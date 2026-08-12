@@ -22,12 +22,10 @@ export default function ActivityList({ items, onSelect = null }) {
               {item.subtitle && (
                 <p className="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">{item.subtitle}</p>
               )}
+              {item.timestamp && (
+                <p className="font-label-sm text-label-sm text-on-surface-variant mt-xs">{item.timestamp}</p>
+              )}
             </div>
-            {item.timestamp && (
-              <span className="font-label-sm text-label-sm text-on-surface-variant whitespace-nowrap">
-                {item.timestamp}
-              </span>
-            )}
           </ItemContainer>
         </li>
       ))}

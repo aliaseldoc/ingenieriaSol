@@ -33,7 +33,7 @@ const EMPTY_EQUIPMENT_FORM = {
 export default function EquipmentPage() {
   const { profile } = useAuth()
   const { equipment, loading, reload: reloadEquipment } = useEquipment()
-  const { clients, loading: clientsLoading, reload: reloadClients } = useClients()
+  const { clients, loading: clientsLoading } = useClients()
 
   const [historyEquipment, setHistoryEquipment] = useState(null)
   const [showNewEquipment, setShowNewEquipment] = useState(false)
@@ -132,8 +132,8 @@ export default function EquipmentPage() {
       />
 
       <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
-        <div className="grid grid-cols-12 gap-sm px-sm py-xs bg-surface-container border-b border-outline-variant">
-          <div className="col-span-4 flex items-center gap-xs font-label-sm text-label-sm text-on-surface-variant uppercase">
+        <div className="flex md:grid md:grid-cols-12 gap-sm px-sm py-xs bg-surface-container border-b border-outline-variant">
+          <div className="md:col-span-4 flex items-center gap-xs font-label-sm text-label-sm text-on-surface-variant uppercase">
             {clientGroups.length > 0 && (
               <button
                 type="button"
@@ -148,10 +148,12 @@ export default function EquipmentPage() {
             )}
             <span>Cliente / Equipo</span>
           </div>
-          <span className="col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">% Combustible</span>
-          <span className="col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Horas de Uso</span>
-          <span className="col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Último Service</span>
-          <span className="col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Condición</span>
+          {/* Por debajo de md, EquipmentRow.jsx pasa a mini-card apilada con
+              sus propias etiquetas — estas 4 columnas dejan de aplicar. */}
+          <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">% Combustible</span>
+          <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Horas de Uso</span>
+          <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Último Service</span>
+          <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Condición</span>
         </div>
         {clientGroups.length === 0 ? (
           <p className="p-md font-body-sm text-body-sm text-on-surface-variant">
@@ -166,7 +168,6 @@ export default function EquipmentPage() {
               expanded={!collapsedClientIds.has(group.client.id)}
               onToggleExpanded={() => toggleClientExpanded(group.client.id)}
               onOpenHistory={setHistoryEquipment}
-              onClientDeleted={reloadClients}
             />
           ))
         )}

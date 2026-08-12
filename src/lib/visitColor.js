@@ -27,7 +27,7 @@ export function getRouteSheetColor(routeSheet, today = new Date()) {
   const hasUnsubmittedVisit = visits.some((visit) => !isVisitLocked(visit))
   if (isOverdue && hasUnsubmittedVisit) return 'rojo'
 
-  if (hasTechnicians && routeSheet.vehicle_id) return 'amarillo'
+  if (hasTechnicians) return 'amarillo'
 
   return 'blanco'
 }
@@ -65,7 +65,7 @@ export const VISIT_COLOR_CLASSES = {
 
 export const VISIT_COLOR_LABELS = {
   blanco: 'Sin técnico asignado',
-  amarillo: 'Técnico y vehículo asignados',
+  amarillo: 'Técnico asignado',
   verde: 'Visita realizada',
   rojo: 'Sin reporte del técnico',
 }

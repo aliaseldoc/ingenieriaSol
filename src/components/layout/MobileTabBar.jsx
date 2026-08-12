@@ -8,14 +8,15 @@ export default function MobileTabBar({ navItems }) {
           key={item.to}
           to={item.to}
           end={item.end}
+          aria-label={item.label}
+          title={item.label}
           className={({ isActive }) =>
-            `flex-1 flex flex-col items-center justify-center gap-[0.2rem] font-label-sm text-label-sm transition-colors ${
+            `flex-1 flex items-center justify-center transition-colors ${
               isActive ? 'text-secondary' : 'text-on-surface-variant'
             }`
           }
         >
-          <span className="material-symbols-outlined text-[2rem]">{item.icon}</span>
-          {item.label}
+          <span className="material-symbols-outlined text-[2.2rem]">{item.icon}</span>
         </NavLink>
       ))}
     </nav>

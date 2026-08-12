@@ -46,7 +46,7 @@ export default function SummaryPage() {
         Estado de las visitas del mes y próximos services anuales a {FUTURE_WINDOW_DAYS} días.
       </p>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-md mb-md justify-items-center">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-md mb-md justify-items-center">
         <KpiCard icon="event" label="Visitas Planificadas" value={visitsThisMonth.length} sublabel="Este mes" tone="primary" />
         <KpiCard
           icon="fact_check"

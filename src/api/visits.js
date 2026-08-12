@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient'
-import { VISIT_STATUS, VISIT_PARAMETER_DEFINITIONS } from '../lib/constants'
+import { VISIT_STATUS, VISIT_PARAMETER_DEFINITIONS, VISIT_CHANGE_TO_EQUIPMENT_TRACKING, resolveSpec } from '../lib/constants'
+import { computeNextDueDate } from '../lib/dateUtils'
 import { logVisitEvent } from './visitEvents'
 
 const ROUTE_SHEET_EMBED = 'route_sheets(id, vehicle_id, scheduled_time_start, vehicles(plate), route_sheet_technicians(profiles(id, full_name)))'
@@ -115,12 +116,13 @@ function signatureColumns({
 }
 
 export async function saveVisitDraft(visitId, formSnapshot) {
-  const { serviceType, checklistData, notes, faultReported, faultDescription } = formSnapshot
+  const { serviceType, checklistData, changesData, notes, faultReported, faultDescription } = formSnapshot
   const { error } = await supabase
     .from('visits')
     .update({
       service_type: serviceType,
       checklist_data: checklistData,
+      changes_data: changesData,
       notes,
       fault_reported: faultReported,
       fault_description: faultDescription,
@@ -133,12 +135,13 @@ export async function saveVisitDraft(visitId, formSnapshot) {
 }
 
 export async function submitVisitForReview(visitId, formSnapshot, actorId) {
-  const { serviceType, checklistData, notes, faultReported, faultDescription } = formSnapshot
+  const { serviceType, checklistData, changesData, notes, faultReported, faultDescription } = formSnapshot
   const { error } = await supabase
     .from('visits')
     .update({
       service_type: serviceType,
       checklist_data: checklistData,
+      changes_data: changesData,
       notes,
       fault_reported: faultReported,
       fault_description: faultDescription,
@@ -155,7 +158,14 @@ export async function submitVisitForReview(visitId, formSnapshot, actorId) {
 // releva en terreno (nivel de combustible, horas de uso, fecha del
 // service), para que "Equipos" refleje el dato apenas el administrativo
 // confirma la recepcion, sin esperar a la aprobacion del supervisor.
-export async function markVisitReceived(visitId, receivedBy, equipmentId, parameters, { isAnnualService } = {}) {
+//
+// Este es tambien el unico lugar donde se recalculan automaticamente los 4
+// vencimientos de "Proximo Service" (filtros/bateria) — antes esto solo se
+// editaba a mano en la ficha del equipo. Por cada campo de
+// VISIT_CHANGE_TO_EQUIPMENT_TRACKING marcado "si" en changesData, se pisa su
+// fecha de cambio (hoy) y se recalcula el proximo vencimiento; los campos no
+// marcados "si" no se tocan.
+export async function markVisitReceived(visitId, receivedBy, equipmentId, parameters, changesData, { isAnnualService } = {}) {
   const nowIso = new Date().toISOString()
   const { error } = await supabase
     .from('visits')
@@ -172,6 +182,12 @@ export async function markVisitReceived(visitId, receivedBy, equipmentId, parame
   if (fuelPercentage != null) equipmentChanges.fuel_percentage = fuelPercentage
   if (hoursOfUse != null) equipmentChanges.hours_of_use = hoursOfUse
   if (isAnnualService) equipmentChanges.last_annual_service_date = today
+
+  for (const tracking of VISIT_CHANGE_TO_EQUIPMENT_TRACKING) {
+    if (changesData?.[tracking.changeKey] !== 'si') continue
+    equipmentChanges[tracking.changedAtField] = today
+    equipmentChanges[tracking.nextDueField] = computeNextDueDate(today, tracking.yearsAhead)
+  }
 
   const { error: equipmentError } = await supabase.from('equipment').update(equipmentChanges).eq('id', equipmentId)
   if (equipmentError) throw equipmentError
@@ -208,20 +224,27 @@ export async function requestVisitRevision(visitId, reviewedBy, reviewNotes) {
 
 // Reemplaza los parametros cuantitativos de la visita por los valores actuales
 // del formulario (el conjunto de metricas es fijo, ver VISIT_PARAMETER_DEFINITIONS).
-export async function saveVisitParameters(visitId, parameterValues) {
+// El rango normal (spec_min/spec_max) se resuelve segun el voltaje del
+// equipo (ver resolveSpec) y se graba como snapshot en el momento de
+// guardar, igual que el resto de la fila — no se recalcula retroactivamente
+// si el voltaje del equipo cambia despues.
+export async function saveVisitParameters(visitId, parameterValues, equipment) {
   const { error: deleteError } = await supabase.from('visit_parameters').delete().eq('visit_id', visitId)
   if (deleteError) throw deleteError
 
   const rows = VISIT_PARAMETER_DEFINITIONS.filter((definition) => parameterValues[definition.key] !== '' && parameterValues[definition.key] != null).map(
-    (definition) => ({
-      visit_id: visitId,
-      metric_key: definition.key,
-      metric_label: definition.label,
-      value: Number(parameterValues[definition.key]),
-      unit: definition.unit,
-      spec_min: definition.specMin ?? null,
-      spec_max: definition.specMax ?? null,
-    })
+    (definition) => {
+      const { specMin, specMax } = resolveSpec(definition, equipment)
+      return {
+        visit_id: visitId,
+        metric_key: definition.key,
+        metric_label: definition.label,
+        value: Number(parameterValues[definition.key]),
+        unit: definition.unit,
+        spec_min: specMin,
+        spec_max: specMax,
+      }
+    }
   )
 
   if (rows.length === 0) return

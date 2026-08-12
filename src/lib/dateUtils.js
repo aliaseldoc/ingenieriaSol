@@ -18,6 +18,15 @@ export function addYears(date, years) {
   return new Date(date.getFullYear() + years, date.getMonth(), date.getDate())
 }
 
+// changedAt + yearsAhead, como "YYYY-MM-DD". Usado tanto al editar el
+// seguimiento de un equipo a mano (EquipmentHistoryPanel.jsx) como al
+// recibir una visita con cambios de filtro/bateria marcados (markVisitReceived
+// en src/api/visits.js) — mismo criterio +1 año (filtros) / +2 años (bateria)
+// en un solo lugar.
+export function computeNextDueDate(changedAtIso, yearsAhead) {
+  return toISODateString(addYears(parseDateInput(changedAtIso), yearsAhead))
+}
+
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }

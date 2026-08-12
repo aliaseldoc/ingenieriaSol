@@ -4,6 +4,7 @@ import { useVisitsPendingReview, useVisitParameters, useVisitEvents } from '../.
 import { approveVisit, rejectVisit, requestVisitRevision } from '../../api/visits'
 import VisitReviewQueue from '../../features/visitReview/VisitReviewQueue'
 import VisitDetailPanel from '../../features/visitReview/VisitDetailPanel'
+import DeletionRequestsQueue from '../../features/validation/DeletionRequestsQueue'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import EmptyState from '../../components/ui/EmptyState'
@@ -52,8 +53,9 @@ export default function ValidationPage() {
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-md">
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 flex flex-col gap-md">
           <VisitReviewQueue visits={visits ?? []} selectedId={selectedId} onSelect={setSelectedId} />
+          <DeletionRequestsQueue />
         </div>
         <div className="lg:col-span-8">
           {selectedVisit ? (

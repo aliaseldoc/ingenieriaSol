@@ -32,20 +32,21 @@ async function markPendingWriteError(visitId, message) {
 // cambio de una vez en el cache de lectura para que MonthlyPlanPage y una
 // eventual reapertura del formulario vean el dato recien guardado sin
 // esperar a que sincronice de verdad.
-export async function queueVisitSave({ visitId, kind, formSnapshot, parameterValues, actorId }) {
+export async function queueVisitSave({ visitId, kind, formSnapshot, parameterValues, actorId, equipment }) {
   const entry = {
     visitId,
     kind,
     formSnapshot,
     parameterValues,
     actorId,
+    equipment,
     queuedAt: new Date().toISOString(),
     attempts: 0,
     lastError: null,
   }
   await putValue(STORES.PENDING_WRITES, entry)
   await updateCachedVisit(visitId, { ...formSnapshotToVisitColumns(formSnapshot), ...statusColumnsForKind(kind) })
-  await saveVisitParametersToCache(visitId, parameterValuesToRows(visitId, parameterValues))
+  await saveVisitParametersToCache(visitId, parameterValuesToRows(visitId, parameterValues, equipment))
   emitChange()
   return entry
 }
@@ -72,13 +73,13 @@ export async function removePendingWrite(visitId) {
 // Punto de entrada unico para VisitFormPage: intenta guardar en vivo: si
 // falla por red (o si ya se sabe que estamos offline), encola en vez de
 // propagar el error.
-export async function saveVisitOrQueue({ visitId, kind, formSnapshot, parameterValues, actorId }) {
+export async function saveVisitOrQueue({ visitId, kind, formSnapshot, parameterValues, actorId, equipment }) {
   if (!isOnline()) {
-    await queueVisitSave({ visitId, kind, formSnapshot, parameterValues, actorId })
+    await queueVisitSave({ visitId, kind, formSnapshot, parameterValues, actorId, equipment })
     return { queued: true }
   }
   try {
-    await saveVisitParameters(visitId, parameterValues)
+    await saveVisitParameters(visitId, parameterValues, equipment)
     if (kind === 'submit') await submitVisitForReview(visitId, formSnapshot, actorId)
     else await saveVisitDraft(visitId, formSnapshot)
 
@@ -90,7 +91,7 @@ export async function saveVisitOrQueue({ visitId, kind, formSnapshot, parameterV
     return { queued: false }
   } catch (error) {
     if (!isNetworkError(error)) throw error
-    await queueVisitSave({ visitId, kind, formSnapshot, parameterValues, actorId })
+    await queueVisitSave({ visitId, kind, formSnapshot, parameterValues, actorId, equipment })
     return { queued: true }
   }
 }
@@ -114,7 +115,7 @@ export async function flushPendingWrites({ onProgress } = {}) {
 
     const attemptStartedAt = new Date()
     try {
-      await saveVisitParameters(entry.visitId, entry.parameterValues)
+      await saveVisitParameters(entry.visitId, entry.parameterValues, entry.equipment)
       if (entry.kind === 'submit') await submitVisitForReview(entry.visitId, entry.formSnapshot, entry.actorId)
       else await saveVisitDraft(entry.visitId, entry.formSnapshot)
     } catch (error) {

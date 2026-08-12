@@ -9,13 +9,16 @@ import {
   SERVICE_TYPE,
   TECHNICIAN_EDITABLE_STATUSES,
   VISIT_CHECKLIST_ITEMS,
+  VISIT_CHANGES_FIELDS,
 } from '../../lib/constants'
 import Button from '../../components/ui/Button'
+import DraggableFab from '../../components/ui/DraggableFab'
 import Spinner from '../../components/ui/Spinner'
 import VisitDetailPanel from '../../features/visitReview/VisitDetailPanel'
 import VisitMetadataCard from '../../features/visitForm/VisitMetadataCard'
 import VisitChecklistSection from '../../features/visitForm/VisitChecklistSection'
 import VisitParametersForm from '../../features/visitForm/VisitParametersForm'
+import VisitChangesSection from '../../features/visitForm/VisitChangesSection'
 import VisitObservationsSection from '../../features/visitForm/VisitObservationsSection'
 
 export default function VisitFormPage() {
@@ -29,6 +32,7 @@ export default function VisitFormPage() {
 
   const [serviceType, setServiceType] = useState(SERVICE_TYPE.PREVENTIVO)
   const [checklistData, setChecklistData] = useState({})
+  const [changesData, setChangesData] = useState({})
   const [parameterValues, setParameterValues] = useState({})
   const [notes, setNotes] = useState('')
   const [faultReported, setFaultReported] = useState(false)
@@ -61,6 +65,7 @@ export default function VisitFormPage() {
   function applyFormValues({
     serviceType: nextServiceType,
     checklistData: nextChecklistData,
+    changesData: nextChangesData,
     notes: nextNotes,
     faultReported: nextFaultReported,
     faultDescription: nextFaultDescription,
@@ -76,6 +81,8 @@ export default function VisitFormPage() {
       VISIT_CHECKLIST_ITEMS.map((item) => [item.key, CHECKLIST_ITEM_STATUS.OK])
     )
     setChecklistData({ ...defaultChecklistData, ...(nextChecklistData ?? {}) })
+    const defaultChangesData = Object.fromEntries(VISIT_CHANGES_FIELDS.map((field) => [field.key, field.defaultValue]))
+    setChangesData({ ...defaultChangesData, ...(nextChangesData ?? {}) })
     setNotes(nextNotes ?? '')
     setFaultReported(nextFaultReported ?? false)
     setFaultDescription(nextFaultDescription ?? '')
@@ -102,6 +109,7 @@ export default function VisitFormPage() {
     applyFormValues({
       serviceType: visit.service_type,
       checklistData: visit.checklist_data,
+      changesData: visit.changes_data,
       notes: visit.notes,
       faultReported: visit.fault_reported,
       faultDescription: visit.fault_description,
@@ -131,6 +139,9 @@ export default function VisitFormPage() {
       const tankSize = Number(visit?.equipment?.fuel_capacity)
       if (key === 'combustible_litros' && value !== '' && tankSize > 0) {
         next.nivel_combustible = String(Math.round((Number(value) / tankSize) * 100))
+      }
+      if (key === 'nivel_combustible' && value !== '' && tankSize > 0) {
+        next.combustible_litros = String(Math.round((tankSize * Number(value)) / 100))
       }
       return next
     })
@@ -165,6 +176,7 @@ export default function VisitFormPage() {
   const formSnapshot = {
     serviceType,
     checklistData,
+    changesData,
     notes,
     faultReported,
     faultDescription,
@@ -181,7 +193,14 @@ export default function VisitFormPage() {
     setSaveStatus(null)
     setSaveError(null)
     try {
-      const result = await saveVisitOrQueue({ visitId, kind: 'draft', formSnapshot, parameterValues, actorId: profile.id })
+      const result = await saveVisitOrQueue({
+        visitId,
+        kind: 'draft',
+        formSnapshot,
+        parameterValues,
+        actorId: profile.id,
+        equipment: visit.equipment,
+      })
       setSaveStatus(result.queued ? 'saved-offline' : 'saved-online')
     } catch (error) {
       setSaveStatus('error')
@@ -197,7 +216,14 @@ export default function VisitFormPage() {
     setSaveStatus(null)
     setSaveError(null)
     try {
-      await saveVisitOrQueue({ visitId, kind: 'submit', formSnapshot, parameterValues, actorId: profile.id })
+      await saveVisitOrQueue({
+        visitId,
+        kind: 'submit',
+        formSnapshot,
+        parameterValues,
+        actorId: profile.id,
+        equipment: visit.equipment,
+      })
       navigate('/tecnico', { replace: true })
     } catch (error) {
       setSaveStatus('error')
@@ -223,14 +249,21 @@ export default function VisitFormPage() {
           category={CHECKLIST_CATEGORY.EQUIPO_PARADO}
           checklistData={checklistData}
           onChangeItem={(key, value) => setChecklistData((data) => ({ ...data, [key]: value }))}
+          equipment={visit.equipment}
         />
 
-        <VisitParametersForm parameterValues={parameterValues} onChangeParameter={handleChangeParameter} />
+        <VisitParametersForm parameterValues={parameterValues} onChangeParameter={handleChangeParameter} equipment={visit.equipment} />
 
         <VisitChecklistSection
           category={CHECKLIST_CATEGORY.EQUIPO_MARCHA}
           checklistData={checklistData}
           onChangeItem={(key, value) => setChecklistData((data) => ({ ...data, [key]: value }))}
+          equipment={visit.equipment}
+        />
+
+        <VisitChangesSection
+          changesData={changesData}
+          onChangeField={(key, value) => setChangesData((data) => ({ ...data, [key]: value }))}
         />
 
         <VisitObservationsSection
@@ -265,15 +298,14 @@ export default function VisitFormPage() {
             </p>
           )}
           <div className="flex justify-end gap-sm">
-            <Button type="button" variant="secondary-outline" disabled={saving} onClick={handleSaveDraft}>
-              Guardar Borrador
-            </Button>
             <Button type="submit" variant="primary" disabled={saving}>
               Finalizar Reporte
             </Button>
           </div>
         </div>
       </form>
+
+      <DraggableFab onClick={handleSaveDraft} disabled={saving} label="Guardar Borrador" icon="save" />
     </div>
   )
 }

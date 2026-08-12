@@ -142,7 +142,7 @@ export const VISIT_CHECKLIST_ITEMS = [
     key: 'cargador_flote',
     category: CHECKLIST_CATEGORY.EQUIPO_PARADO,
     label: 'Cargador de flote Vcc',
-    measurement: { key: 'cargador_flote_tension', unit: 'Vcc' },
+    measurement: { key: 'cargador_flote_tension', unit: 'Vcc', specByVoltage: { 12: [13.2, 13.8], 24: [26.4, 27.6] } },
   },
   { key: 'limpieza_general_sala', category: CHECKLIST_CATEGORY.EQUIPO_PARADO, label: 'Limpieza general de la sala (o de la cabina)' },
   { key: 'comprobar_presion_aceite', category: CHECKLIST_CATEGORY.EQUIPO_MARCHA, label: 'Comprobar presión de aceite' },
@@ -154,17 +154,98 @@ export const VISIT_CHECKLIST_ITEMS = [
   { key: 'comprobar_tension_frecuencia', category: CHECKLIST_CATEGORY.EQUIPO_MARCHA, label: 'Comprobar tensión de generación y frecuencia' },
 ]
 
-// Parametros cuantitativos medidos durante la visita.
+// Parametros cuantitativos medidos durante la visita. Orden = orden de
+// renderizado en el formulario tecnico (ver VisitParametersForm.jsx).
 export const VISIT_PARAMETER_DEFINITIONS = [
   { key: 'presion_aceite_frio', label: 'Presión de Aceite (en frío)', unit: 'bar', specMin: 2, specMax: 6 },
+  {
+    key: 'tension_alternador',
+    label: 'Tensión de Alternador de Carga de Baterías',
+    unit: 'V',
+    specByVoltage: { 12: [12, 14.5], 24: [24, 29] },
+  },
   { key: 'tension_generacion_l_n', label: 'Tensión de Generación L-N', unit: 'V', specMin: 210, specMax: 230 },
   { key: 'tension_generacion_l1_l2', label: 'Tensión de Generación L1-L2', unit: 'V' },
   { key: 'frecuencia', label: 'Frecuencia', unit: 'Hz', specMin: 49, specMax: 51 },
-  { key: 'tension_alternador', label: 'Tensión de Alternador de Carga de Baterías', unit: 'V', specMin: 12, specMax: 14.5 },
-  { key: 'numero_arranques', label: 'Número de Arranques' },
-  { key: 'horas_operacion', label: 'Horas de Operación', unit: 'Hs' },
   { key: 'presion_aceite_caliente', label: 'Presión de Aceite en Caliente', unit: 'bar', specMin: 2, specMax: 6 },
-  { key: 'temperatura_agua', label: 'Temperatura del Agua', unit: '°C', specMin: 70, specMax: 95 },
+  { key: 'temperatura_agua', label: 'Temperatura del Motor', unit: '°C', specMin: 70, specMax: 95 },
+  // combustible_litros + nivel_combustible se muestran como un unico campo
+  // con selector de unidad (ver FuelParameterField.jsx) pero se siguen
+  // guardando como 2 filas independientes, sin cambios para los
+  // consumidores existentes (markVisitReceived, ParametersTable).
   { key: 'combustible_litros', label: 'Cantidad de Combustible (Litros)', unit: 'L', optional: true },
   { key: 'nivel_combustible', label: 'Nivel de Combustible', unit: '%', specMin: 20, specMax: 100 },
+  { key: 'numero_arranques', label: 'Número de Arranques' },
+  { key: 'horas_operacion', label: 'Horas de Operación', unit: 'Hs' },
+]
+
+// Un equipo de 1 bateria funciona a 12V, de 2 baterias a 24V. battery_quantity
+// es texto libre en la ficha tecnica (no select), asi que puede traer datos
+// "sucios" (ej. "2 baterias") — cualquier valor que no sea exactamente 1 o 2
+// se trata como voltaje desconocido.
+export function getBatteryVoltage(equipment) {
+  const quantity = Number(String(equipment?.battery_quantity ?? '').trim())
+  if (quantity === 1) return 12
+  if (quantity === 2) return 24
+  return null
+}
+
+// Resuelve el rango normal de un parametro/medicion segun el voltaje del
+// equipo. Si el parametro no depende del voltaje (no tiene specByVoltage),
+// devuelve su specMin/specMax estatico de siempre. Si el voltaje del equipo
+// no se puede resolver, cae al rango de 12V para no dejar el campo sin
+// ningun hint.
+export function resolveSpec(definition, equipment) {
+  if (!definition.specByVoltage) return { specMin: definition.specMin ?? null, specMax: definition.specMax ?? null }
+  const voltage = getBatteryVoltage(equipment)
+  const range = definition.specByVoltage[voltage] ?? definition.specByVoltage[12]
+  return { specMin: range[0], specMax: range[1] }
+}
+
+export function isValueOutOfSpec(value, specMin, specMax) {
+  if (value == null || value === '') return false
+  const numericValue = Number(value)
+  if (specMin != null && numericValue < specMin) return true
+  if (specMax != null && numericValue > specMax) return true
+  return false
+}
+
+export const VISIT_CHANGE_FIELD_TYPE = {
+  NUMBER: 'number',
+  SI_NO: 'si_no',
+}
+
+export const SI_NO_LABELS = { no: 'No', si: 'Sí' }
+
+// Recuadro "Cambios y Agregados" del formulario tecnico, debajo de
+// "Operaciones: Equipo en Marcha". Igual que VISIT_CHECKLIST_ITEMS, agregar
+// un campo nuevo aca no requiere migracion (se guarda en visits.changes_data,
+// jsonb) — solo los 4 campos "cambio_*" tienen equivalente en la ficha
+// tecnica del equipo (ver VISIT_CHANGE_TO_EQUIPMENT_TRACKING); los litros
+// agregados son registro informativo de la visita, sin vencimiento asociado.
+export const VISIT_CHANGES_FIELDS = [
+  { key: 'agregado_aceite_litros', label: 'Agregado de Aceite', type: VISIT_CHANGE_FIELD_TYPE.NUMBER, unit: 'Litros', defaultValue: '' },
+  {
+    key: 'agregado_liquido_refrigerante_litros',
+    label: 'Agregado de Líquido Refrigerante',
+    type: VISIT_CHANGE_FIELD_TYPE.NUMBER,
+    unit: 'Litros',
+    defaultValue: '',
+  },
+  { key: 'agregado_combustible_litros', label: 'Agregado de Combustible', type: VISIT_CHANGE_FIELD_TYPE.NUMBER, unit: 'Litros', defaultValue: '' },
+  { key: 'cambio_filtro_combustible', label: 'Cambio Filtro de Combustible', type: VISIT_CHANGE_FIELD_TYPE.SI_NO, defaultValue: 'no' },
+  { key: 'cambio_filtro_aceite', label: 'Cambio Filtro de Aceite', type: VISIT_CHANGE_FIELD_TYPE.SI_NO, defaultValue: 'no' },
+  { key: 'cambio_filtro_aire', label: 'Cambio Filtro de Aire', type: VISIT_CHANGE_FIELD_TYPE.SI_NO, defaultValue: 'no' },
+  { key: 'cambio_bateria', label: 'Cambio de Batería', type: VISIT_CHANGE_FIELD_TYPE.SI_NO, defaultValue: 'no' },
+]
+
+// Que columna de la ficha tecnica del equipo (y con cuantos años de
+// vigencia) actualiza cada "cambio_*" al recibir la visita (ver
+// markVisitReceived en src/api/visits.js) — mismo criterio +1/+2 años que ya
+// usa EquipmentHistoryPanel.jsx al editar el seguimiento a mano.
+export const VISIT_CHANGE_TO_EQUIPMENT_TRACKING = [
+  { changeKey: 'cambio_filtro_combustible', changedAtField: 'fuel_filter_changed_at', nextDueField: 'fuel_filter_next_due_at', yearsAhead: 1 },
+  { changeKey: 'cambio_filtro_aceite', changedAtField: 'oil_filter_changed_at', nextDueField: 'oil_filter_next_due_at', yearsAhead: 1 },
+  { changeKey: 'cambio_filtro_aire', changedAtField: 'air_filter_changed_at', nextDueField: 'air_filter_next_due_at', yearsAhead: 1 },
+  { changeKey: 'cambio_bateria', changedAtField: 'battery_changed_at', nextDueField: 'battery_next_due_at', yearsAhead: 2 },
 ]

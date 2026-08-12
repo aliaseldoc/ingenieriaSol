@@ -10,6 +10,7 @@ import Field from '../../components/ui/Field'
 import { useAuth } from '../../context/AuthContext'
 import { useEquipmentHistory } from '../../hooks/useEquipment'
 import { updateEquipment, deleteEquipment } from '../../api/equipment'
+import { requestDeletion } from '../../api/deletionRequests'
 import {
   SERVICE_TYPE_LABELS,
   VISIT_STATUS,
@@ -19,8 +20,9 @@ import {
   FUEL_TYPE,
   FUEL_TYPE_LABELS,
   ROLE_HOME_PATH,
+  ROLES,
 } from '../../lib/constants'
-import { formatDate, addYears, toISODateString } from '../../lib/dateUtils'
+import { formatDate, computeNextDueDate } from '../../lib/dateUtils'
 
 const STATUS_TONE = {
   [VISIT_STATUS.APROBADA]: 'success',
@@ -47,7 +49,7 @@ function DetailField({ label, value }) {
 function computeDefaultDueDate(changedAt, storedDueAt, years) {
   if (storedDueAt) return storedDueAt
   if (!changedAt) return ''
-  return toISODateString(addYears(new Date(changedAt), years))
+  return computeNextDueDate(changedAt, years)
 }
 
 function toFormValues(equipment) {
@@ -87,6 +89,21 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
   const [form, setForm] = useState(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [requestStatus, setRequestStatus] = useState('idle') // 'idle' | 'sending' | 'sent'
+  const isSupervisor = profile?.role === ROLES.SUPERVISOR
+  const isAdministrativo = profile?.role === ROLES.ADMINISTRATIVO
+
+  async function handleRequestDeletion() {
+    setRequestStatus('sending')
+    setErrorMessage('')
+    try {
+      await requestDeletion({ entityType: 'equipo', entityId: equipment.id, entityName: equipment.motor, requestedBy: profile.id })
+      setRequestStatus('sent')
+    } catch (error) {
+      setRequestStatus('idle')
+      setErrorMessage(error.message || 'No se pudo enviar la solicitud.')
+    }
+  }
 
   function startEditing() {
     setForm(toFormValues(equipment))
@@ -101,6 +118,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
   function handleClose() {
     stopEditing()
     setErrorMessage('')
+    setRequestStatus('idle')
     onClose()
   }
 
@@ -109,7 +127,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
       setForm((f) => ({
         ...f,
         [dateKey]: value,
-        [dueKey]: f[dueKey] || (value ? toISODateString(addYears(new Date(value), yearsAhead)) : f[dueKey]),
+        [dueKey]: f[dueKey] || (value ? computeNextDueDate(value, yearsAhead) : f[dueKey]),
       }))
     }
   }
@@ -158,7 +176,20 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
       ]
     : [
         { label: 'Cerrar', variant: 'secondary-outline', onClick: handleClose },
-        { label: 'Eliminar', variant: 'destructive-outline', icon: 'delete', onClick: () => setConfirmingDelete(true) },
+        ...(isSupervisor
+          ? [{ label: 'Eliminar', variant: 'destructive-outline', icon: 'delete', onClick: () => setConfirmingDelete(true) }]
+          : []),
+        ...(isAdministrativo && requestStatus !== 'sent'
+          ? [
+              {
+                label: requestStatus === 'sending' ? 'Enviando…' : 'Solicitar Eliminación',
+                variant: 'destructive-outline',
+                icon: 'delete',
+                onClick: handleRequestDeletion,
+                disabled: requestStatus === 'sending',
+              },
+            ]
+          : []),
         { label: 'Editar', variant: 'primary', icon: 'edit', onClick: startEditing },
       ]
 
@@ -245,6 +276,16 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
               variant="dot"
             />
           </div>
+          {requestStatus === 'sent' && (
+            <p className="font-body-sm text-body-sm text-tertiary-fixed-dim mb-md">
+              Solicitud enviada, a la espera de aprobación del supervisor.
+            </p>
+          )}
+          {errorMessage && !confirmingDelete && (
+            <p role="alert" className="font-body-sm text-body-sm text-error mb-md">
+              {errorMessage}
+            </p>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-md">
             <DetailField label="Cliente" value={equipment.clients?.name} />
             <DetailField label="Motor" value={equipment.motor} />

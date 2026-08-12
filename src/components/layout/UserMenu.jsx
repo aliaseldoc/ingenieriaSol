@@ -34,7 +34,7 @@ export default function UserMenu({ compact = false }) {
         onClick={() => setIsOpen((open) => !open)}
         className="flex items-center gap-sm rounded-full hover:bg-surface-variant/50 p-xs transition-colors"
       >
-        <span className="w-xl h-xl rounded-full bg-primary-fixed-dim flex items-center justify-center font-label-sm text-label-sm text-on-primary-fixed border border-outline-variant">
+        <span className="w-[4.4rem] h-[4.4rem] shrink-0 rounded-full bg-primary-fixed-dim flex items-center justify-center font-label-md text-label-md text-on-primary-fixed border border-outline-variant">
           {getInitials(profile.full_name)}
         </span>
         {!compact && (

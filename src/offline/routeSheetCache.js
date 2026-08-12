@@ -2,7 +2,7 @@
 // y el perfil del usuario, para que el tecnico pueda seguir viendo sus datos
 // sin conexion. La cola de escrituras pendientes vive en syncQueue.js.
 import { STORES, getAll, getByKey, putValue, putMany, clearStore } from './db'
-import { VISIT_STATUS, VISIT_PARAMETER_DEFINITIONS } from '../lib/constants'
+import { VISIT_STATUS, VISIT_PARAMETER_DEFINITIONS, resolveSpec } from '../lib/constants'
 
 async function getMeta(key) {
   const row = await getByKey(STORES.META, key)
@@ -20,6 +20,7 @@ export function formSnapshotToVisitColumns(formSnapshot) {
   const {
     serviceType,
     checklistData,
+    changesData,
     notes,
     faultReported,
     faultDescription,
@@ -33,6 +34,7 @@ export function formSnapshotToVisitColumns(formSnapshot) {
   return {
     service_type: serviceType,
     checklist_data: checklistData,
+    changes_data: changesData,
     notes,
     fault_reported: faultReported,
     fault_description: faultDescription,
@@ -48,18 +50,21 @@ export function formSnapshotToVisitColumns(formSnapshot) {
 // Mismo mapeo que saveVisitParameters en src/api/visits.js (objeto plano
 // {clave: valor} del formulario -> filas de visit_parameters), para
 // cachear los parametros encolados con la misma forma que devuelve la API.
-export function parameterValuesToRows(visitId, parameterValues) {
+export function parameterValuesToRows(visitId, parameterValues, equipment) {
   return VISIT_PARAMETER_DEFINITIONS.filter(
     (definition) => parameterValues[definition.key] !== '' && parameterValues[definition.key] != null
-  ).map((definition) => ({
-    visit_id: visitId,
-    metric_key: definition.key,
-    metric_label: definition.label,
-    value: Number(parameterValues[definition.key]),
-    unit: definition.unit,
-    spec_min: definition.specMin ?? null,
-    spec_max: definition.specMax ?? null,
-  }))
+  ).map((definition) => {
+    const { specMin, specMax } = resolveSpec(definition, equipment)
+    return {
+      visit_id: visitId,
+      metric_key: definition.key,
+      metric_label: definition.label,
+      value: Number(parameterValues[definition.key]),
+      unit: definition.unit,
+      spec_min: specMin,
+      spec_max: specMax,
+    }
+  })
 }
 
 export function statusColumnsForKind(kind) {
