@@ -11,6 +11,49 @@ import Spinner from '../../components/ui/Spinner'
 import ClientGroupRow from '../../features/equipmentInventory/ClientGroupRow'
 import EquipmentHistoryPanel from '../../features/equipmentInventory/EquipmentHistoryPanel'
 import { CONDITION_STATUS, CONDITION_STATUS_LABELS, FUEL_TYPE, FUEL_TYPE_LABELS } from '../../lib/constants'
+import { formatDate } from '../../lib/dateUtils'
+import { rowsToCsv, downloadCsv } from '../../lib/csv'
+
+const REPORT_HEADERS = [
+  'Cliente',
+  'Motor',
+  'Generador',
+  'N° de Serie',
+  'Condición',
+  'Horas de Uso',
+  '% de Combustible',
+  'Último Service',
+  'Cambio Filtro de Combustible',
+  'Próx. Cambio Filtro de Combustible',
+  'Cambio Filtro de Aceite',
+  'Próx. Cambio Filtro de Aceite',
+  'Cambio Filtro de Aire',
+  'Próx. Cambio Filtro de Aire',
+  'Cambio de Batería',
+  'Próx. Cambio de Batería',
+]
+
+function equipmentToReportRow(item) {
+  const dateOrEmpty = (value) => (value ? formatDate(value) : '')
+  return [
+    item.clients?.name ?? '',
+    item.motor ?? '',
+    item.generador ?? '',
+    item.serial_number ?? '',
+    CONDITION_STATUS_LABELS[item.condition_status] ?? '',
+    item.hours_of_use ?? '',
+    item.fuel_percentage != null ? `${item.fuel_percentage}%` : '',
+    dateOrEmpty(item.last_service_date),
+    dateOrEmpty(item.fuel_filter_changed_at),
+    dateOrEmpty(item.fuel_filter_next_due_at),
+    dateOrEmpty(item.oil_filter_changed_at),
+    dateOrEmpty(item.oil_filter_next_due_at),
+    dateOrEmpty(item.air_filter_changed_at),
+    dateOrEmpty(item.air_filter_next_due_at),
+    dateOrEmpty(item.battery_changed_at),
+    dateOrEmpty(item.battery_next_due_at),
+  ]
+}
 
 const EMPTY_EQUIPMENT_FORM = {
   client_id: '',
@@ -111,6 +154,15 @@ export default function EquipmentPage() {
     setEquipmentError('')
   }
 
+  function handleDownloadReport() {
+    const sorted = [...equipment].sort((a, b) => {
+      const clientCompare = (a.clients?.name ?? '').localeCompare(b.clients?.name ?? '')
+      return clientCompare !== 0 ? clientCompare : (a.motor ?? '').localeCompare(b.motor ?? '')
+    })
+    const csv = rowsToCsv(REPORT_HEADERS, sorted.map(equipmentToReportRow))
+    downloadCsv(`reporte-equipos-${new Date().toISOString().slice(0, 10)}.csv`, csv)
+  }
+
   if (loading || clientsLoading) return <Spinner label="Cargando inventario…" />
 
   return (
@@ -119,9 +171,14 @@ export default function EquipmentPage() {
         <div>
           <h1 className="font-headline-lg text-headline-lg text-on-surface mb-xs">Inventario de Equipos</h1>
         </div>
-        <Button variant="primary" icon="add" onClick={() => setShowNewEquipment(true)}>
-          Nuevo Equipo
-        </Button>
+        <div className="flex gap-sm">
+          <Button variant="secondary-outline" icon="download" onClick={handleDownloadReport}>
+            Descargar Reporte
+          </Button>
+          <Button variant="primary" icon="add" onClick={() => setShowNewEquipment(true)}>
+            Nuevo Equipo
+          </Button>
+        </div>
       </div>
 
       <Field
