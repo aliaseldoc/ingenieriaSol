@@ -92,6 +92,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
   const [requestStatus, setRequestStatus] = useState('idle') // 'idle' | 'sending' | 'sent'
   const isSupervisor = profile?.role === ROLES.SUPERVISOR
   const isAdministrativo = profile?.role === ROLES.ADMINISTRATIVO
+  const isTecnico = profile?.role === ROLES.TECNICO
 
   async function handleRequestDeletion() {
     setRequestStatus('sending')
@@ -190,7 +191,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
               },
             ]
           : []),
-        { label: 'Editar', variant: 'primary', icon: 'edit', onClick: startEditing },
+        ...(!isTecnico ? [{ label: 'Editar', variant: 'primary', icon: 'edit', onClick: startEditing }] : []),
       ]
 
   return (

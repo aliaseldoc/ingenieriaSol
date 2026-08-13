@@ -17,7 +17,7 @@ export default function ParametersTable({ parameters }) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse">
+      <table className="w-full table-fixed text-left border-collapse">
         <thead>
           <tr className="border-b border-outline-variant">
             <th className="font-label-sm text-label-sm text-on-surface-variant uppercase py-xs pr-sm">Parámetro</th>

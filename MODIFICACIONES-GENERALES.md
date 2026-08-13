@@ -60,7 +60,12 @@
 (CORREGIDA)-Los imputs Cant de combustible y nivel de combustible unificalos y que se pueda elegir la unidad "Lts" o "%"
 (CORREGIDA)-el boton guardar borrador quiero que sea un boton flotante que el usuario pueda mover por cualquier parte de la pantalla pero que siempre este presente
 	*esta bien pero por default que se cargue hacie el lado izquierdo
-(Todavia no lo verifique)-Si el imput de la ficha tecnica de cant de baterias es 1 es decir el equipo es de 12v. Si tiene 2 entonces funciona a 24v. Utilizar esta informacion para el rango de parametros normales de la visita tecnica al indicar tanto el cargador de flote como la tension de alternador de carga de baterias
+-Si el imput de la ficha tecnica de cant de baterias es 1 es decir el equipo es de 12v. Si tiene 2 entonces funciona a 24v. Utilizar esta informacion para el rango de parametros normales de la visita tecnica al indicar tanto el cargador de flote como la tension de alternador de carga de baterias
+	*Esto no esta funcionando como deseo caso de prueba:
+		-El equipo motor Cummins del cliente Hospital Mercante el campo cant de baterias = 2
+		-El equipo funciona a 24V
+		-Rango de trabajo esperado para "cargador de flote Vcc" y "Tensión de Alternador de Carga de Baterías" +/- 24V
+		-Corregi tambien las 4 ordenes de reparacion ya envidas para que los parametros indicados figuren como optimos
 (CORREGIDA)-Debajo de la seccion operaciones equipo en marcha agrega un nuevo recuadro que tenga otro form con la siguiente informacion:
 	-agregado de aceite (input cant) unidad "Litros"
 	-agregado de liquido refrigerante (input cant) unidad "Litros"
@@ -78,3 +83,5 @@ Mismo comportamiento de la informacion recibida. Al administrativo dar por recib
 (CORREGIDA)-En la vista Detalle de Visita "Detalle de equipo " se renderice arriba de "Validacion tecnica"(Actualmente estan de lado)
 	*Corrige la vista del apartado "Cambio y Agregados" los campos se ven desfasados en cada renglon ajusta a un formato tabla mejor visible
 (Todavia no lo verifique)-Este item Si el técnico elige "Lts" sin que el equipo tenga `fuel_capacity` cargado, mostrar un texto de ayuda ("Cargá el Tamaño de Tanque en la ficha técnica para calcular el %") sin bloquear el envío. Que esa accion no frene el envio del formulario. pero si que marque la leyenda que falta completar el tamaño del tanque
+-Los imputs del formulario del tecnico en version mobile  se siguen cortando, dejo una imagen en la carpeta Desing llamado errorVisualizacion para que escanees la situacion. El texto "Ok" solo se ve la letra "O" igual con el campo de cargador de flote se ve cortado y suele llevar 4 digitos
+-Agregar un boton en el informe de visita del técnico que sea ver ficha tecnica y muestre el mismo pop up que utilizamos para los demas roles incluyendo los historial de visitas

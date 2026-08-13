@@ -11,6 +11,12 @@ export async function listEquipmentWithClients() {
   return data
 }
 
+export async function getEquipmentById(equipmentId) {
+  const { data, error } = await supabase.from('equipment').select('*, clients(id, name)').eq('id', equipmentId).single()
+  if (error) throw error
+  return data
+}
+
 export async function createEquipment(equipment) {
   const { data, error } = await supabase.from('equipment').insert(equipment).select().single()
   if (error) throw error

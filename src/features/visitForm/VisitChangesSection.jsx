@@ -8,7 +8,7 @@ export default function VisitChangesSection({ changesData, onChangeField }) {
         <h3 className="font-label-md text-label-md uppercase">Cambios y Agregados</h3>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-surface-container border-b border-outline-variant">
               <th className="p-md font-label-md text-[1.6rem] text-on-surface-variant uppercase font-medium">Campo</th>

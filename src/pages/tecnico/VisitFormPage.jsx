@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useVisitDetail, useVisitParameters, useVisitEvents } from '../../hooks/useVisits'
 import { saveVisitOrQueue, getPendingWriteForVisit } from '../../offline/syncQueue'
+import { getEquipmentById } from '../../api/equipment'
 import {
   CHECKLIST_CATEGORY,
   CHECKLIST_ITEM_STATUS,
@@ -20,6 +21,7 @@ import VisitChecklistSection from '../../features/visitForm/VisitChecklistSectio
 import VisitParametersForm from '../../features/visitForm/VisitParametersForm'
 import VisitChangesSection from '../../features/visitForm/VisitChangesSection'
 import VisitObservationsSection from '../../features/visitForm/VisitObservationsSection'
+import EquipmentHistoryPanel from '../../features/equipmentInventory/EquipmentHistoryPanel'
 
 export default function VisitFormPage() {
   const { visitId } = useParams()
@@ -49,6 +51,17 @@ export default function VisitFormPage() {
   const [initialized, setInitialized] = useState(false)
   // undefined = todavia no se reviso IndexedDB; null = no hay nada pendiente.
   const [pendingWrite, setPendingWrite] = useState(undefined)
+  const [equipmentDetail, setEquipmentDetail] = useState(null)
+  const [loadingEquipmentDetail, setLoadingEquipmentDetail] = useState(false)
+
+  async function handleShowEquipmentDetail() {
+    setLoadingEquipmentDetail(true)
+    try {
+      setEquipmentDetail(await getEquipmentById(visit.equipment_id))
+    } finally {
+      setLoadingEquipmentDetail(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -168,7 +181,27 @@ export default function VisitFormPage() {
             Volver
           </Button>
         </div>
-        <VisitDetailPanel visit={visit} parameters={existingParameters ?? []} events={events ?? []} />
+        <VisitDetailPanel
+          visit={visit}
+          parameters={existingParameters ?? []}
+          events={events ?? []}
+          actions={
+            <Button
+              variant="secondary-outline"
+              icon="precision_manufacturing"
+              onClick={handleShowEquipmentDetail}
+              disabled={loadingEquipmentDetail}
+            >
+              {loadingEquipmentDetail ? 'Cargando…' : 'Ver Ficha Técnica'}
+            </Button>
+          }
+        />
+        <EquipmentHistoryPanel
+          equipment={equipmentDetail}
+          onClose={() => setEquipmentDetail(null)}
+          onUpdated={setEquipmentDetail}
+          onDeleted={() => setEquipmentDetail(null)}
+        />
       </div>
     )
   }

@@ -119,7 +119,7 @@ export default function VisitDetailPanel({ visit, parameters, events, actions })
         <div className="border border-outline-variant rounded p-md md:col-span-2">
           <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Cambios y Agregados</h3>
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full table-fixed text-left border-collapse">
               <thead>
                 <tr className="border-b border-outline-variant">
                   <th className="font-label-sm text-label-sm text-on-surface-variant uppercase py-xs pr-sm">Campo</th>
