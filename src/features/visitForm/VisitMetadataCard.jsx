@@ -1,5 +1,6 @@
 import { SERVICE_TYPE_LABELS } from '../../lib/constants'
 import { formatDate } from '../../lib/dateUtils'
+import Button from '../../components/ui/Button'
 
 function ReadOnlyField({ label, value }) {
   return (
@@ -10,7 +11,7 @@ function ReadOnlyField({ label, value }) {
   )
 }
 
-export default function VisitMetadataCard({ visit, serviceType, onChangeServiceType }) {
+export default function VisitMetadataCard({ visit, serviceType, onChangeServiceType, onShowEquipmentDetail, loadingEquipmentDetail }) {
   const ordenReparacion = visit.routeSheetId ? `ORD-${visit.routeSheetId.slice(0, 8).toUpperCase()}` : '—'
 
   return (
@@ -22,7 +23,7 @@ export default function VisitMetadataCard({ visit, serviceType, onChangeServiceT
         <ReadOnlyField label="Equipo / Motor" value={visit.equipment?.motor} />
         <ReadOnlyField label="Generador" value={visit.equipment?.generador} />
         <ReadOnlyField label="N° de Serie" value={visit.equipment?.serial_number} />
-        <div className="space-y-xs">
+        <div className="space-y-xs md:col-span-2">
           <label className="font-label-md text-label-md text-on-surface-variant uppercase">Tipo de Servicio</label>
           <select
             required
@@ -34,6 +35,17 @@ export default function VisitMetadataCard({ visit, serviceType, onChangeServiceT
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
+        </div>
+        <div className="flex items-end">
+          <Button
+            variant="secondary-outline"
+            icon="precision_manufacturing"
+            onClick={onShowEquipmentDetail}
+            disabled={loadingEquipmentDetail}
+            fullWidth
+          >
+            {loadingEquipmentDetail ? 'Cargando…' : 'Ver Ficha Técnica'}
+          </Button>
         </div>
       </div>
     </section>

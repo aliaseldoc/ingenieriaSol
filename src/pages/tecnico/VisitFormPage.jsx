@@ -276,7 +276,13 @@ export default function VisitFormPage() {
           </p>
         </div>
 
-        <VisitMetadataCard visit={visit} serviceType={serviceType} onChangeServiceType={setServiceType} />
+        <VisitMetadataCard
+          visit={visit}
+          serviceType={serviceType}
+          onChangeServiceType={setServiceType}
+          onShowEquipmentDetail={handleShowEquipmentDetail}
+          loadingEquipmentDetail={loadingEquipmentDetail}
+        />
 
         <VisitChecklistSection
           category={CHECKLIST_CATEGORY.EQUIPO_PARADO}
@@ -339,6 +345,12 @@ export default function VisitFormPage() {
       </form>
 
       <DraggableFab onClick={handleSaveDraft} disabled={saving} label="Guardar Borrador" icon="save" />
+      <EquipmentHistoryPanel
+        equipment={equipmentDetail}
+        onClose={() => setEquipmentDetail(null)}
+        onUpdated={setEquipmentDetail}
+        onDeleted={() => setEquipmentDetail(null)}
+      />
     </div>
   )
 }
