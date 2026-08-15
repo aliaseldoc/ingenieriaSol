@@ -1,11 +1,10 @@
-import { useState } from 'react'
-
 // Une combustible_litros y nivel_combustible (2 filas separadas en
 // VISIT_PARAMETER_DEFINITIONS) en un unico control con selector de unidad.
 // El tecnico carga un solo valor, en la unidad que prefiera; el otro se
-// autocompleta si se conoce el tamaño del tanque del equipo.
-export default function FuelParameterField({ litrosValue, nivelValue, onChangeLitros, onChangeNivel, tankSize }) {
-  const [unit, setUnit] = useState('porcentaje')
+// autocompleta si se conoce el tamaño del tanque del equipo. La unidad
+// elegida vive en el estado del padre (no es local) para poder persistirla:
+// el informe la usa para mostrar un solo valor, en vez de las dos filas.
+export default function FuelParameterField({ litrosValue, nivelValue, onChangeLitros, onChangeNivel, tankSize, unit, onChangeUnit }) {
   const isLitros = unit === 'litros'
   const value = isLitros ? litrosValue : nivelValue
   const showTankSizeHint = isLitros && !(tankSize > 0)
@@ -31,7 +30,7 @@ export default function FuelParameterField({ litrosValue, nivelValue, onChangeLi
       <td className="p-md text-center">
         <select
           value={unit}
-          onChange={(event) => setUnit(event.target.value)}
+          onChange={(event) => onChangeUnit(event.target.value)}
           className="bg-surface border border-outline rounded px-sm py-xs font-body-md text-body-md text-on-surface focus:border-secondary focus:border-2 focus:outline-none transition-colors"
         >
           <option value="porcentaje">%</option>

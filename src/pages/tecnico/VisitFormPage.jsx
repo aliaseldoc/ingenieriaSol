@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useVisitDetail, useVisitParameters, useVisitEvents } from '../../hooks/useVisits'
@@ -13,7 +13,6 @@ import {
   VISIT_CHANGES_FIELDS,
 } from '../../lib/constants'
 import Button from '../../components/ui/Button'
-import DraggableFab from '../../components/ui/DraggableFab'
 import Spinner from '../../components/ui/Spinner'
 import VisitDetailPanel from '../../features/visitReview/VisitDetailPanel'
 import VisitMetadataCard from '../../features/visitForm/VisitMetadataCard'
@@ -22,6 +21,8 @@ import VisitParametersForm from '../../features/visitForm/VisitParametersForm'
 import VisitChangesSection from '../../features/visitForm/VisitChangesSection'
 import VisitObservationsSection from '../../features/visitForm/VisitObservationsSection'
 import EquipmentHistoryPanel from '../../features/equipmentInventory/EquipmentHistoryPanel'
+
+const AUTOSAVE_DEBOUNCE_MS = 1500
 
 export default function VisitFormPage() {
   const { visitId } = useParams()
@@ -53,6 +54,26 @@ export default function VisitFormPage() {
   const [pendingWrite, setPendingWrite] = useState(undefined)
   const [equipmentDetail, setEquipmentDetail] = useState(null)
   const [loadingEquipmentDetail, setLoadingEquipmentDetail] = useState(false)
+  // Clave del ultimo snapshot ya persistido (server o cola offline); si el
+  // snapshot actual coincide, el autoguardado no tiene nada nuevo que hacer.
+  const lastSavedKeyRef = useRef(null)
+  const autosaveTimeoutRef = useRef(null)
+
+  const formSnapshot = {
+    serviceType,
+    checklistData,
+    changesData,
+    notes,
+    faultReported,
+    faultDescription,
+    technicianSignature,
+    technicianSignatureAt,
+    technicianSignatureName,
+    clientSignature,
+    clientSignatureAt,
+    clientSignatureName,
+  }
+  const snapshotKey = `${JSON.stringify(formSnapshot)}|${JSON.stringify(parameterValues)}`
 
   async function handleShowEquipmentDetail() {
     setLoadingEquipmentDetail(true)
@@ -170,6 +191,45 @@ export default function VisitFormPage() {
     setParameterValues((current) => ({ ...values, ...current }))
   }, [existingParameters, pendingWrite])
 
+  // Autoguardado: cada cambio en el formulario reprograma un guardado
+  // debounced. La primera vez que el formulario queda inicializado se toma
+  // ese snapshot como ya guardado (viene del servidor o de una escritura
+  // pendiente), para no autoguardar apenas se abre la visita sin cambios.
+  useEffect(() => {
+    if (!initialized || !visit || !TECHNICIAN_EDITABLE_STATUSES.includes(visit.status)) return
+    if (lastSavedKeyRef.current === null) {
+      lastSavedKeyRef.current = snapshotKey
+      return
+    }
+    if (snapshotKey === lastSavedKeyRef.current) return
+
+    autosaveTimeoutRef.current = setTimeout(async () => {
+      setSaving(true)
+      setSaveStatus(null)
+      setSaveError(null)
+      try {
+        const result = await saveVisitOrQueue({
+          visitId,
+          kind: 'draft',
+          formSnapshot,
+          parameterValues,
+          actorId: profile.id,
+          equipment: visit.equipment,
+        })
+        lastSavedKeyRef.current = snapshotKey
+        setSaveStatus(result.queued ? 'saved-offline' : 'saved-online')
+      } catch (error) {
+        setSaveStatus('error')
+        setSaveError(error)
+      } finally {
+        setSaving(false)
+      }
+    }, AUTOSAVE_DEBOUNCE_MS)
+
+    return () => clearTimeout(autosaveTimeoutRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshotKey, initialized])
+
   if (visitLoading || !visit || pendingWrite === undefined) return <Spinner label="Cargando visita…" />
 
   if (!TECHNICIAN_EDITABLE_STATUSES.includes(visit.status)) {
@@ -185,6 +245,7 @@ export default function VisitFormPage() {
           visit={visit}
           parameters={existingParameters ?? []}
           events={events ?? []}
+          actionsPosition="top"
           actions={
             <Button
               variant="secondary-outline"
@@ -206,45 +267,9 @@ export default function VisitFormPage() {
     )
   }
 
-  const formSnapshot = {
-    serviceType,
-    checklistData,
-    changesData,
-    notes,
-    faultReported,
-    faultDescription,
-    technicianSignature,
-    technicianSignatureAt,
-    technicianSignatureName,
-    clientSignature,
-    clientSignatureAt,
-    clientSignatureName,
-  }
-
-  async function handleSaveDraft() {
-    setSaving(true)
-    setSaveStatus(null)
-    setSaveError(null)
-    try {
-      const result = await saveVisitOrQueue({
-        visitId,
-        kind: 'draft',
-        formSnapshot,
-        parameterValues,
-        actorId: profile.id,
-        equipment: visit.equipment,
-      })
-      setSaveStatus(result.queued ? 'saved-offline' : 'saved-online')
-    } catch (error) {
-      setSaveStatus('error')
-      setSaveError(error)
-    } finally {
-      setSaving(false)
-    }
-  }
-
   async function handleSubmit(event) {
     event.preventDefault()
+    if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current)
     setSaving(true)
     setSaveStatus(null)
     setSaveError(null)
@@ -291,7 +316,13 @@ export default function VisitFormPage() {
           equipment={visit.equipment}
         />
 
-        <VisitParametersForm parameterValues={parameterValues} onChangeParameter={handleChangeParameter} equipment={visit.equipment} />
+        <VisitParametersForm
+          parameterValues={parameterValues}
+          onChangeParameter={handleChangeParameter}
+          equipment={visit.equipment}
+          fuelUnit={checklistData.combustible_unidad ?? 'porcentaje'}
+          onChangeFuelUnit={(value) => setChecklistData((data) => ({ ...data, combustible_unidad: value }))}
+        />
 
         <VisitChecklistSection
           category={CHECKLIST_CATEGORY.EQUIPO_MARCHA}
@@ -323,15 +354,16 @@ export default function VisitFormPage() {
         />
 
         <div className="flex flex-col items-end gap-sm">
-          {saveStatus === 'saved-online' && (
-            <p className="font-body-sm text-body-sm text-on-surface-variant">Borrador guardado.</p>
+          {saving && <p className="font-body-sm text-body-sm text-on-surface-variant">Guardando…</p>}
+          {!saving && saveStatus === 'saved-online' && (
+            <p className="font-body-sm text-body-sm text-on-surface-variant">Guardado automáticamente.</p>
           )}
-          {saveStatus === 'saved-offline' && (
+          {!saving && saveStatus === 'saved-offline' && (
             <p className="font-body-sm text-body-sm text-warning">
               Guardado en el dispositivo. Se enviará cuando vuelvas a tener conexión.
             </p>
           )}
-          {saveStatus === 'error' && (
+          {!saving && saveStatus === 'error' && (
             <p className="font-body-sm text-body-sm text-error">
               No se pudo guardar: {saveError?.message ?? 'error desconocido'}.
             </p>
@@ -344,7 +376,6 @@ export default function VisitFormPage() {
         </div>
       </form>
 
-      <DraggableFab onClick={handleSaveDraft} disabled={saving} label="Guardar Borrador" icon="save" />
       <EquipmentHistoryPanel
         equipment={equipmentDetail}
         onClose={() => setEquipmentDetail(null)}

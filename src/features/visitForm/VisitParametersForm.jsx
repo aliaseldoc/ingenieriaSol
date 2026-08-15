@@ -1,7 +1,7 @@
 import { VISIT_PARAMETER_DEFINITIONS, resolveSpec, isValueOutOfSpec } from '../../lib/constants'
 import FuelParameterField from './FuelParameterField'
 
-export default function VisitParametersForm({ parameterValues, onChangeParameter, equipment }) {
+export default function VisitParametersForm({ parameterValues, onChangeParameter, equipment, fuelUnit, onChangeFuelUnit }) {
   return (
     <section className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
       <div className="list-title-bar p-md flex items-center gap-sm">
@@ -29,6 +29,8 @@ export default function VisitParametersForm({ parameterValues, onChangeParameter
                     onChangeLitros={(value) => onChangeParameter('combustible_litros', value)}
                     onChangeNivel={(value) => onChangeParameter('nivel_combustible', value)}
                     tankSize={Number(equipment?.fuel_capacity)}
+                    unit={fuelUnit}
+                    onChangeUnit={onChangeFuelUnit}
                   />
                 )
               }

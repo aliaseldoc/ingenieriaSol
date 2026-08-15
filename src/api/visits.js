@@ -3,7 +3,8 @@ import { VISIT_STATUS, VISIT_PARAMETER_DEFINITIONS, VISIT_CHANGE_TO_EQUIPMENT_TR
 import { computeNextDueDate } from '../lib/dateUtils'
 import { logVisitEvent } from './visitEvents'
 
-const ROUTE_SHEET_EMBED = 'route_sheets(id, vehicle_id, scheduled_time_start, vehicles(plate), route_sheet_technicians(profiles(id, full_name)))'
+const ROUTE_SHEET_EMBED =
+  'route_sheets(id, vehicle_id, scheduled_time_start, visit_occurrence, vehicles(plate), route_sheet_technicians(profiles(id, full_name)))'
 const VISIT_SELECT = `*, equipment(internal_code, motor, generador, client_id, fuel_capacity, battery_quantity, clients(name)), ${ROUTE_SHEET_EMBED}`
 
 // La asignacion de tecnicos/vehiculo vive en la hoja de ruta, no en la
@@ -32,7 +33,7 @@ export async function listVisitsForTechnician(technicianId) {
   const { data, error } = await supabase
     .from('visits')
     .select(
-      `*, equipment(internal_code, motor, generador, client_id, fuel_capacity, battery_quantity, clients(name)), route_sheets!inner(id, vehicle_id, scheduled_time_start, vehicles(plate), route_sheet_technicians!inner(profiles(id, full_name)))`
+      `*, equipment(internal_code, motor, generador, client_id, fuel_capacity, battery_quantity, clients(name)), route_sheets!inner(id, vehicle_id, scheduled_time_start, visit_occurrence, vehicles(plate), route_sheet_technicians!inner(profiles(id, full_name)))`
     )
     .eq('route_sheets.route_sheet_technicians.technician_id', technicianId)
     .order('scheduled_date', { ascending: true })

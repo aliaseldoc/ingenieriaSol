@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useVisitsPendingReview, useVisitParameters, useVisitEvents } from '../../hooks/useVisits'
 import { approveVisit, rejectVisit, requestVisitRevision } from '../../api/visits'
+import { sendVisitResultsEmail } from '../../api/notifications'
+import { logVisitEvent } from '../../api/visitEvents'
+import { VISIT_STATUS, VISIT_EVENT_RESULTADOS_ENVIADOS } from '../../lib/constants'
 import VisitReviewQueue from '../../features/visitReview/VisitReviewQueue'
 import VisitDetailPanel from '../../features/visitReview/VisitDetailPanel'
 import DeletionRequestsQueue from '../../features/validation/DeletionRequestsQueue'
@@ -16,10 +19,23 @@ export default function ValidationPage() {
   const [selectedId, setSelectedId] = useState(null)
   const [pendingAction, setPendingAction] = useState(null) // 'rechazar' | 'revision'
   const [reasonText, setReasonText] = useState('')
+  // La visita aprobada sale de la lista de "pendientes" al recargar; se
+  // guarda una copia local para poder seguir mostrando su panel (y el boton
+  // de enviar resultados) sin navegar a otra pantalla.
+  const [approvedVisit, setApprovedVisit] = useState(null)
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [emailMessage, setEmailMessage] = useState(null)
 
-  const selectedVisit = visits?.find((visit) => visit.id === selectedId) ?? null
+  const selectedVisit = approvedVisit ?? visits?.find((visit) => visit.id === selectedId) ?? null
   const { data: parameters } = useVisitParameters(selectedId)
-  const { data: events } = useVisitEvents(selectedId)
+  const { data: events, reload: reloadEvents } = useVisitEvents(selectedId)
+  const resultsSentCount = (events ?? []).filter((event) => event.event_type === VISIT_EVENT_RESULTADOS_ENVIADOS).length
+
+  function handleSelectVisit(id) {
+    setApprovedVisit(null)
+    setEmailMessage(null)
+    setSelectedId(id)
+  }
 
   function closeModal() {
     setPendingAction(null)
@@ -28,8 +44,23 @@ export default function ValidationPage() {
 
   async function handleApprove() {
     await approveVisit(selectedVisit.id, profile.id, null)
-    setSelectedId(null)
+    setApprovedVisit({ ...selectedVisit, status: VISIT_STATUS.APROBADA })
     reload()
+  }
+
+  async function handleSendResults() {
+    setSendingEmail(true)
+    setEmailMessage(null)
+    try {
+      const result = await sendVisitResultsEmail(selectedVisit.id)
+      setEmailMessage({ error: false, text: `Resultados enviados a ${result.sentTo.join(', ')}.` })
+      await logVisitEvent(selectedVisit.id, VISIT_EVENT_RESULTADOS_ENVIADOS, profile.id)
+      reloadEvents()
+    } catch (error) {
+      setEmailMessage({ error: true, text: error.message || 'No se pudieron enviar los resultados.' })
+    } finally {
+      setSendingEmail(false)
+    }
   }
 
   async function handleConfirmReasonAction() {
@@ -54,7 +85,7 @@ export default function ValidationPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-md">
         <div className="lg:col-span-4 flex flex-col gap-md">
-          <VisitReviewQueue visits={visits ?? []} selectedId={selectedId} onSelect={setSelectedId} />
+          <VisitReviewQueue visits={visits ?? []} selectedId={selectedId} onSelect={handleSelectVisit} />
           <DeletionRequestsQueue />
         </div>
         <div className="lg:col-span-8">
@@ -65,15 +96,28 @@ export default function ValidationPage() {
               events={events ?? []}
               actions={
                 <>
-                  <Button variant="destructive-outline" icon="close" onClick={() => setPendingAction('rechazar')}>
-                    Rechazar
-                  </Button>
-                  <Button variant="secondary-outline" icon="edit_note" onClick={() => setPendingAction('revision')}>
-                    Solicitar Revisión
-                  </Button>
-                  <Button variant="primary" icon="check" onClick={handleApprove}>
-                    Aprobar
-                  </Button>
+                  {emailMessage && (
+                    <p role="alert" className={`w-full font-body-sm text-body-sm ${emailMessage.error ? 'text-error' : 'text-tertiary-fixed-dim'}`}>
+                      {emailMessage.text}
+                    </p>
+                  )}
+                  {approvedVisit ? (
+                    <Button variant="secondary-outline" icon="mail" disabled={sendingEmail} onClick={handleSendResults}>
+                      {sendingEmail ? 'Enviando…' : `Enviar Resultados por Mail${resultsSentCount > 0 ? ` (${resultsSentCount})` : ''}`}
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="destructive-outline" icon="close" onClick={() => setPendingAction('rechazar')}>
+                        Rechazar
+                      </Button>
+                      <Button variant="secondary-outline" icon="edit_note" onClick={() => setPendingAction('revision')}>
+                        Solicitar Revisión
+                      </Button>
+                      <Button variant="primary" icon="check" onClick={handleApprove}>
+                        Aprobar
+                      </Button>
+                    </>
+                  )}
                 </>
               }
             />

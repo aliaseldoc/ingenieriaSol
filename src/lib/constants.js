@@ -34,6 +34,13 @@ export const VISIT_STATUS_LABELS = {
   [VISIT_STATUS.RECHAZADA]: 'Rechazada',
 }
 
+// visit_events tambien registra hitos que no son un cambio de status (ver
+// Timeline en VisitDetailPanel.jsx): la clave de este evento puntual.
+export const VISIT_EVENT_RESULTADOS_ENVIADOS = 'resultados_enviados'
+export const VISIT_EVENT_EXTRA_LABELS = {
+  [VISIT_EVENT_RESULTADOS_ENVIADOS]: 'Resultados enviados por mail',
+}
+
 // Estados de una visita que el tecnico todavia puede editar.
 export const TECHNICIAN_EDITABLE_STATUSES = [
   VISIT_STATUS.PLANIFICADA,

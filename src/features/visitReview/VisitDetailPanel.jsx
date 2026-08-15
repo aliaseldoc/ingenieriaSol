@@ -1,8 +1,12 @@
 import {
   CHECKLIST_ITEM_STATUS,
+  SERVICE_TYPE,
   SERVICE_TYPE_LABELS,
+  VISIT_OCCURRENCE_LABELS,
   VISIT_CHECKLIST_ITEMS,
   VISIT_STATUS_LABELS,
+  VISIT_EVENT_EXTRA_LABELS,
+  VISIT_EVENT_RESULTADOS_ENVIADOS,
   VISIT_CHANGES_FIELDS,
   VISIT_CHANGE_FIELD_TYPE,
   SI_NO_LABELS,
@@ -40,10 +44,10 @@ function SignatureDisplay({ label, signature, signatureName, signatureAt }) {
   )
 }
 
-export default function VisitDetailPanel({ visit, parameters, events, actions }) {
+export default function VisitDetailPanel({ visit, parameters, events, actions, actionsPosition = 'bottom' }) {
   const timelineEvents = events.map((event) => ({
     id: event.id,
-    label: VISIT_STATUS_LABELS[event.event_type] ?? event.event_type,
+    label: VISIT_STATUS_LABELS[event.event_type] ?? VISIT_EVENT_EXTRA_LABELS[event.event_type] ?? event.event_type,
     actor: event.profiles?.full_name ?? 'Sistema',
     timestamp: formatDateTime(event.created_at),
     notes: event.notes,
@@ -53,13 +57,15 @@ export default function VisitDetailPanel({ visit, parameters, events, actions })
     <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
       <div className="p-md border-b border-outline-variant flex items-center justify-between flex-wrap gap-sm">
         <div>
-          <h2 className="font-headline-md text-headline-md text-on-surface">{visit.equipment?.motor}</h2>
-          <p className="font-body-sm text-body-sm text-on-surface-variant">{visit.equipment?.clients?.name}</p>
+          <h2 className="font-headline-md text-headline-md text-on-surface">{visit.equipment?.clients?.name}</h2>
+          <h3 className="font-body-sm text-body-sm text-on-surface-variant font-normal">{visit.equipment?.motor}</h3>
         </div>
         <StatusChip label={VISIT_STATUS_LABELS[visit.status]} tone="warning" />
       </div>
 
-      {actions && <div className="p-md border-b border-outline-variant flex flex-wrap gap-sm">{actions}</div>}
+      {actions && actionsPosition === 'top' && (
+        <div className="p-md border-b border-outline-variant flex flex-wrap gap-sm">{actions}</div>
+      )}
 
       <div className="p-md grid grid-cols-1 md:grid-cols-2 gap-md">
         <div className="border border-outline-variant rounded p-md md:col-span-2">
@@ -68,7 +74,12 @@ export default function VisitDetailPanel({ visit, parameters, events, actions })
             <dt className="text-on-surface-variant">Motor / Generador</dt>
             <dd className="text-on-surface">{visit.equipment?.motor} {visit.equipment?.generador}</dd>
             <dt className="text-on-surface-variant">Tipo de servicio</dt>
-            <dd className="text-on-surface">{SERVICE_TYPE_LABELS[visit.service_type] ?? '—'}</dd>
+            <dd className="text-on-surface">
+              {SERVICE_TYPE_LABELS[visit.service_type] ?? '—'}
+              {visit.service_type === SERVICE_TYPE.PREVENTIVO && visit.route_sheets?.visit_occurrence && (
+                <> ({VISIT_OCCURRENCE_LABELS[visit.route_sheets.visit_occurrence]})</>
+              )}
+            </dd>
             <dt className="text-on-surface-variant">Técnico(s)</dt>
             <dd className="text-on-surface">
               {visit.technicians?.length > 0 ? visit.technicians.map((t) => t.full_name).join(', ') : '—'}
@@ -113,7 +124,7 @@ export default function VisitDetailPanel({ visit, parameters, events, actions })
 
         <div className="border border-outline-variant rounded p-md md:col-span-2">
           <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Parámetros Registrados</h3>
-          <ParametersTable parameters={parameters} />
+          <ParametersTable parameters={parameters} fuelUnit={visit.checklist_data?.combustible_unidad ?? 'porcentaje'} />
         </div>
 
         <div className="border border-outline-variant rounded p-md md:col-span-2">
@@ -185,6 +196,10 @@ export default function VisitDetailPanel({ visit, parameters, events, actions })
           <Timeline events={timelineEvents} />
         </div>
       </div>
+
+      {actions && actionsPosition === 'bottom' && (
+        <div className="p-md border-t border-outline-variant flex flex-wrap gap-sm">{actions}</div>
+      )}
     </div>
   )
 }

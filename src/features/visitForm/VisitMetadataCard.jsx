@@ -1,4 +1,4 @@
-import { SERVICE_TYPE_LABELS } from '../../lib/constants'
+import { SERVICE_TYPE, SERVICE_TYPE_LABELS, VISIT_OCCURRENCE_LABELS } from '../../lib/constants'
 import { formatDate } from '../../lib/dateUtils'
 import Button from '../../components/ui/Button'
 
@@ -35,6 +35,11 @@ export default function VisitMetadataCard({ visit, serviceType, onChangeServiceT
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
+          {serviceType === SERVICE_TYPE.PREVENTIVO && visit.route_sheets?.visit_occurrence && (
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              {VISIT_OCCURRENCE_LABELS[visit.route_sheets.visit_occurrence]}
+            </p>
+          )}
         </div>
         <div className="flex items-end">
           <Button
