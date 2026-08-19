@@ -10,7 +10,7 @@ const HIDDEN_FUEL_KEY_BY_UNIT = { litros: 'nivel_combustible', porcentaje: 'comb
 
 export default function ParametersTable({ parameters, fuelUnit = 'porcentaje' }) {
   if (parameters.length === 0) {
-    return <p className="font-body-sm text-body-sm text-on-surface-variant">Sin parámetros registrados.</p>
+    return <p className="font-body-md text-body-md text-on-surface-variant">Sin parámetros registrados.</p>
   }
 
   const hiddenFuelKey = HIDDEN_FUEL_KEY_BY_UNIT[fuelUnit]
@@ -28,9 +28,9 @@ export default function ParametersTable({ parameters, fuelUnit = 'porcentaje' })
       <table className="w-full table-fixed text-left border-collapse">
         <thead>
           <tr className="border-b border-outline-variant">
-            <th className="font-label-sm text-label-sm text-on-surface-variant uppercase py-xs pr-sm">Parámetro</th>
-            <th className="font-label-sm text-label-sm text-on-surface-variant uppercase py-xs pr-sm">Valor</th>
-            <th className="font-label-sm text-label-sm text-on-surface-variant uppercase py-xs">Estado</th>
+            <th className="font-label-md text-label-md text-on-surface-variant uppercase py-xs pr-sm">Parámetro</th>
+            <th className="font-label-md text-label-md text-on-surface-variant uppercase py-xs pr-sm">Valor</th>
+            <th className="font-label-md text-label-md text-on-surface-variant uppercase py-xs">Estado</th>
           </tr>
         </thead>
         <tbody>
@@ -38,8 +38,8 @@ export default function ParametersTable({ parameters, fuelUnit = 'porcentaje' })
             const outOfSpec = isValueOutOfSpec(parameter.value, parameter.spec_min, parameter.spec_max)
             return (
               <tr key={parameter.id} className="border-b border-outline-variant/50">
-                <td className="font-body-sm text-body-sm text-on-surface py-xs pr-sm">{parameter.metric_label}</td>
-                <td className={`font-label-md text-label-md py-xs pr-sm ${outOfSpec ? 'text-error' : 'text-on-surface'}`}>
+                <td className="font-body-md text-body-md text-on-surface py-xs pr-sm">{parameter.metric_label}</td>
+                <td className={`font-body-lg text-body-lg py-xs pr-sm ${outOfSpec ? 'text-error' : 'text-on-surface'}`}>
                   {parameter.value ?? '—'} {parameter.unit ?? ''}
                 </td>
                 <td className="py-xs">

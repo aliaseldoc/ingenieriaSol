@@ -1,5 +1,5 @@
 import { VISIT_STATUS } from './constants'
-import { daysBetween } from './dateUtils'
+import { daysBetween, parseDateInput } from './dateUtils'
 
 // Una visita ya tiene datos reales del tecnico (fue enviada o esta en un
 // estado posterior a planificada/borrador) y por lo tanto no se puede
@@ -23,7 +23,7 @@ export function getRouteSheetColor(routeSheet, today = new Date()) {
   if (visits.length > 0 && visits.every((visit) => visit.status === VISIT_STATUS.APROBADA)) return 'verde'
 
   const isOverdue =
-    hasTechnicians && routeSheet.scheduled_date && daysBetween(today, new Date(routeSheet.scheduled_date)) < 0
+    hasTechnicians && routeSheet.scheduled_date && daysBetween(today, parseDateInput(routeSheet.scheduled_date)) < 0
   const hasUnsubmittedVisit = visits.some((visit) => !isVisitLocked(visit))
   if (isOverdue && hasUnsubmittedVisit) return 'rojo'
 

@@ -28,17 +28,17 @@ const CHECKLIST_STATUS_ICON = {
 function SignatureDisplay({ label, signature, signatureName, signatureAt }) {
   return (
     <div>
-      <h4 className="font-label-md text-label-md text-on-surface-variant uppercase mb-sm">{label}</h4>
+      <h4 className="font-body-lg text-body-lg text-on-surface-variant uppercase mb-sm">{label}</h4>
       {signature ? (
         <>
           <img src={signature} alt={label} className="w-full h-[15rem] object-contain border border-outline-variant rounded bg-white" />
-          <p className="font-body-sm text-body-sm text-on-surface text-center mt-xs">{signatureName || 'Sin aclaración'}</p>
+          <p className="font-body-md text-body-md text-on-surface text-center mt-xs">{signatureName || 'Sin aclaración'}</p>
           {signatureAt && (
-            <p className="font-label-sm text-label-sm text-on-surface-variant text-center">{formatDateTime(signatureAt)}</p>
+            <p className="font-label-md text-label-md text-on-surface-variant text-center">{formatDateTime(signatureAt)}</p>
           )}
         </>
       ) : (
-        <p className="font-body-sm text-body-sm text-on-surface-variant">Sin firma registrada.</p>
+        <p className="font-body-md text-body-md text-on-surface-variant">Sin firma registrada.</p>
       )}
     </div>
   )
@@ -58,7 +58,7 @@ export default function VisitDetailPanel({ visit, parameters, events, actions, a
       <div className="p-md border-b border-outline-variant flex items-center justify-between flex-wrap gap-sm">
         <div>
           <h2 className="font-headline-md text-headline-md text-on-surface">{visit.equipment?.clients?.name}</h2>
-          <h3 className="font-body-sm text-body-sm text-on-surface-variant font-normal">{visit.equipment?.motor}</h3>
+          <h3 className="font-body-md text-body-md text-on-surface-variant font-normal">{visit.equipment?.motor}</h3>
         </div>
         <StatusChip label={VISIT_STATUS_LABELS[visit.status]} tone="warning" />
       </div>
@@ -69,8 +69,8 @@ export default function VisitDetailPanel({ visit, parameters, events, actions, a
 
       <div className="p-md grid grid-cols-1 md:grid-cols-2 gap-md">
         <div className="border border-outline-variant rounded p-md md:col-span-2">
-          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Detalles del Equipo</h3>
-          <dl className="grid grid-cols-2 gap-y-xs font-body-sm text-body-sm">
+          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-body-lg text-body-lg uppercase px-md py-sm rounded-t">Detalles del Equipo</h3>
+          <dl className="grid grid-cols-2 gap-y-xs font-body-md text-body-md">
             <dt className="text-on-surface-variant">Motor / Generador</dt>
             <dd className="text-on-surface">{visit.equipment?.motor} {visit.equipment?.generador}</dd>
             <dt className="text-on-surface-variant">Tipo de servicio</dt>
@@ -92,7 +92,7 @@ export default function VisitDetailPanel({ visit, parameters, events, actions, a
         </div>
 
         <div className="border border-outline-variant rounded p-md md:col-span-2">
-          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Validación Técnica</h3>
+          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-body-lg text-body-lg uppercase px-md py-sm rounded-t">Validación Técnica</h3>
           <ul className="space-y-xs">
             {VISIT_CHECKLIST_ITEMS.map((item) => {
               const status = visit.checklist_data?.[item.key]
@@ -104,18 +104,18 @@ export default function VisitDetailPanel({ visit, parameters, events, actions, a
               const { specMin, specMax } = item.measurement ? resolveSpec(item.measurement, visit.equipment) : {}
               const outOfSpec = item.measurement ? isValueOutOfSpec(measurementValue, specMin, specMax) : false
               return (
-                <li key={item.key} className="flex items-center gap-xs font-body-sm text-body-sm text-on-surface">
+                <li key={item.key} className="flex items-center gap-xs font-body-md text-body-md text-on-surface">
                   <span className={`material-symbols-outlined text-[1.6rem] ${display?.className ?? 'text-on-surface-variant'}`}>
                     {display?.icon ?? 'help'}
                   </span>
                   <span>{item.label}</span>
                   {measurementValue != null && measurementValue !== '' && (
-                    <span className={`font-label-sm text-label-sm ${outOfSpec ? 'text-error' : 'text-on-surface-variant'}`}>
+                    <span className={`font-label-md text-label-md ${outOfSpec ? 'text-error' : 'text-on-surface-variant'}`}>
                       ({measurementValue} {item.measurement.unit}
                       {outOfSpec ? ' · fuera de rango' : ''})
                     </span>
                   )}
-                  {!display && <span className="font-label-sm text-label-sm text-on-surface-variant">(sin registrar)</span>}
+                  {!display && <span className="font-label-md text-label-md text-on-surface-variant">(sin registrar)</span>}
                 </li>
               )
             })}
@@ -123,18 +123,18 @@ export default function VisitDetailPanel({ visit, parameters, events, actions, a
         </div>
 
         <div className="border border-outline-variant rounded p-md md:col-span-2">
-          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Parámetros Registrados</h3>
+          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-body-lg text-body-lg uppercase px-md py-sm rounded-t">Parámetros Registrados</h3>
           <ParametersTable parameters={parameters} fuelUnit={visit.checklist_data?.combustible_unidad ?? 'porcentaje'} />
         </div>
 
         <div className="border border-outline-variant rounded p-md md:col-span-2">
-          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Cambios y Agregados</h3>
+          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-body-lg text-body-lg uppercase px-md py-sm rounded-t">Cambios y Agregados</h3>
           <div className="overflow-x-auto">
             <table className="w-full table-fixed text-left border-collapse">
               <thead>
                 <tr className="border-b border-outline-variant">
-                  <th className="font-label-sm text-label-sm text-on-surface-variant uppercase py-xs pr-sm">Campo</th>
-                  <th className="font-label-sm text-label-sm text-on-surface-variant uppercase py-xs">Valor</th>
+                  <th className="font-label-md text-label-md text-on-surface-variant uppercase py-xs pr-sm">Campo</th>
+                  <th className="font-label-md text-label-md text-on-surface-variant uppercase py-xs">Valor</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,8 +148,8 @@ export default function VisitDetailPanel({ visit, parameters, events, actions, a
                         : '—'
                   return (
                     <tr key={field.key} className="border-b border-outline-variant/50">
-                      <td className="font-body-sm text-body-sm text-on-surface-variant py-xs pr-sm">{field.label}</td>
-                      <td className="font-body-sm text-body-sm text-on-surface py-xs">{display}</td>
+                      <td className="font-body-md text-body-md text-on-surface-variant py-xs pr-sm">{field.label}</td>
+                      <td className="font-body-md text-body-md text-on-surface py-xs">{display}</td>
                     </tr>
                   )
                 })}
@@ -160,21 +160,21 @@ export default function VisitDetailPanel({ visit, parameters, events, actions, a
 
         {visit.fault_reported && (
           <div className="border border-error rounded p-md md:col-span-2 bg-error-container/30">
-            <h3 className="font-label-md text-label-md text-on-error-container uppercase mb-sm flex items-center gap-xs">
+            <h3 className="font-body-lg text-body-lg text-on-error-container uppercase mb-sm flex items-center gap-xs">
               <span className="material-symbols-outlined text-[1.8rem]">warning</span>
               Falla Reportada
             </h3>
-            <p className="font-body-sm text-body-sm text-on-surface">{visit.fault_description}</p>
+            <p className="font-body-md text-body-md text-on-surface">{visit.fault_description}</p>
           </div>
         )}
 
         <div className="border border-outline-variant rounded p-md md:col-span-2">
-          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Notas del Técnico</h3>
-          <p className="font-body-sm text-body-sm text-on-surface whitespace-pre-wrap">{visit.notes || 'Sin notas.'}</p>
+          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-body-lg text-body-lg uppercase px-md py-sm rounded-t">Notas del Técnico</h3>
+          <p className="font-body-md text-body-md text-on-surface whitespace-pre-wrap">{visit.notes || 'Sin notas.'}</p>
         </div>
 
         <div className="border border-outline-variant rounded p-md md:col-span-2">
-          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Firmas</h3>
+          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-body-lg text-body-lg uppercase px-md py-sm rounded-t">Firmas</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
             <SignatureDisplay
               label="Firma Técnico Responsable"
@@ -192,7 +192,7 @@ export default function VisitDetailPanel({ visit, parameters, events, actions, a
         </div>
 
         <div className="border border-outline-variant rounded p-md md:col-span-2">
-          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-label-md text-label-md uppercase px-md py-sm rounded-t">Historial</h3>
+          <h3 className="list-title-bar -mx-md -mt-md mb-sm font-body-lg text-body-lg uppercase px-md py-sm rounded-t">Historial</h3>
           <Timeline events={timelineEvents} />
         </div>
       </div>

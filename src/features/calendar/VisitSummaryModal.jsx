@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import Modal from '../../components/ui/Modal'
 import ConfirmModal from '../../components/ui/ConfirmModal'
 import StatusChip from '../../components/ui/StatusChip'
-import { SERVICE_TYPE, SERVICE_TYPE_LABELS, VISIT_OCCURRENCE_LABELS, VISIT_STATUS, VISIT_STATUS_LABELS } from '../../lib/constants'
+import { ROLE_HOME_PATH, SERVICE_TYPE, SERVICE_TYPE_LABELS, VISIT_OCCURRENCE_LABELS, VISIT_STATUS, VISIT_STATUS_LABELS } from '../../lib/constants'
 import { formatDate } from '../../lib/dateUtils'
 import { sendVisitNotificationEmail } from '../../api/notifications'
 
@@ -14,6 +16,8 @@ const STATUS_TONE = {
 }
 
 export default function VisitSummaryModal({ routeSheet, onClose, onAssign = null, onEdit = null }) {
+  const navigate = useNavigate()
+  const { profile } = useAuth()
   const visits = routeSheet?.visits ?? []
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailMessage, setEmailMessage] = useState(null)
@@ -126,12 +130,21 @@ export default function VisitSummaryModal({ routeSheet, onClose, onAssign = null
             </h3>
             <ul className="divide-y divide-outline-variant/50">
               {visits.map((visit) => (
-                <li key={visit.id} className="py-sm flex items-center justify-between gap-sm">
-                  <div>
-                    <p className="font-label-md text-label-md text-on-surface">{visit.equipment?.motor}</p>
-                    <p className="font-body-sm text-body-sm text-on-surface-variant">{visit.equipment?.clients?.name}</p>
-                  </div>
-                  <StatusChip label={VISIT_STATUS_LABELS[visit.status]} tone={STATUS_TONE[visit.status] ?? 'neutral'} variant="tag" />
+                <li key={visit.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose()
+                      navigate(`${ROLE_HOME_PATH[profile.role]}/visita/${visit.id}`)
+                    }}
+                    className="w-full py-sm flex items-center justify-between gap-sm text-left hover:brightness-95 transition-all"
+                  >
+                    <div>
+                      <p className="font-label-md text-label-md text-on-surface">{visit.equipment?.motor}</p>
+                      <p className="font-body-sm text-body-sm text-on-surface-variant">{visit.equipment?.clients?.name}</p>
+                    </div>
+                    <StatusChip label={VISIT_STATUS_LABELS[visit.status]} tone={STATUS_TONE[visit.status] ?? 'neutral'} variant="tag" />
+                  </button>
                 </li>
               ))}
             </ul>

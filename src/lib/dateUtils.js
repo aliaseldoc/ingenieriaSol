@@ -6,7 +6,7 @@ const MS_PER_DAY = 86400000
 // `new Date()` como medianoche UTC, lo que puede correr el dia en un dia
 // hacia atras en husos horarios negativos (ej. Argentina, UTC-3). Estas
 // fechas "puras" se parsean por componentes para construirlas en hora local.
-function parseDateInput(dateInput) {
+export function parseDateInput(dateInput) {
   if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
     const [year, month, day] = dateInput.split('-').map(Number)
     return new Date(year, month - 1, day)

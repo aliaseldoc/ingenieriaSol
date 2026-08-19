@@ -149,7 +149,7 @@ export const VISIT_CHECKLIST_ITEMS = [
     key: 'cargador_flote',
     category: CHECKLIST_CATEGORY.EQUIPO_PARADO,
     label: 'Cargador de flote Vcc',
-    measurement: { key: 'cargador_flote_tension', unit: 'Vcc', specByVoltage: { 12: [13.2, 13.8], 24: [26.4, 27.6] } },
+    measurement: { key: 'cargador_flote_tension', unit: 'Vcc', specByVoltage: { 12: [12.5, 14], 24: [24.5, 29] } },
   },
   { key: 'limpieza_general_sala', category: CHECKLIST_CATEGORY.EQUIPO_PARADO, label: 'Limpieza general de la sala (o de la cabina)' },
   { key: 'comprobar_presion_aceite', category: CHECKLIST_CATEGORY.EQUIPO_MARCHA, label: 'Comprobar presión de aceite' },
@@ -175,7 +175,7 @@ export const VISIT_PARAMETER_DEFINITIONS = [
   { key: 'tension_generacion_l1_l2', label: 'Tensión de Generación L1-L2', unit: 'V' },
   { key: 'frecuencia', label: 'Frecuencia', unit: 'Hz', specMin: 49, specMax: 51 },
   { key: 'presion_aceite_caliente', label: 'Presión de Aceite en Caliente', unit: 'bar', specMin: 2, specMax: 6 },
-  { key: 'temperatura_agua', label: 'Temperatura del Motor', unit: '°C', specMin: 70, specMax: 95 },
+  { key: 'temperatura_agua', label: 'Temperatura del Motor', unit: '°C', specMin: 50, specMax: 85 },
   // combustible_litros + nivel_combustible se muestran como un unico campo
   // con selector de unidad (ver FuelParameterField.jsx) pero se siguen
   // guardando como 2 filas independientes, sin cambios para los
