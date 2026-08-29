@@ -2,7 +2,7 @@
 // y el perfil del usuario, para que el tecnico pueda seguir viendo sus datos
 // sin conexion. La cola de escrituras pendientes vive en syncQueue.js.
 import { STORES, getAll, getByKey, putValue, putMany, clearStore } from './db'
-import { VISIT_STATUS, VISIT_PARAMETER_DEFINITIONS, resolveSpec } from '../lib/constants'
+import { VISIT_STATUS, VISIT_PARAMETER_DEFINITIONS, resolveSpec, resolveUnit, getPressureUnit } from '../lib/constants'
 
 async function getMeta(key) {
   const row = await getByKey(STORES.META, key)
@@ -50,17 +50,18 @@ export function formSnapshotToVisitColumns(formSnapshot) {
 // Mismo mapeo que saveVisitParameters en src/api/visits.js (objeto plano
 // {clave: valor} del formulario -> filas de visit_parameters), para
 // cachear los parametros encolados con la misma forma que devuelve la API.
-export function parameterValuesToRows(visitId, parameterValues, equipment) {
+export function parameterValuesToRows(visitId, parameterValues, equipment, checklistData) {
   return VISIT_PARAMETER_DEFINITIONS.filter(
     (definition) => parameterValues[definition.key] !== '' && parameterValues[definition.key] != null
   ).map((definition) => {
-    const { specMin, specMax } = resolveSpec(definition, equipment)
+    const pressureUnit = getPressureUnit(definition, checklistData)
+    const { specMin, specMax } = resolveSpec(definition, equipment, pressureUnit)
     return {
       visit_id: visitId,
       metric_key: definition.key,
       metric_label: definition.label,
       value: Number(parameterValues[definition.key]),
-      unit: definition.unit,
+      unit: resolveUnit(definition, pressureUnit),
       spec_min: specMin,
       spec_max: specMax,
     }

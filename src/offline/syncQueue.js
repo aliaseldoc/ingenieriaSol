@@ -46,7 +46,10 @@ export async function queueVisitSave({ visitId, kind, formSnapshot, parameterVal
   }
   await putValue(STORES.PENDING_WRITES, entry)
   await updateCachedVisit(visitId, { ...formSnapshotToVisitColumns(formSnapshot), ...statusColumnsForKind(kind) })
-  await saveVisitParametersToCache(visitId, parameterValuesToRows(visitId, parameterValues, equipment))
+  await saveVisitParametersToCache(
+    visitId,
+    parameterValuesToRows(visitId, parameterValues, equipment, formSnapshot.checklistData)
+  )
   emitChange()
   return entry
 }
@@ -79,7 +82,7 @@ export async function saveVisitOrQueue({ visitId, kind, formSnapshot, parameterV
     return { queued: true }
   }
   try {
-    await saveVisitParameters(visitId, parameterValues, equipment)
+    await saveVisitParameters(visitId, parameterValues, equipment, formSnapshot.checklistData)
     if (kind === 'submit') await submitVisitForReview(visitId, formSnapshot, actorId)
     else await saveVisitDraft(visitId, formSnapshot)
 
@@ -115,7 +118,7 @@ export async function flushPendingWrites({ onProgress } = {}) {
 
     const attemptStartedAt = new Date()
     try {
-      await saveVisitParameters(entry.visitId, entry.parameterValues, entry.equipment)
+      await saveVisitParameters(entry.visitId, entry.parameterValues, entry.equipment, entry.formSnapshot.checklistData)
       if (entry.kind === 'submit') await submitVisitForReview(entry.visitId, entry.formSnapshot, entry.actorId)
       else await saveVisitDraft(entry.visitId, entry.formSnapshot)
     } catch (error) {

@@ -11,6 +11,9 @@ import {
   TECHNICIAN_EDITABLE_STATUSES,
   VISIT_CHECKLIST_ITEMS,
   VISIT_CHANGES_FIELDS,
+  VISIT_PARAMETER_DEFINITIONS,
+  getPressureUnit,
+  getPressureUnitKey,
 } from '../../lib/constants'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
@@ -74,6 +77,15 @@ export default function VisitFormPage() {
     clientSignatureName,
   }
   const snapshotKey = `${JSON.stringify(formSnapshot)}|${JSON.stringify(parameterValues)}`
+  // Unidad elegida para cada parametro de presion, leida de checklistData con
+  // el mismo criterio que combustible_unidad: al vivir ahi entra sola en el
+  // autoguardado, en la cola offline y en el snapshot que se sincroniza.
+  const pressureUnits = Object.fromEntries(
+    VISIT_PARAMETER_DEFINITIONS.filter((definition) => definition.specByUnit).map((definition) => [
+      definition.key,
+      getPressureUnit(definition, checklistData),
+    ])
+  )
 
   async function handleShowEquipmentDetail() {
     setLoadingEquipmentDetail(true)
@@ -322,6 +334,10 @@ export default function VisitFormPage() {
           equipment={visit.equipment}
           fuelUnit={checklistData.combustible_unidad ?? 'porcentaje'}
           onChangeFuelUnit={(value) => setChecklistData((data) => ({ ...data, combustible_unidad: value }))}
+          pressureUnits={pressureUnits}
+          onChangePressureUnit={(definition, unit) =>
+            setChecklistData((data) => ({ ...data, [getPressureUnitKey(definition)]: unit }))
+          }
         />
 
         <VisitChecklistSection

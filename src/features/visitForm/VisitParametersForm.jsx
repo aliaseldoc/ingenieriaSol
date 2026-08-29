@@ -1,7 +1,16 @@
 import { VISIT_PARAMETER_DEFINITIONS, resolveSpec, isValueOutOfSpec } from '../../lib/constants'
 import FuelParameterField from './FuelParameterField'
+import PressureParameterField from './PressureParameterField'
 
-export default function VisitParametersForm({ parameterValues, onChangeParameter, equipment, fuelUnit, onChangeFuelUnit }) {
+export default function VisitParametersForm({
+  parameterValues,
+  onChangeParameter,
+  equipment,
+  fuelUnit,
+  onChangeFuelUnit,
+  pressureUnits,
+  onChangePressureUnit,
+}) {
   return (
     <section className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
       <div className="list-title-bar p-md flex items-center gap-sm">
@@ -34,6 +43,19 @@ export default function VisitParametersForm({ parameterValues, onChangeParameter
                   />
                 )
               }
+              if (definition.specByUnit) {
+                return (
+                  <PressureParameterField
+                    key={definition.key}
+                    definition={definition}
+                    value={parameterValues[definition.key]}
+                    onChangeValue={(value) => onChangeParameter(definition.key, value)}
+                    equipment={equipment}
+                    unit={pressureUnits[definition.key]}
+                    onChangeUnit={(unit) => onChangePressureUnit(definition, unit)}
+                  />
+                )
+              }
               const { specMin, specMax } = resolveSpec(definition, equipment)
               const outOfSpec = isValueOutOfSpec(parameterValues[definition.key], specMin, specMax)
               return (
@@ -48,7 +70,7 @@ export default function VisitParametersForm({ parameterValues, onChangeParameter
                       value={parameterValues[definition.key] ?? ''}
                       onChange={(event) => onChangeParameter(definition.key, event.target.value)}
                       className={`w-full bg-surface border rounded px-md py-sm font-body-lg text-body-lg focus:border-2 focus:outline-none transition-colors ${
-                        outOfSpec ? 'border-error text-error' : 'border-outline text-on-surface focus:border-secondary'
+                        outOfSpec ? 'border-2 border-error text-error' : 'border-outline text-on-surface focus:border-secondary'
                       }`}
                     />
                   </td>

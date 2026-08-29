@@ -1,5 +1,12 @@
 import { supabase } from '../lib/supabaseClient'
-import { VISIT_STATUS, VISIT_PARAMETER_DEFINITIONS, VISIT_CHANGE_TO_EQUIPMENT_TRACKING, resolveSpec } from '../lib/constants'
+import {
+  VISIT_STATUS,
+  VISIT_PARAMETER_DEFINITIONS,
+  VISIT_CHANGE_TO_EQUIPMENT_TRACKING,
+  resolveSpec,
+  resolveUnit,
+  getPressureUnit,
+} from '../lib/constants'
 import { computeNextDueDate } from '../lib/dateUtils'
 import { logVisitEvent } from './visitEvents'
 
@@ -226,22 +233,24 @@ export async function requestVisitRevision(visitId, reviewedBy, reviewNotes) {
 // Reemplaza los parametros cuantitativos de la visita por los valores actuales
 // del formulario (el conjunto de metricas es fijo, ver VISIT_PARAMETER_DEFINITIONS).
 // El rango normal (spec_min/spec_max) se resuelve segun el voltaje del
-// equipo (ver resolveSpec) y se graba como snapshot en el momento de
-// guardar, igual que el resto de la fila — no se recalcula retroactivamente
-// si el voltaje del equipo cambia despues.
-export async function saveVisitParameters(visitId, parameterValues, equipment) {
+// equipo y la unidad elegida para las presiones (ver resolveSpec) y se graba
+// como snapshot en el momento de guardar, igual que el resto de la fila — no
+// se recalcula retroactivamente si el voltaje del equipo o los rangos de
+// referencia cambian despues.
+export async function saveVisitParameters(visitId, parameterValues, equipment, checklistData) {
   const { error: deleteError } = await supabase.from('visit_parameters').delete().eq('visit_id', visitId)
   if (deleteError) throw deleteError
 
   const rows = VISIT_PARAMETER_DEFINITIONS.filter((definition) => parameterValues[definition.key] !== '' && parameterValues[definition.key] != null).map(
     (definition) => {
-      const { specMin, specMax } = resolveSpec(definition, equipment)
+      const pressureUnit = getPressureUnit(definition, checklistData)
+      const { specMin, specMax } = resolveSpec(definition, equipment, pressureUnit)
       return {
         visit_id: visitId,
         metric_key: definition.key,
         metric_label: definition.label,
         value: Number(parameterValues[definition.key]),
-        unit: definition.unit,
+        unit: resolveUnit(definition, pressureUnit),
         spec_min: specMin,
         spec_max: specMax,
       }

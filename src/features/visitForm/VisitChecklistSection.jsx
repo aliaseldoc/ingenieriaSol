@@ -34,7 +34,7 @@ function MeasurementInput({ item, checklistData, onChangeItem, currentStatus, sp
         value={checklistData[item.measurement.key] ?? ''}
         onChange={(event) => onChangeItem(item.measurement.key, event.target.value)}
         className={`flex-1 bg-surface border rounded px-md py-sm font-body-lg text-body-lg focus:border-2 focus:outline-none transition-colors ${
-          outOfSpec ? 'border-error text-error' : 'border-outline text-on-surface focus:border-secondary'
+          outOfSpec ? 'border-2 border-error text-error' : 'border-outline text-on-surface focus:border-secondary'
         }`}
       />
       <span className="font-label-sm text-label-sm text-on-surface-variant shrink-0">{item.measurement.unit}</span>

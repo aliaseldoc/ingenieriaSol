@@ -142,14 +142,14 @@ export const VISIT_CHECKLIST_ITEMS = [
     key: 'funcionamiento_precalentador',
     category: CHECKLIST_CATEGORY.EQUIPO_PARADO,
     label: 'Funcionamiento de precalentador',
-    measurement: { key: 'funcionamiento_precalentador_temp', unit: '°C' },
+    measurement: { key: 'funcionamiento_precalentador_temp', unit: '°C', specMin: 30, specMax: 40 },
     allowNoTiene: true,
   },
   {
     key: 'cargador_flote',
     category: CHECKLIST_CATEGORY.EQUIPO_PARADO,
     label: 'Cargador de flote Vcc',
-    measurement: { key: 'cargador_flote_tension', unit: 'Vcc', specByVoltage: { 12: [12.5, 14], 24: [24.5, 29] } },
+    measurement: { key: 'cargador_flote_tension', unit: 'Vcc', specByVoltage: { 12: [12, 14], 24: [25, 28] } },
   },
   { key: 'limpieza_general_sala', category: CHECKLIST_CATEGORY.EQUIPO_PARADO, label: 'Limpieza general de la sala (o de la cabina)' },
   { key: 'comprobar_presion_aceite', category: CHECKLIST_CATEGORY.EQUIPO_MARCHA, label: 'Comprobar presión de aceite' },
@@ -164,18 +164,23 @@ export const VISIT_CHECKLIST_ITEMS = [
 // Parametros cuantitativos medidos durante la visita. Orden = orden de
 // renderizado en el formulario tecnico (ver VisitParametersForm.jsx).
 export const VISIT_PARAMETER_DEFINITIONS = [
-  { key: 'presion_aceite_frio', label: 'Presión de Aceite (en frío)', unit: 'bar', specMin: 2, specMax: 6 },
+  { key: 'presion_aceite_frio', label: 'Presión de Aceite (en frío)', unit: 'bar', specByUnit: { bar: [4, 8], psi: [58, 116] } },
   {
     key: 'tension_alternador',
     label: 'Tensión de Alternador de Carga de Baterías',
     unit: 'V',
-    specByVoltage: { 12: [12, 14.5], 24: [24, 29] },
+    specByVoltage: { 12: [14, 14.8], 24: [27, 29] },
   },
-  { key: 'tension_generacion_l_n', label: 'Tensión de Generación L-N', unit: 'V', specMin: 210, specMax: 230 },
-  { key: 'tension_generacion_l1_l2', label: 'Tensión de Generación L1-L2', unit: 'V' },
-  { key: 'frecuencia', label: 'Frecuencia', unit: 'Hz', specMin: 49, specMax: 51 },
-  { key: 'presion_aceite_caliente', label: 'Presión de Aceite en Caliente', unit: 'bar', specMin: 2, specMax: 6 },
-  { key: 'temperatura_agua', label: 'Temperatura del Motor', unit: '°C', specMin: 50, specMax: 85 },
+  { key: 'tension_generacion_l_n', label: 'Tensión de Generación L-N', unit: 'V', specMin: 215, specMax: 233 },
+  { key: 'tension_generacion_l1_l2', label: 'Tensión de Generación L1-L2', unit: 'V', specMin: 375, specMax: 403 },
+  { key: 'frecuencia', label: 'Frecuencia', unit: 'Hz', specMin: 49.5, specMax: 53 },
+  {
+    key: 'presion_aceite_caliente',
+    label: 'Presión de Aceite en Caliente',
+    unit: 'bar',
+    specByUnit: { bar: [3, 6], psi: [43.5, 87] },
+  },
+  { key: 'temperatura_agua', label: 'Temperatura del Motor', unit: '°C', specMin: 55, specMax: 75 },
   // combustible_litros + nivel_combustible se muestran como un unico campo
   // con selector de unidad (ver FuelParameterField.jsx) pero se siguen
   // guardando como 2 filas independientes, sin cambios para los
@@ -185,6 +190,42 @@ export const VISIT_PARAMETER_DEFINITIONS = [
   { key: 'numero_arranques', label: 'Número de Arranques' },
   { key: 'horas_operacion', label: 'Horas de Operación', unit: 'Hs' },
 ]
+
+// Las presiones de aceite se pueden cargar en bar o en psi, segun lo que
+// marque el manometro del equipo. El valor se guarda tal cual lo cargo el
+// tecnico, junto con la unidad elegida y el rango normal expresado en esa
+// misma unidad — asi la revision, el detalle y el mail al cliente leen la
+// fila de visit_parameters sin tener que convertir nada.
+export const PRESSURE_UNIT = {
+  BAR: 'bar',
+  PSI: 'psi',
+}
+
+const BAR_TO_PSI = 14.5038
+
+// La unidad elegida vive en checklist_data, con el mismo criterio que
+// combustible_unidad (ver FuelParameterField.jsx).
+export function getPressureUnitKey(definition) {
+  return `${definition.key}_unidad`
+}
+
+export function getPressureUnit(definition, checklistData) {
+  return checklistData?.[getPressureUnitKey(definition)] ?? PRESSURE_UNIT.BAR
+}
+
+// Unidad con la que se graba la fila: la elegida por el tecnico si el
+// parametro admite varias, la fija de la definicion si no.
+export function resolveUnit(definition, pressureUnit) {
+  return definition.specByUnit ? pressureUnit : definition.unit
+}
+
+export function convertPressure(value, fromUnit, toUnit) {
+  if (value === '' || value == null || fromUnit === toUnit) return value
+  const numericValue = Number(value)
+  if (Number.isNaN(numericValue)) return value
+  const converted = toUnit === PRESSURE_UNIT.PSI ? numericValue * BAR_TO_PSI : numericValue / BAR_TO_PSI
+  return String(Math.round(converted * 10) / 10)
+}
 
 // Un equipo de 1 bateria funciona a 12V, de 2 baterias a 24V. battery_quantity
 // es texto libre en la ficha tecnica (no select), asi que puede traer datos
@@ -197,12 +238,16 @@ export function getBatteryVoltage(equipment) {
   return null
 }
 
-// Resuelve el rango normal de un parametro/medicion segun el voltaje del
-// equipo. Si el parametro no depende del voltaje (no tiene specByVoltage),
-// devuelve su specMin/specMax estatico de siempre. Si el voltaje del equipo
-// no se puede resolver, cae al rango de 12V para no dejar el campo sin
-// ningun hint.
-export function resolveSpec(definition, equipment) {
+// Resuelve el rango normal de un parametro/medicion: expresado en la unidad
+// elegida si depende de ella (specByUnit, las presiones), segun el voltaje
+// del equipo si depende de el (specByVoltage), o el specMin/specMax estatico
+// de la definicion en el resto de los casos. Si el voltaje del equipo no se
+// puede resolver, cae al rango de 12V para no dejar el campo sin ningun hint.
+export function resolveSpec(definition, equipment, pressureUnit = PRESSURE_UNIT.BAR) {
+  if (definition.specByUnit) {
+    const range = definition.specByUnit[pressureUnit] ?? definition.specByUnit[PRESSURE_UNIT.BAR]
+    return { specMin: range[0], specMax: range[1] }
+  }
   if (!definition.specByVoltage) return { specMin: definition.specMin ?? null, specMax: definition.specMax ?? null }
   const voltage = getBatteryVoltage(equipment)
   const range = definition.specByVoltage[voltage] ?? definition.specByVoltage[12]
