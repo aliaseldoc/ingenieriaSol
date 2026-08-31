@@ -178,7 +178,14 @@ export async function submitVisitForReview(visitId, formSnapshot, actorId) {
 // VISIT_CHANGE_TO_EQUIPMENT_TRACKING marcado "si" en changesData, se pisa su
 // fecha de cambio (hoy) y se recalcula el proximo vencimiento; los campos no
 // marcados "si" no se tocan.
-export async function markVisitReceived(visitId, receivedBy, equipmentId, parameters, changesData, { isAnnualService } = {}) {
+export async function markVisitReceived(
+  visitId,
+  receivedBy,
+  equipmentId,
+  parameters,
+  changesData,
+  { isAnnualService, checklistData } = {}
+) {
   const nowIso = new Date().toISOString()
   const { error } = await supabase
     .from('visits')
@@ -188,12 +195,18 @@ export async function markVisitReceived(visitId, receivedBy, equipmentId, parame
 
   const findValue = (metricKey) => (parameters ?? []).find((parameter) => parameter.metric_key === metricKey)?.value
   const fuelPercentage = findValue('nivel_combustible')
+  const fuelLiters = findValue('combustible_litros')
   const hoursOfUse = findValue('horas_operacion')
   const startsCount = findValue('numero_arranques')
 
   const today = nowIso.slice(0, 10)
   const equipmentChanges = { last_service_date: today }
+  // Se espejan las dos formas del nivel de combustible mas la unidad que
+  // eligio el tecnico: la ficha lo muestra en esa unidad (ver
+  // formatFuelLevel) y las alertas siguen usando el porcentaje.
   if (fuelPercentage != null) equipmentChanges.fuel_percentage = fuelPercentage
+  if (fuelLiters != null) equipmentChanges.fuel_liters = fuelLiters
+  if (checklistData?.combustible_unidad) equipmentChanges.fuel_level_unit = checklistData.combustible_unidad
   if (hoursOfUse != null) equipmentChanges.hours_of_use = hoursOfUse
   if (startsCount != null) equipmentChanges.starts_count = startsCount
   if (isAnnualService) equipmentChanges.last_annual_service_date = today

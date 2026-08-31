@@ -256,6 +256,23 @@ export function resolveSpec(definition, equipment, pressureUnit = PRESSURE_UNIT.
   return { specMin: range[0], specMax: range[1] }
 }
 
+// Unidad en la que el tecnico carga el combustible en la visita; queda
+// espejada en la ficha del equipo al recibirla.
+export const FUEL_LEVEL_UNIT = {
+  LITROS: 'litros',
+  PORCENTAJE: 'porcentaje',
+}
+
+// Nivel de combustible de la ficha, en la misma unidad en que se relevo: si
+// la visita se cargo en litros se muestra en litros, si no en porcentaje.
+// Devuelve null cuando el equipo todavia no tiene ninguna medicion.
+export function formatFuelLevel(equipment) {
+  if (equipment?.fuel_level_unit === FUEL_LEVEL_UNIT.LITROS && equipment?.fuel_liters != null) {
+    return `${equipment.fuel_liters} L`
+  }
+  return equipment?.fuel_percentage != null ? `${equipment.fuel_percentage}%` : null
+}
+
 // Ultimo valor de esta metrica que quedo registrado en la ficha del equipo
 // (se actualiza al recibir la visita, ver markVisitReceived). Sirve de
 // referencia para el tecnico, no de rango: no participa de la validacion.

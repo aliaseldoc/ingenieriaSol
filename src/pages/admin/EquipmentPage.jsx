@@ -10,7 +10,7 @@ import Field from '../../components/ui/Field'
 import Spinner from '../../components/ui/Spinner'
 import ClientGroupRow from '../../features/equipmentInventory/ClientGroupRow'
 import EquipmentHistoryPanel from '../../features/equipmentInventory/EquipmentHistoryPanel'
-import { CONDITION_STATUS, CONDITION_STATUS_LABELS, FUEL_TYPE, FUEL_TYPE_LABELS } from '../../lib/constants'
+import { CONDITION_STATUS, CONDITION_STATUS_LABELS, FUEL_TYPE, FUEL_TYPE_LABELS, formatFuelLevel } from '../../lib/constants'
 import { formatDate } from '../../lib/dateUtils'
 import { rowsToCsv, downloadCsv } from '../../lib/csv'
 
@@ -21,7 +21,7 @@ const REPORT_HEADERS = [
   'N° de Serie',
   'Condición',
   'Horas de Uso',
-  '% de Combustible',
+  'Nivel de Combustible',
   'Último Service',
   'Cambio Filtro de Combustible',
   'Próx. Cambio Filtro de Combustible',
@@ -42,7 +42,7 @@ function equipmentToReportRow(item) {
     item.serial_number ?? '',
     CONDITION_STATUS_LABELS[item.condition_status] ?? '',
     item.hours_of_use ?? '',
-    item.fuel_percentage != null ? `${item.fuel_percentage}%` : '',
+    formatFuelLevel(item) ?? '',
     dateOrEmpty(item.last_service_date),
     dateOrEmpty(item.fuel_filter_changed_at),
     dateOrEmpty(item.fuel_filter_next_due_at),
@@ -207,7 +207,7 @@ export default function EquipmentPage() {
           </div>
           {/* Por debajo de md, EquipmentRow.jsx pasa a mini-card apilada con
               sus propias etiquetas — estas 4 columnas dejan de aplicar. */}
-          <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">% Combustible</span>
+          <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Combustible</span>
           <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Horas de Uso</span>
           <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Último Service</span>
           <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Condición</span>

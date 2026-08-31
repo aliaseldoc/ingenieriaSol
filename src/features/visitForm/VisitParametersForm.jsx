@@ -63,7 +63,7 @@ export default function VisitParametersForm({
               const lastValue = getLastRecordedValue(definition, equipment)
               let placeholder
               if (specMin != null && specMax != null) placeholder = `${specMin} – ${specMax}`
-              else if (lastValue != null) placeholder = `Último: ${lastValue}`
+              else if (lastValue != null) placeholder = `${lastValue}`
               return (
                 <tr key={definition.key}>
                   <td className="p-md font-medium">{definition.label}</td>

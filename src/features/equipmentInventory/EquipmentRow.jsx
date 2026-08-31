@@ -1,5 +1,5 @@
 import StatusChip from '../../components/ui/StatusChip'
-import { CONDITION_STATUS, CONDITION_STATUS_LABELS } from '../../lib/constants'
+import { CONDITION_STATUS, CONDITION_STATUS_LABELS, formatFuelLevel } from '../../lib/constants'
 import { formatDate } from '../../lib/dateUtils'
 
 const CONDITION_TONE = {
@@ -28,7 +28,7 @@ export default function EquipmentRow({ equipment, onOpenHistory, index = 0 }) {
       <div className="hidden md:grid md:grid-cols-12 md:gap-sm md:items-center">
         <span className="col-span-4 font-label-md text-label-md text-on-surface">{equipment.motor}</span>
         <span className="col-span-2 font-body-sm text-body-sm text-on-surface-variant">
-          {equipment.fuel_percentage != null ? `${equipment.fuel_percentage}%` : '—'}
+          {formatFuelLevel(equipment) ?? '—'}
         </span>
         <span className="col-span-2 font-body-sm text-body-sm text-on-surface-variant">
           {equipment.hours_of_use != null ? `${equipment.hours_of_use} h` : '—'}
@@ -45,9 +45,9 @@ export default function EquipmentRow({ equipment, onOpenHistory, index = 0 }) {
         </div>
         <dl className="grid grid-cols-3 gap-x-sm mt-xs">
           <div>
-            <dt className="font-label-sm text-label-sm text-on-surface-variant uppercase">% Comb.</dt>
+            <dt className="font-label-sm text-label-sm text-on-surface-variant uppercase">Comb.</dt>
             <dd className="font-body-sm text-body-sm text-on-surface-variant">
-              {equipment.fuel_percentage != null ? `${equipment.fuel_percentage}%` : '—'}
+              {formatFuelLevel(equipment) ?? '—'}
             </dd>
           </div>
           <div>

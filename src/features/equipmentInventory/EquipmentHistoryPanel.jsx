@@ -21,6 +21,8 @@ import {
   FUEL_TYPE_LABELS,
   ROLE_HOME_PATH,
   ROLES,
+  FUEL_LEVEL_UNIT,
+  formatFuelLevel,
 } from '../../lib/constants'
 import { formatDate, computeNextDueDate } from '../../lib/dateUtils'
 
@@ -76,6 +78,8 @@ function toFormValues(equipment) {
     air_filter_next_due_at: computeDefaultDueDate(equipment.air_filter_changed_at, equipment.air_filter_next_due_at, 1),
     battery_next_due_at: computeDefaultDueDate(equipment.battery_changed_at, equipment.battery_next_due_at, 2),
     fuel_percentage: equipment.fuel_percentage ?? '',
+    fuel_liters: equipment.fuel_liters ?? '',
+    fuel_level_unit: equipment.fuel_level_unit ?? '',
     hours_of_use: equipment.hours_of_use ?? '',
     starts_count: equipment.starts_count ?? '',
     condition_status: equipment.condition_status ?? CONDITION_STATUS.OPTIMO,
@@ -136,11 +140,23 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
 
   async function handleSubmit(event) {
     event.preventDefault()
+    const tankSize = Number(form.fuel_capacity)
+    const liters = form.fuel_liters !== '' ? Number(form.fuel_liters) : null
+    // Si la ficha se edita en litros, se recalcula el porcentaje (igual que
+    // hace el formulario del tecnico) para no desactualizar las alertas de
+    // combustible, que se calculan sobre fuel_percentage.
+    const percentageFromLiters =
+      form.fuel_level_unit === FUEL_LEVEL_UNIT.LITROS && liters != null && tankSize > 0
+        ? Math.round((liters / tankSize) * 100)
+        : null
     const updated = await updateEquipment(equipment.id, {
       ...form,
       power_kva: form.power_kva !== '' ? Number(form.power_kva) : null,
       fuel_capacity: form.fuel_capacity !== '' ? Number(form.fuel_capacity) : null,
-      fuel_percentage: form.fuel_percentage !== '' ? Number(form.fuel_percentage) : null,
+      fuel_liters: liters,
+      fuel_level_unit: form.fuel_level_unit || null,
+      fuel_percentage:
+        percentageFromLiters ?? (form.fuel_percentage !== '' ? Number(form.fuel_percentage) : null),
       hours_of_use: form.hours_of_use !== '' ? Number(form.hours_of_use) : null,
       starts_count: form.starts_count !== '' ? Number(form.starts_count) : null,
       fuel_filter_changed_at: form.fuel_filter_changed_at || null,
@@ -241,7 +257,12 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
               <Field label="Cambio Filtro de Aceite" type="date" value={form.oil_filter_changed_at} onChange={handleChangeTrackingDate('oil_filter_changed_at', 'oil_filter_next_due_at', 1)} />
               <Field label="Cambio Filtro de Aire" type="date" value={form.air_filter_changed_at} onChange={handleChangeTrackingDate('air_filter_changed_at', 'air_filter_next_due_at', 1)} />
               <Field label="Fecha de Batería" type="date" value={form.battery_changed_at} onChange={handleChangeTrackingDate('battery_changed_at', 'battery_next_due_at', 2)} />
-              <Field label="Porcentaje de Combustible" type="number" value={form.fuel_percentage} onChange={(v) => setForm((f) => ({ ...f, fuel_percentage: v }))} />
+              {/* Se edita en la misma unidad en que se relevo la visita. */}
+              {form.fuel_level_unit === FUEL_LEVEL_UNIT.LITROS ? (
+                <Field label="Litros de Combustible" type="number" value={form.fuel_liters} onChange={(v) => setForm((f) => ({ ...f, fuel_liters: v }))} />
+              ) : (
+                <Field label="Porcentaje de Combustible" type="number" value={form.fuel_percentage} onChange={(v) => setForm((f) => ({ ...f, fuel_percentage: v }))} />
+              )}
               <Field label="Horas de Uso" type="number" value={form.hours_of_use} onChange={(v) => setForm((f) => ({ ...f, hours_of_use: v }))} />
               <Field label="Número de Arranques" type="number" value={form.starts_count} onChange={(v) => setForm((f) => ({ ...f, starts_count: v }))} />
               <div className="space-y-xs">
@@ -309,7 +330,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
             <DetailField label="Cambio Filtro de Aceite" value={equipment.oil_filter_changed_at ? formatDate(equipment.oil_filter_changed_at) : null} />
             <DetailField label="Cambio Filtro de Aire" value={equipment.air_filter_changed_at ? formatDate(equipment.air_filter_changed_at) : null} />
             <DetailField label="Fecha de Batería" value={equipment.battery_changed_at ? formatDate(equipment.battery_changed_at) : null} />
-            <DetailField label="Porcentaje de Combustible" value={equipment.fuel_percentage != null ? `${equipment.fuel_percentage}%` : null} />
+            <DetailField label="Nivel de Combustible" value={formatFuelLevel(equipment)} />
             <DetailField label="Horas de Uso" value={equipment.hours_of_use != null ? `${equipment.hours_of_use} h` : null} />
             <DetailField label="Número de Arranques" value={equipment.starts_count} />
             <DetailField label="Último Service" value={equipment.last_service_date ? formatDate(equipment.last_service_date) : null} />

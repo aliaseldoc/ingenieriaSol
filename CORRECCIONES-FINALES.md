@@ -29,9 +29,13 @@
 
     - Temperatura motor: 55 y 75 grados
 
--Agregar en el formulario de la visita tecnica como placeholder de numero de arranque y horas de uso el ultimo dato registrado que tengamos
+(CORREGIDA)-Agregar en el formulario de la visita tecnica como placeholder de numero de arranque y horas de uso el ultimo dato registrado que tengamos
 
 
 (CORREGIDO)-En el fomulario del tecnico, en la vista del datalle del equipo reemplazar N de serie por Potencia
 
 (CORREGIDO)-Al descargar la hoja de ruta offline solo descargue las visitas pendientes de realizar y no todo el historial.
+
+-El tecnico puede generar un reporte
+
+-Agregar un boton solo en la vista del supervisor para ignorar las alertertas por bajo combustible o service vencido

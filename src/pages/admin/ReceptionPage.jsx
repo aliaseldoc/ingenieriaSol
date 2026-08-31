@@ -29,6 +29,7 @@ export default function ReceptionPage() {
   async function handleMarkReceived() {
     await markVisitReceived(selectedId, profile.id, selectedVisit.equipment_id, parameters, selectedVisit.changes_data, {
       isAnnualService: selectedVisit.is_annual_service,
+      checklistData: selectedVisit.checklist_data,
     })
     setSelectedId(null)
     reload()
