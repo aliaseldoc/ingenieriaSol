@@ -11,16 +11,23 @@ export default function RoleLayoutShell({ navItems, title, statusBar = null }) {
       <Sidebar navItems={navItems} />
       <TopBar title={title} />
 
-      <header className="md:hidden flex items-center justify-between p-margin-mobile border-b border-outline-variant bg-surface">
-        <div>
+      {/* Tres columnas con los costados fijos al ancho del menu de usuario
+          (4.4rem del avatar + su padding): asi el bloque de marca queda
+          centrado en el encabezado en cualquier ancho de pantalla, sin que
+          el menu lo corra hacia la izquierda. */}
+      <header className="md:hidden grid grid-cols-[5.2rem_1fr_5.2rem] items-center p-margin-mobile border-b border-outline-variant bg-surface">
+        <div />
+        <div className="text-center">
           <h1>
-            <Logo className="w-[14rem] text-secondary" />
+            <Logo className="w-[14rem] mx-auto text-secondary" />
           </h1>
           <p className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mt-xs">
             {title}
           </p>
         </div>
-        <UserMenu compact />
+        <div className="justify-self-end">
+          <UserMenu compact />
+        </div>
       </header>
 
       <main className="md:pl-[25.6rem] md:pt-[6.4rem] pb-[6.4rem] md:pb-0">
