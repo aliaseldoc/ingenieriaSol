@@ -10,9 +10,14 @@ import {
 import { computeNextDueDate } from '../lib/dateUtils'
 import { logVisitEvent } from './visitEvents'
 
+// Columnas del equipo que necesita el formulario del tecnico: ademas de la
+// identificacion, las que alimentan la ficha (power_kva) y los placeholders
+// del ultimo dato registrado (hours_of_use, starts_count).
+const EQUIPMENT_EMBED =
+  'equipment(internal_code, motor, generador, client_id, power_kva, fuel_capacity, battery_quantity, hours_of_use, starts_count, clients(name))'
 const ROUTE_SHEET_EMBED =
   'route_sheets(id, vehicle_id, scheduled_time_start, visit_occurrence, vehicles(plate), route_sheet_technicians(profiles(id, full_name)))'
-const VISIT_SELECT = `*, equipment(internal_code, motor, generador, client_id, fuel_capacity, battery_quantity, clients(name)), ${ROUTE_SHEET_EMBED}`
+const VISIT_SELECT = `*, ${EQUIPMENT_EMBED}, ${ROUTE_SHEET_EMBED}`
 
 // La asignacion de tecnicos/vehiculo vive en la hoja de ruta, no en la
 // visita. Esto aplana ese embed anidado a la misma forma plana que ya
@@ -40,7 +45,7 @@ export async function listVisitsForTechnician(technicianId) {
   const { data, error } = await supabase
     .from('visits')
     .select(
-      `*, equipment(internal_code, motor, generador, client_id, fuel_capacity, battery_quantity, clients(name)), route_sheets!inner(id, vehicle_id, scheduled_time_start, visit_occurrence, vehicles(plate), route_sheet_technicians!inner(profiles(id, full_name)))`
+      `*, ${EQUIPMENT_EMBED}, route_sheets!inner(id, vehicle_id, scheduled_time_start, visit_occurrence, vehicles(plate), route_sheet_technicians!inner(profiles(id, full_name)))`
     )
     .eq('route_sheets.route_sheet_technicians.technician_id', technicianId)
     .order('scheduled_date', { ascending: true })
@@ -184,11 +189,13 @@ export async function markVisitReceived(visitId, receivedBy, equipmentId, parame
   const findValue = (metricKey) => (parameters ?? []).find((parameter) => parameter.metric_key === metricKey)?.value
   const fuelPercentage = findValue('nivel_combustible')
   const hoursOfUse = findValue('horas_operacion')
+  const startsCount = findValue('numero_arranques')
 
   const today = nowIso.slice(0, 10)
   const equipmentChanges = { last_service_date: today }
   if (fuelPercentage != null) equipmentChanges.fuel_percentage = fuelPercentage
   if (hoursOfUse != null) equipmentChanges.hours_of_use = hoursOfUse
+  if (startsCount != null) equipmentChanges.starts_count = startsCount
   if (isAnnualService) equipmentChanges.last_annual_service_date = today
 
   for (const tracking of VISIT_CHANGE_TO_EQUIPMENT_TRACKING) {

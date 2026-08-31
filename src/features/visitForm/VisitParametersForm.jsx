@@ -1,4 +1,4 @@
-import { VISIT_PARAMETER_DEFINITIONS, resolveSpec, isValueOutOfSpec } from '../../lib/constants'
+import { VISIT_PARAMETER_DEFINITIONS, resolveSpec, isValueOutOfSpec, getLastRecordedValue } from '../../lib/constants'
 import FuelParameterField from './FuelParameterField'
 import PressureParameterField from './PressureParameterField'
 
@@ -58,6 +58,12 @@ export default function VisitParametersForm({
               }
               const { specMin, specMax } = resolveSpec(definition, equipment)
               const outOfSpec = isValueOutOfSpec(parameterValues[definition.key], specMin, specMax)
+              // Las metricas con rango lo usan de guia; las que no tienen
+              // (arranques, horas) muestran el ultimo valor registrado.
+              const lastValue = getLastRecordedValue(definition, equipment)
+              let placeholder
+              if (specMin != null && specMax != null) placeholder = `${specMin} – ${specMax}`
+              else if (lastValue != null) placeholder = `Último: ${lastValue}`
               return (
                 <tr key={definition.key}>
                   <td className="p-md font-medium">{definition.label}</td>
@@ -66,7 +72,7 @@ export default function VisitParametersForm({
                       type="number"
                       step="any"
                       required={!definition.optional}
-                      placeholder={specMin != null && specMax != null ? `${specMin} – ${specMax}` : undefined}
+                      placeholder={placeholder}
                       value={parameterValues[definition.key] ?? ''}
                       onChange={(event) => onChangeParameter(definition.key, event.target.value)}
                       className={`w-full bg-surface border rounded px-md py-sm font-body-lg text-body-lg focus:border-2 focus:outline-none transition-colors ${

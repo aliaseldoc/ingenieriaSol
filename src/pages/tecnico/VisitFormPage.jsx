@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useVisitDetail, useVisitParameters, useVisitEvents } from '../../hooks/useVisits'
 import { saveVisitOrQueue, getPendingWriteForVisit } from '../../offline/syncQueue'
+import { useConnectivityStatus } from '../../offline/useOfflineSync'
 import { getEquipmentById } from '../../api/equipment'
 import {
   CHECKLIST_CATEGORY,
@@ -17,6 +18,7 @@ import {
 } from '../../lib/constants'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
+import EmptyState from '../../components/ui/EmptyState'
 import VisitDetailPanel from '../../features/visitReview/VisitDetailPanel'
 import VisitMetadataCard from '../../features/visitForm/VisitMetadataCard'
 import VisitChecklistSection from '../../features/visitForm/VisitChecklistSection'
@@ -35,6 +37,7 @@ export default function VisitFormPage() {
   const { data: visit, loading: visitLoading } = useVisitDetail(visitId)
   const { data: existingParameters } = useVisitParameters(visitId)
   const { data: events } = useVisitEvents(visitId)
+  const online = useConnectivityStatus()
 
   const [serviceType, setServiceType] = useState(SERVICE_TYPE.PREVENTIVO)
   const [checklistData, setChecklistData] = useState({})
@@ -242,7 +245,36 @@ export default function VisitFormPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshotKey, initialized])
 
-  if (visitLoading || !visit || pendingWrite === undefined) return <Spinner label="Cargando visita…" />
+  if (visitLoading || pendingWrite === undefined) return <Spinner label="Cargando visita…" />
+
+  // Sin conexion solo estan cacheadas las visitas pendientes de realizar
+  // (ver pendingVisitsForTechnician): cualquier otra queda sin datos que
+  // mostrar, y sin este corte la pantalla se quedaba cargando para siempre.
+  if (!visit) {
+    return (
+      <div>
+        <div className="flex items-center justify-between gap-sm mb-lg">
+          <h1 className="font-headline-lg text-headline-lg text-on-surface">Detalle de Visita</h1>
+          <Button variant="secondary-outline" icon="arrow_back" onClick={() => navigate(-1)}>
+            Volver
+          </Button>
+        </div>
+        {online ? (
+          <EmptyState
+            icon="search_off"
+            title="No se encontró la visita"
+            description="Puede que se haya eliminado o que ya no esté asignada a vos."
+          />
+        ) : (
+          <EmptyState
+            icon="cloud_off"
+            title="Visita no disponible sin conexión"
+            description="Solo se descargan las visitas pendientes de realizar. Volvé a intentarlo cuando tengas conexión."
+          />
+        )}
+      </div>
+    )
+  }
 
   if (!TECHNICIAN_EDITABLE_STATUSES.includes(visit.status)) {
     return (

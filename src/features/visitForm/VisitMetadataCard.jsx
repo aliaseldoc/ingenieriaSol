@@ -22,7 +22,7 @@ export default function VisitMetadataCard({ visit, serviceType, onChangeServiceT
         <ReadOnlyField label="Orden de Reparación N°" value={ordenReparacion} />
         <ReadOnlyField label="Equipo / Motor" value={visit.equipment?.motor} />
         <ReadOnlyField label="Generador" value={visit.equipment?.generador} />
-        <ReadOnlyField label="N° de Serie" value={visit.equipment?.serial_number} />
+        <ReadOnlyField label="Potencia" value={visit.equipment?.power_kva ? `${visit.equipment.power_kva} kVA` : null} />
         <div className="space-y-xs md:col-span-2">
           <label className="font-label-md text-label-md text-on-surface-variant uppercase">Tipo de Servicio</label>
           <select

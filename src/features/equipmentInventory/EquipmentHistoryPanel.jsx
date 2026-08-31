@@ -77,6 +77,7 @@ function toFormValues(equipment) {
     battery_next_due_at: computeDefaultDueDate(equipment.battery_changed_at, equipment.battery_next_due_at, 2),
     fuel_percentage: equipment.fuel_percentage ?? '',
     hours_of_use: equipment.hours_of_use ?? '',
+    starts_count: equipment.starts_count ?? '',
     condition_status: equipment.condition_status ?? CONDITION_STATUS.OPTIMO,
   }
 }
@@ -141,6 +142,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
       fuel_capacity: form.fuel_capacity !== '' ? Number(form.fuel_capacity) : null,
       fuel_percentage: form.fuel_percentage !== '' ? Number(form.fuel_percentage) : null,
       hours_of_use: form.hours_of_use !== '' ? Number(form.hours_of_use) : null,
+      starts_count: form.starts_count !== '' ? Number(form.starts_count) : null,
       fuel_filter_changed_at: form.fuel_filter_changed_at || null,
       oil_filter_changed_at: form.oil_filter_changed_at || null,
       air_filter_changed_at: form.air_filter_changed_at || null,
@@ -241,6 +243,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
               <Field label="Fecha de Batería" type="date" value={form.battery_changed_at} onChange={handleChangeTrackingDate('battery_changed_at', 'battery_next_due_at', 2)} />
               <Field label="Porcentaje de Combustible" type="number" value={form.fuel_percentage} onChange={(v) => setForm((f) => ({ ...f, fuel_percentage: v }))} />
               <Field label="Horas de Uso" type="number" value={form.hours_of_use} onChange={(v) => setForm((f) => ({ ...f, hours_of_use: v }))} />
+              <Field label="Número de Arranques" type="number" value={form.starts_count} onChange={(v) => setForm((f) => ({ ...f, starts_count: v }))} />
               <div className="space-y-xs">
                 <label className="font-label-sm text-label-sm text-on-surface block">Condición</label>
                 <select
@@ -308,6 +311,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
             <DetailField label="Fecha de Batería" value={equipment.battery_changed_at ? formatDate(equipment.battery_changed_at) : null} />
             <DetailField label="Porcentaje de Combustible" value={equipment.fuel_percentage != null ? `${equipment.fuel_percentage}%` : null} />
             <DetailField label="Horas de Uso" value={equipment.hours_of_use != null ? `${equipment.hours_of_use} h` : null} />
+            <DetailField label="Número de Arranques" value={equipment.starts_count} />
             <DetailField label="Último Service" value={equipment.last_service_date ? formatDate(equipment.last_service_date) : null} />
           </div>
           {equipment.notes && (

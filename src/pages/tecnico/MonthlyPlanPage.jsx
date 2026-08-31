@@ -166,12 +166,15 @@ export default function MonthlyPlanPage() {
     setDownloading(true)
     setDownloadError(null)
     try {
+      // saveRouteSheetToCache descarta el historial ya validado y devuelve
+      // solo las visitas pendientes: los parametros y el contador se arman
+      // sobre esas, no sobre todo lo que trajo el servidor.
       const freshVisits = await listVisitsForTechnician(profile.id)
-      const visitIds = freshVisits.map((visit) => visit.id)
+      const cachedVisits = await saveRouteSheetToCache(profile.id, freshVisits)
+      const visitIds = cachedVisits.map((visit) => visit.id)
       const parameterRows = await listVisitParametersForVisits(visitIds)
-      await saveRouteSheetToCache(profile.id, freshVisits)
       await saveAllVisitParametersToCache(visitIds, parameterRows)
-      await recordRouteSheetDownload(profile.id, freshVisits.length)
+      await recordRouteSheetDownload(profile.id, cachedVisits.length)
       setDownloadInfo(await getLastDownloadInfo())
       await refreshDownloadedVisitIds()
       await reload()

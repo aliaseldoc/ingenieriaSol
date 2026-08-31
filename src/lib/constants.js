@@ -187,8 +187,10 @@ export const VISIT_PARAMETER_DEFINITIONS = [
   // consumidores existentes (markVisitReceived, ParametersTable).
   { key: 'combustible_litros', label: 'Cantidad de Combustible (Litros)', unit: 'L', optional: true },
   { key: 'nivel_combustible', label: 'Nivel de Combustible', unit: '%', specMin: 20, specMax: 100 },
-  { key: 'numero_arranques', label: 'Número de Arranques' },
-  { key: 'horas_operacion', label: 'Horas de Operación', unit: 'Hs' },
+  // lastValueField: columna de equipment donde quedo espejado el ultimo
+  // valor recibido, para ofrecerlo como referencia en el formulario.
+  { key: 'numero_arranques', label: 'Número de Arranques', lastValueField: 'starts_count' },
+  { key: 'horas_operacion', label: 'Horas de Operación', unit: 'Hs', lastValueField: 'hours_of_use' },
 ]
 
 // Las presiones de aceite se pueden cargar en bar o en psi, segun lo que
@@ -252,6 +254,14 @@ export function resolveSpec(definition, equipment, pressureUnit = PRESSURE_UNIT.
   const voltage = getBatteryVoltage(equipment)
   const range = definition.specByVoltage[voltage] ?? definition.specByVoltage[12]
   return { specMin: range[0], specMax: range[1] }
+}
+
+// Ultimo valor de esta metrica que quedo registrado en la ficha del equipo
+// (se actualiza al recibir la visita, ver markVisitReceived). Sirve de
+// referencia para el tecnico, no de rango: no participa de la validacion.
+export function getLastRecordedValue(definition, equipment) {
+  if (!definition.lastValueField) return null
+  return equipment?.[definition.lastValueField] ?? null
 }
 
 export function isValueOutOfSpec(value, specMin, specMax) {

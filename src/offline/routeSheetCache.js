@@ -2,7 +2,14 @@
 // y el perfil del usuario, para que el tecnico pueda seguir viendo sus datos
 // sin conexion. La cola de escrituras pendientes vive en syncQueue.js.
 import { STORES, getAll, getByKey, putValue, putMany, clearStore } from './db'
-import { VISIT_STATUS, VISIT_PARAMETER_DEFINITIONS, resolveSpec, resolveUnit, getPressureUnit } from '../lib/constants'
+import {
+  VISIT_STATUS,
+  TECHNICIAN_EDITABLE_STATUSES,
+  VISIT_PARAMETER_DEFINITIONS,
+  resolveSpec,
+  resolveUnit,
+  getPressureUnit,
+} from '../lib/constants'
 
 async function getMeta(key) {
   const row = await getByKey(STORES.META, key)
@@ -75,20 +82,30 @@ export function statusColumnsForKind(kind) {
     : { status: VISIT_STATUS.BORRADOR, draft_saved_at: now }
 }
 
+// Del set que trae el servidor, offline solo hace falta lo que el tecnico
+// todavia puede trabajar en terreno: el historial ya validado no se puede
+// editar y hacia crecer la descarga sin limite.
+export function pendingVisitsForTechnician(visits) {
+  return (visits ?? []).filter((visit) => TECHNICIAN_EDITABLE_STATUSES.includes(visit.status))
+}
+
 // Reemplaza toda la hoja de ruta cacheada por el set fresco recien traido
-// del servidor. Se llama tanto desde el boton explicito "Descargar hoja de
-// ruta" como, de paso, cada vez que un fetch online tiene exito (ver
-// useVisits.js) — por eso NO toca lastDownloadAt/lastDownloadCount, que
-// quedan reservados a la descarga explicita (unica que ademas trae los
-// parametros de todas las visitas).
+// del servidor, filtrado a las visitas pendientes, y devuelve las que
+// quedaron cacheadas para que el llamador no repita el criterio. Se llama
+// tanto desde el boton explicito "Descargar hoja de ruta" como, de paso,
+// cada vez que un fetch online tiene exito (ver useVisits.js) — por eso NO
+// toca lastDownloadAt/lastDownloadCount, que quedan reservados a la
+// descarga explicita (unica que ademas trae los parametros).
 export async function saveRouteSheetToCache(technicianId, visits) {
+  const pendingVisits = pendingVisitsForTechnician(visits)
   const cachedAt = new Date().toISOString()
   await clearStore(STORES.VISITS)
   await putMany(
     STORES.VISITS,
-    visits.map((visit) => ({ ...visit, _cachedAt: cachedAt }))
+    pendingVisits.map((visit) => ({ ...visit, _cachedAt: cachedAt }))
   )
   await setMeta('cachedTechnicianId', technicianId)
+  return pendingVisits
 }
 
 export async function recordRouteSheetDownload(technicianId, count) {
@@ -140,6 +157,10 @@ export async function saveVisitParametersToCache(visitId, parameterRows) {
 // visit_id, para la descarga masiva de la hoja de ruta. Escribe tambien un
 // registro vacio para visitas sin parametros cargados todavia, asi
 // getCachedVisitParameters no necesita distinguir "sin cache" de "sin datos".
+// Reemplaza el store entero (igual que saveRouteSheetToCache con las
+// visitas) para no arrastrar los parametros de visitas que ya salieron de
+// la hoja de ruta. Es seguro con escrituras encoladas: el formulario
+// siempre prefiere el pendingWrite al cache de lectura (ver VisitFormPage).
 export async function saveAllVisitParametersToCache(visitIds, rows) {
   const grouped = new Map(visitIds.map((visitId) => [visitId, []]))
   for (const row of rows) {
@@ -152,6 +173,7 @@ export async function saveAllVisitParametersToCache(visitIds, rows) {
     parameters,
     _cachedAt: cachedAt,
   }))
+  await clearStore(STORES.VISIT_PARAMETERS)
   await putMany(STORES.VISIT_PARAMETERS, records)
 }
 
