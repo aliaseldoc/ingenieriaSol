@@ -9,6 +9,7 @@ const EVENT_ICON = {
   recibida: 'how_to_reg',
   aprobada: 'check_circle',
   rechazada: 'cancel',
+  resultados_enviados: 'mail',
 }
 
 const EVENT_LABEL = {
@@ -19,6 +20,7 @@ const EVENT_LABEL = {
   recibida: 'Recibida',
   aprobada: 'Aprobada',
   rechazada: 'Rechazada',
+  resultados_enviados: 'Resultados enviados por mail',
 }
 
 export default function RecentActivityFeed({ events, onSelectEvent }) {

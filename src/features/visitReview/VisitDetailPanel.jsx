@@ -60,7 +60,13 @@ export default function VisitDetailPanel({ visit, parameters, events, actions, a
           <h2 className="font-headline-md text-headline-md text-on-surface">{visit.equipment?.clients?.name}</h2>
           <h3 className="font-body-md text-body-md text-on-surface-variant font-normal">{visit.equipment?.motor}</h3>
         </div>
-        <StatusChip label={VISIT_STATUS_LABELS[visit.status]} tone="warning" />
+        <div className="flex items-center gap-sm">
+          {/* Reporte generado por el tecnico, fuera de la planificacion del
+              administrativo: conviene que se note en las tres vistas que
+              usan este panel (recepcion, validacion y el propio tecnico). */}
+          {visit.is_unplanned && <StatusChip label="No planificada" tone="neutral" variant="tag" />}
+          <StatusChip label={VISIT_STATUS_LABELS[visit.status]} tone="warning" />
+        </div>
       </div>
 
       {actions && actionsPosition === 'top' && (

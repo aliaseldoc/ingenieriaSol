@@ -11,7 +11,14 @@ function ReadOnlyField({ label, value }) {
   )
 }
 
-export default function VisitMetadataCard({ visit, serviceType, onChangeServiceType, onShowEquipmentDetail, loadingEquipmentDetail }) {
+export default function VisitMetadataCard({
+  visit,
+  serviceType,
+  onChangeServiceType,
+  onShowEquipmentDetail,
+  loadingEquipmentDetail,
+  fieldsOptional = false,
+}) {
   const ordenReparacion = visit.routeSheetId ? `ORD-${visit.routeSheetId.slice(0, 8).toUpperCase()}` : '—'
 
   return (
@@ -26,7 +33,7 @@ export default function VisitMetadataCard({ visit, serviceType, onChangeServiceT
         <div className="space-y-xs md:col-span-2">
           <label className="font-label-md text-label-md text-on-surface-variant uppercase">Tipo de Servicio</label>
           <select
-            required
+            required={!fieldsOptional}
             value={serviceType}
             onChange={(event) => onChangeServiceType(event.target.value)}
             className="w-full bg-surface border border-outline rounded px-sm py-sm font-body-lg text-body-lg text-on-surface focus:border-secondary focus:border-2 focus:outline-none transition-all"

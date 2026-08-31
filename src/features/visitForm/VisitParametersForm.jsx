@@ -10,6 +10,7 @@ export default function VisitParametersForm({
   onChangeFuelUnit,
   pressureUnits,
   onChangePressureUnit,
+  fieldsOptional = false,
 }) {
   return (
     <section className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
@@ -40,6 +41,7 @@ export default function VisitParametersForm({
                     tankSize={Number(equipment?.fuel_capacity)}
                     unit={fuelUnit}
                     onChangeUnit={onChangeFuelUnit}
+                    fieldsOptional={fieldsOptional}
                   />
                 )
               }
@@ -53,6 +55,7 @@ export default function VisitParametersForm({
                     equipment={equipment}
                     unit={pressureUnits[definition.key]}
                     onChangeUnit={(unit) => onChangePressureUnit(definition, unit)}
+                    fieldsOptional={fieldsOptional}
                   />
                 )
               }
@@ -71,7 +74,7 @@ export default function VisitParametersForm({
                     <input
                       type="number"
                       step="any"
-                      required={!definition.optional}
+                      required={!fieldsOptional && !definition.optional}
                       placeholder={placeholder}
                       value={parameterValues[definition.key] ?? ''}
                       onChange={(event) => onChangeParameter(definition.key, event.target.value)}

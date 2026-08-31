@@ -23,13 +23,13 @@ function getItemState(item, checklistData, equipment) {
   return { currentStatus, statusOptions, specMin, specMax, outOfSpec }
 }
 
-function MeasurementInput({ item, checklistData, onChangeItem, currentStatus, specMin, specMax, outOfSpec, className }) {
+function MeasurementInput({ item, checklistData, onChangeItem, currentStatus, specMin, specMax, outOfSpec, className, fieldsOptional }) {
   return (
     <div className={`flex items-center gap-sm ${className}`}>
       <input
         type="number"
         step="any"
-        required={currentStatus === CHECKLIST_ITEM_STATUS.OK}
+        required={!fieldsOptional && currentStatus === CHECKLIST_ITEM_STATUS.OK}
         placeholder={specMin != null && specMax != null ? `${specMin} – ${specMax}` : undefined}
         value={checklistData[item.measurement.key] ?? ''}
         onChange={(event) => onChangeItem(item.measurement.key, event.target.value)}
@@ -42,10 +42,10 @@ function MeasurementInput({ item, checklistData, onChangeItem, currentStatus, sp
   )
 }
 
-function StatusSelect({ item, currentStatus, statusOptions, onChangeItem, className }) {
+function StatusSelect({ item, currentStatus, statusOptions, onChangeItem, className, fieldsOptional }) {
   return (
     <select
-      required
+      required={!fieldsOptional}
       value={currentStatus}
       onChange={(event) => onChangeItem(item.key, event.target.value)}
       className={`bg-surface border border-outline rounded font-body-lg text-body-lg text-on-surface px-md py-sm focus:border-secondary focus:border-2 focus:outline-none transition-colors ${className}`}
@@ -62,7 +62,7 @@ function StatusSelect({ item, currentStatus, statusOptions, onChangeItem, classN
 // input quedaban tan angostos que el texto se cortaba en mobile. Equipo en
 // Marcha nunca tuvo columna de medicion y no presentaba ese problema, asi
 // que sigue en formato tabla.
-function StackedChecklist({ items, checklistData, onChangeItem, equipment }) {
+function StackedChecklist({ items, checklistData, onChangeItem, equipment, fieldsOptional }) {
   return (
     <ul className="divide-y divide-outline-variant/50">
       {items.map((item) => {
@@ -79,9 +79,17 @@ function StackedChecklist({ items, checklistData, onChangeItem, equipment }) {
                 specMin={specMin}
                 specMax={specMax}
                 outOfSpec={outOfSpec}
+                fieldsOptional={fieldsOptional}
               />
             )}
-            <StatusSelect item={item} currentStatus={currentStatus} statusOptions={statusOptions} onChangeItem={onChangeItem} className="w-full" />
+            <StatusSelect
+              item={item}
+              currentStatus={currentStatus}
+              statusOptions={statusOptions}
+              onChangeItem={onChangeItem}
+              className="w-full"
+              fieldsOptional={fieldsOptional}
+            />
           </li>
         )
       })}
@@ -89,7 +97,7 @@ function StackedChecklist({ items, checklistData, onChangeItem, equipment }) {
   )
 }
 
-function TableChecklist({ items, checklistData, onChangeItem, equipment }) {
+function TableChecklist({ items, checklistData, onChangeItem, equipment, fieldsOptional }) {
   const hasMeasurementColumn = items.some((item) => item.measurement)
 
   return (
@@ -121,6 +129,7 @@ function TableChecklist({ items, checklistData, onChangeItem, equipment }) {
                         specMin={specMin}
                         specMax={specMax}
                         outOfSpec={outOfSpec}
+                        fieldsOptional={fieldsOptional}
                       />
                     ) : (
                       <span className="text-on-surface-variant">—</span>
@@ -128,7 +137,14 @@ function TableChecklist({ items, checklistData, onChangeItem, equipment }) {
                   </td>
                 )}
                 <td className="p-md text-center">
-                  <StatusSelect item={item} currentStatus={currentStatus} statusOptions={statusOptions} onChangeItem={onChangeItem} className="w-full" />
+                  <StatusSelect
+                    item={item}
+                    currentStatus={currentStatus}
+                    statusOptions={statusOptions}
+                    onChangeItem={onChangeItem}
+                    className="w-full"
+                    fieldsOptional={fieldsOptional}
+                  />
                 </td>
               </tr>
             )
@@ -139,7 +155,7 @@ function TableChecklist({ items, checklistData, onChangeItem, equipment }) {
   )
 }
 
-export default function VisitChecklistSection({ category, checklistData, onChangeItem, equipment }) {
+export default function VisitChecklistSection({ category, checklistData, onChangeItem, equipment, fieldsOptional = false }) {
   const items = VISIT_CHECKLIST_ITEMS.filter((item) => item.category === category)
   const isStacked = category === CHECKLIST_CATEGORY.EQUIPO_PARADO
 
@@ -150,9 +166,21 @@ export default function VisitChecklistSection({ category, checklistData, onChang
         <h3 className="font-label-md text-label-md uppercase">{CHECKLIST_CATEGORY_LABELS[category]}</h3>
       </div>
       {isStacked ? (
-        <StackedChecklist items={items} checklistData={checklistData} onChangeItem={onChangeItem} equipment={equipment} />
+        <StackedChecklist
+          items={items}
+          checklistData={checklistData}
+          onChangeItem={onChangeItem}
+          equipment={equipment}
+          fieldsOptional={fieldsOptional}
+        />
       ) : (
-        <TableChecklist items={items} checklistData={checklistData} onChangeItem={onChangeItem} equipment={equipment} />
+        <TableChecklist
+          items={items}
+          checklistData={checklistData}
+          onChangeItem={onChangeItem}
+          equipment={equipment}
+          fieldsOptional={fieldsOptional}
+        />
       )}
     </section>
   )

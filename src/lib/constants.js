@@ -104,6 +104,22 @@ export const ANNUAL_SERVICE_ALERT_WINDOW_DAYS = 30
 // Nivel de combustible (%) en o por debajo del cual se muestra una alerta.
 export const FUEL_ALERT_THRESHOLD_PERCENTAGE = 30
 
+// Alertas silenciadas por el supervisor (ver 0018_silenciar_alertas.sql). No se
+// guarda un booleano sino el valor que se silencio, asi la alerta se oculta
+// solo mientras la condicion siga siendo exactamente la misma: en cuanto
+// cambia (se cargo combustible, se hizo el service) los valores dejan de
+// coincidir y la alerta vuelve sola, sin necesidad de limpiar nada.
+//
+// Number() a proposito: PostgREST puede devolver un numeric como numero o como
+// string, y `20 === '20'` seria false.
+// (El equivalente para el service anual, isAnnualAlertMuted, vive en
+// dateUtils.js porque necesita comparar fechas — este archivo no puede
+// importar de ahi sin generar un ciclo.)
+export function isFuelAlertMuted(equipment) {
+  if (equipment?.fuel_alert_muted_percentage == null || equipment?.fuel_percentage == null) return false
+  return Number(equipment.fuel_alert_muted_percentage) === Number(equipment.fuel_percentage)
+}
+
 // Categorias del checklist tecnico, segun el diseno de "Informe de Visita de
 // Servicio" (Desing/stitch_ingenieria_sol_service_portal/stitch_ingenieria_sol_service_portal (1)).
 export const CHECKLIST_CATEGORY = {

@@ -110,6 +110,17 @@ export async function listVisitParametersForVisits(visitIds) {
   return data
 }
 
+// Reporte del tecnico: una visita generada por el propio tecnico, por fuera de
+// la planificacion. La creacion entera (hoja de ruta + autoasignacion + visita)
+// vive en la funcion create_unplanned_visit, porque el tecnico no tiene permiso
+// de INSERT sobre ninguna de esas tres tablas (ver 0017_reporte_tecnico.sql).
+export async function createUnplannedVisit(equipmentId, actorId) {
+  const { data: visitId, error } = await supabase.rpc('create_unplanned_visit', { p_equipment_id: equipmentId })
+  if (error) throw error
+  await logVisitEvent(visitId, 'creada', actorId)
+  return visitId
+}
+
 function signatureColumns({
   technicianSignature,
   technicianSignatureAt,

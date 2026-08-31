@@ -335,11 +335,18 @@ export default function VisitFormPage() {
     }
   }
 
+  // Un reporte lo genera el tecnico por su cuenta, muchas veces sin haber
+  // podido medir todo: ahi ningun campo es obligatorio. En una visita
+  // planificada el formulario sigue exigiendo lo de siempre.
+  const fieldsOptional = Boolean(visit.is_unplanned)
+
   return (
     <div className="w-full">
       <form onSubmit={handleSubmit} className="space-y-lg">
         <div>
-          <h1 className="font-headline-lg text-headline-lg text-on-surface mb-xs">Informe de Visita de Servicio</h1>
+          <h1 className="font-headline-lg text-headline-lg text-on-surface mb-xs">
+            {fieldsOptional ? 'Reporte de Visita' : 'Informe de Visita de Servicio'}
+          </h1>
           <p className="font-body-md text-body-md text-on-surface-variant">
             {visit.equipment?.motor} · {visit.equipment?.clients?.name}
           </p>
@@ -351,6 +358,7 @@ export default function VisitFormPage() {
           onChangeServiceType={setServiceType}
           onShowEquipmentDetail={handleShowEquipmentDetail}
           loadingEquipmentDetail={loadingEquipmentDetail}
+          fieldsOptional={fieldsOptional}
         />
 
         <VisitChecklistSection
@@ -358,6 +366,7 @@ export default function VisitFormPage() {
           checklistData={checklistData}
           onChangeItem={(key, value) => setChecklistData((data) => ({ ...data, [key]: value }))}
           equipment={visit.equipment}
+          fieldsOptional={fieldsOptional}
         />
 
         <VisitParametersForm
@@ -370,6 +379,7 @@ export default function VisitFormPage() {
           onChangePressureUnit={(definition, unit) =>
             setChecklistData((data) => ({ ...data, [getPressureUnitKey(definition)]: unit }))
           }
+          fieldsOptional={fieldsOptional}
         />
 
         <VisitChecklistSection
@@ -377,6 +387,7 @@ export default function VisitFormPage() {
           checklistData={checklistData}
           onChangeItem={(key, value) => setChecklistData((data) => ({ ...data, [key]: value }))}
           equipment={visit.equipment}
+          fieldsOptional={fieldsOptional}
         />
 
         <VisitChangesSection
@@ -391,6 +402,7 @@ export default function VisitFormPage() {
           onToggleFaultReported={setFaultReported}
           faultDescription={faultDescription}
           onChangeFaultDescription={setFaultDescription}
+          fieldsOptional={fieldsOptional}
           technicianSignature={technicianSignature}
           onChangeTechnicianSignature={handleChangeTechnicianSignature}
           technicianSignatureName={technicianSignatureName}

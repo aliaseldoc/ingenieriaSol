@@ -5,7 +5,15 @@ import { PRESSURE_UNIT, convertPressure, isValueOutOfSpec, resolveSpec } from '.
 // asi el tecnico no tiene que reescribirlo ni convertir de memoria. La unidad
 // elegida vive en el estado del padre (no es local) para poder persistirla
 // junto con el resto del formulario.
-export default function PressureParameterField({ definition, value, onChangeValue, equipment, unit, onChangeUnit }) {
+export default function PressureParameterField({
+  definition,
+  value,
+  onChangeValue,
+  equipment,
+  unit,
+  onChangeUnit,
+  fieldsOptional = false,
+}) {
   const { specMin, specMax } = resolveSpec(definition, equipment, unit)
   const outOfSpec = isValueOutOfSpec(value, specMin, specMax)
 
@@ -21,7 +29,7 @@ export default function PressureParameterField({ definition, value, onChangeValu
         <input
           type="number"
           step="any"
-          required
+          required={!fieldsOptional}
           placeholder={`${specMin} – ${specMax}`}
           value={value ?? ''}
           onChange={(event) => onChangeValue(event.target.value)}

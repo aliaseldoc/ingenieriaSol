@@ -4,7 +4,16 @@
 // autocompleta si se conoce el tamaño del tanque del equipo. La unidad
 // elegida vive en el estado del padre (no es local) para poder persistirla:
 // el informe la usa para mostrar un solo valor, en vez de las dos filas.
-export default function FuelParameterField({ litrosValue, nivelValue, onChangeLitros, onChangeNivel, tankSize, unit, onChangeUnit }) {
+export default function FuelParameterField({
+  litrosValue,
+  nivelValue,
+  onChangeLitros,
+  onChangeNivel,
+  tankSize,
+  unit,
+  onChangeUnit,
+  fieldsOptional = false,
+}) {
   const isLitros = unit === 'litros'
   const value = isLitros ? litrosValue : nivelValue
   const showTankSizeHint = isLitros && !(tankSize > 0)
@@ -16,7 +25,7 @@ export default function FuelParameterField({ litrosValue, nivelValue, onChangeLi
         <input
           type="number"
           step="any"
-          required
+          required={!fieldsOptional}
           value={value ?? ''}
           onChange={(event) => (isLitros ? onChangeLitros(event.target.value) : onChangeNivel(event.target.value))}
           className="w-full bg-surface border border-outline rounded px-md py-sm font-body-lg text-body-lg text-on-surface focus:border-secondary focus:border-2 focus:outline-none transition-colors"

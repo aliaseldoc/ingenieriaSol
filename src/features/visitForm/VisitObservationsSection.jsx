@@ -31,6 +31,7 @@ export default function VisitObservationsSection({
   onChangeClientSignature,
   clientSignatureName,
   onChangeClientSignatureName,
+  fieldsOptional = false,
 }) {
   return (
     <section className="grid grid-cols-1 lg:grid-cols-3 gap-md">
@@ -58,7 +59,7 @@ export default function VisitObservationsSection({
           </label>
           {faultReported && (
             <textarea
-              required
+              required={!fieldsOptional}
               value={faultDescription}
               onChange={(event) => onChangeFaultDescription(event.target.value)}
               placeholder="Describí la falla detectada…"

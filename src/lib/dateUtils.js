@@ -69,6 +69,16 @@ export function getAlertLevel(dueDate, today = new Date()) {
   return 'al_dia'
 }
 
+// Alerta de service anual silenciada por el supervisor: se guardo la fecha de
+// vencimiento del momento, asi que el silencio vale solo mientras el
+// vencimiento siga siendo ese. Cuando se hace el service, la fecha se
+// recalcula, deja de coincidir y la alerta vuelve sola (ver el par
+// isFuelAlertMuted en constants.js).
+export function isAnnualAlertMuted(equipment, dueDate) {
+  if (!equipment?.annual_alert_muted_due_date || !dueDate) return false
+  return equipment.annual_alert_muted_due_date === toISODateString(dueDate)
+}
+
 export function formatDate(dateInput) {
   if (!dateInput) return '—'
   const date = parseDateInput(dateInput)

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useEquipment } from '../../hooks/useEquipment'
 import { useVisitsThisMonth } from '../../hooks/useVisits'
-import { getNextAnnualServiceDue, daysBetween, formatDate } from '../../lib/dateUtils'
+import { getNextAnnualServiceDue, daysBetween, formatDate, isAnnualAlertMuted } from '../../lib/dateUtils'
 import { ROLE_HOME_PATH, VISIT_STATUS, VISIT_STATUS_LABELS } from '../../lib/constants'
 import KpiCard from '../../components/ui/KpiCard'
 import EmptyState from '../../components/ui/EmptyState'
@@ -118,7 +118,14 @@ export default function SummaryPage() {
                     <p className="font-label-md text-label-md text-on-surface">{item.motor}</p>
                     <p className="font-body-sm text-body-sm text-on-surface-variant">{item.clients?.name}</p>
                   </div>
-                  <span className="font-label-sm text-label-sm text-on-surface-variant">{formatDate(dueDate)}</span>
+                  <div className="flex items-center gap-sm">
+                    {/* Esta lista es un pronostico a 90 dias, no una bandeja de
+                        alertas: las silenciadas no se ocultan, se marcan. */}
+                    {isAnnualAlertMuted(item, dueDate) && (
+                      <StatusChip label="Alerta ignorada" tone="neutral" variant="tag" />
+                    )}
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">{formatDate(dueDate)}</span>
+                  </div>
                 </button>
               </li>
             ))}

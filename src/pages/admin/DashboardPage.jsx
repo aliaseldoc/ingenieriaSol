@@ -8,8 +8,9 @@ import { useVisitsThisMonth } from '../../hooks/useVisits'
 import { useRouteSheetsInRange } from '../../hooks/useRouteSheets'
 import { useTechnicians } from '../../hooks/useTechnicians'
 import { listRecentEvents } from '../../api/visitEvents'
-import { CONDITION_STATUS, ROLE_HOME_PATH, VISIT_STATUS } from '../../lib/constants'
-import { startOfMonth, endOfMonth, toISODateString } from '../../lib/dateUtils'
+import { updateEquipment } from '../../api/equipment'
+import { CONDITION_STATUS, ROLE_HOME_PATH, ROLES, VISIT_STATUS } from '../../lib/constants'
+import { startOfMonth, endOfMonth, toISODateString, getNextAnnualServiceDue } from '../../lib/dateUtils'
 import KpiCard from '../../components/ui/KpiCard'
 import AnnualServiceAlerts from '../../features/dashboard/AnnualServiceAlerts'
 import RecentActivityFeed from '../../features/dashboard/RecentActivityFeed'
@@ -59,14 +60,36 @@ export default function DashboardPage() {
     listRecentEvents(8).then(setRecentEvents)
   }, [])
 
+  // Silenciar guarda el valor que se esta ignorando, no un booleano: la alerta
+  // vuelve sola en cuanto ese valor cambie (ver 0018_silenciar_alertas.sql).
+  async function muteFuelAlert(item) {
+    await updateEquipment(item.id, { fuel_alert_muted_percentage: item.fuel_percentage })
+    reloadEquipment()
+  }
+
+  async function muteAnnualAlert(item) {
+    await updateEquipment(item.id, { annual_alert_muted_due_date: toISODateString(getNextAnnualServiceDue(item)) })
+    reloadEquipment()
+  }
+
+  async function unmuteAlert(item, field) {
+    await updateEquipment(item.id, { [field]: null })
+    reloadEquipment()
+  }
+
   if (equipmentLoading || visitsLoading || routeSheetsLoading || techniciansLoading) {
     return <Spinner label="Cargando panel…" />
   }
 
+  const canMuteAlerts = profile?.role === ROLES.SUPERVISOR
   const activeEquipmentCount = equipment.filter((item) => item.condition_status !== CONDITION_STATUS.FUERA_SERVICIO).length
   const completedVisits = visitsThisMonth.filter((visit) => visit.status === VISIT_STATUS.APROBADA).length
   const completionPercentage = visitsThisMonth.length > 0 ? Math.round((completedVisits / visitsThisMonth.length) * 100) : 0
-  const alertCount = alerts.filter((alert) => alert.alertLevel === 'vencido' || alert.alertLevel === 'proximo').length
+  // Los KPI cuentan lo mismo que muestran las listas de abajo: las alertas
+  // silenciadas no suman, para que el numero grande no contradiga al panel.
+  const alertCount = alerts.filter(
+    (alert) => !alert.muted && (alert.alertLevel === 'vencido' || alert.alertLevel === 'proximo')
+  ).length
 
   // En escritorio el panel ocupa exactamente el alto de la ventana menos la
   // barra superior fija (6.4rem) y el padding vertical del contenido (3.2rem
@@ -97,7 +120,7 @@ export default function DashboardPage() {
           tone="secondary"
         />
         <KpiCard icon="warning" label="Alertas de Service Anual" value={alertCount} sublabel="Vencidas o próximas a vencer" tone="warning" />
-        <KpiCard icon="local_gas_station" label="Alertas de Combustible" value={fuelAlerts.length} sublabel="Equipos con ≤ 30% de combustible" tone="soft" />
+        <KpiCard icon="local_gas_station" label="Alertas de Combustible" value={fuelAlerts.active.length} sublabel="Equipos con ≤ 30% de combustible" tone="soft" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-md lg:flex-1 lg:min-h-0">
@@ -114,11 +137,25 @@ export default function DashboardPage() {
         </DashboardPanel>
 
         <DashboardPanel title="Alertas de Service Anual">
-          <AnnualServiceAlerts equipment={equipment} alerts={alerts} onSelectEquipment={setHistoryEquipment} />
+          <AnnualServiceAlerts
+            equipment={equipment}
+            alerts={alerts}
+            onSelectEquipment={setHistoryEquipment}
+            canMute={canMuteAlerts}
+            onMute={muteAnnualAlert}
+            onUnmute={(item) => unmuteAlert(item, 'annual_alert_muted_due_date')}
+          />
         </DashboardPanel>
 
         <DashboardPanel title="Alertas de Combustible">
-          <FuelAlerts equipment={fuelAlerts} onSelectEquipment={setHistoryEquipment} />
+          <FuelAlerts
+            equipment={fuelAlerts.active}
+            mutedEquipment={fuelAlerts.muted}
+            onSelectEquipment={setHistoryEquipment}
+            canMute={canMuteAlerts}
+            onMute={muteFuelAlert}
+            onUnmute={(item) => unmuteAlert(item, 'fuel_alert_muted_percentage')}
+          />
         </DashboardPanel>
       </div>
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useTechnicianVisits } from '../../hooks/useVisits'
-import { listVisitsForTechnician, listVisitParametersForVisits } from '../../api/visits'
+import { listVisitsForTechnician, listVisitParametersForVisits, createUnplannedVisit } from '../../api/visits'
 import { SERVICE_TYPE_LABELS, VISIT_STATUS, VISIT_STATUS_LABELS } from '../../lib/constants'
 import { formatFullDate, formatDateTime } from '../../lib/dateUtils'
 import { useConnectivityStatus, usePendingVisitIds } from '../../offline/useOfflineSync'
@@ -17,6 +17,7 @@ import StatusChip from '../../components/ui/StatusChip'
 import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
 import Button from '../../components/ui/Button'
+import NewReportModal from '../../features/visitForm/NewReportModal'
 
 const STATUS_TONE = {
   [VISIT_STATUS.APROBADA]: 'success',
@@ -151,6 +152,7 @@ export default function MonthlyPlanPage() {
   const [downloadError, setDownloadError] = useState(null)
   const [downloadInfo, setDownloadInfo] = useState(null)
   const [downloadedVisitIds, setDownloadedVisitIds] = useState(() => new Set())
+  const [showNewReport, setShowNewReport] = useState(false)
 
   async function refreshDownloadedVisitIds() {
     const ids = await getDownloadedVisitIds()
@@ -213,6 +215,11 @@ export default function MonthlyPlanPage() {
     navigate(`/tecnico/visita/${visitId}`)
   }
 
+  async function handleCreateReport(equipmentId) {
+    const visitId = await createUnplannedVisit(equipmentId, profile.id)
+    goToVisit(visitId)
+  }
+
   if (loading) return <Spinner label="Cargando tu plan…" />
 
   const isEmpty = plannedGroups.length === 0 && pendingValidationGroups.length === 0
@@ -224,14 +231,23 @@ export default function MonthlyPlanPage() {
           <h1 className="font-headline-lg text-headline-lg text-on-surface mb-xs">Mi Plan Mensual</h1>
           <p className="font-body-md text-body-md text-on-surface-variant">Visitas asignadas por el administrativo.</p>
         </div>
-        <Button
-          variant="secondary-outline"
-          icon="download"
-          disabled={!online || downloading}
-          onClick={handleDownloadRouteSheet}
-        >
-          {downloading ? 'Descargando…' : 'Descargar hoja de ruta'}
-        </Button>
+        {/* En mobile los dos botones se apilan (Generar Reporte queda debajo
+            del de descarga); en escritorio van uno al lado del otro. */}
+        <div className="flex flex-col md:flex-row gap-sm">
+          <Button
+            variant="secondary-outline"
+            icon="download"
+            disabled={!online || downloading}
+            onClick={handleDownloadRouteSheet}
+          >
+            {downloading ? 'Descargando…' : 'Descargar hoja de ruta'}
+          </Button>
+          {/* Generar el reporte necesita el listado de clientes/equipos y un
+              insert contra el servidor: sin conexion no puede funcionar. */}
+          <Button variant="primary" icon="post_add" disabled={!online} onClick={() => setShowNewReport(true)}>
+            Generar Reporte
+          </Button>
+        </div>
       </div>
 
       <div className="mb-lg">
@@ -286,6 +302,12 @@ export default function MonthlyPlanPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Montado solo al abrirse: adentro pide clientes y equipos al servidor,
+          y no tiene sentido pagar esas dos consultas en cada carga del plan. */}
+      {showNewReport && (
+        <NewReportModal open onClose={() => setShowNewReport(false)} onConfirm={handleCreateReport} />
       )}
     </div>
   )
