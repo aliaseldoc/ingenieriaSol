@@ -1,15 +1,11 @@
 import { NavLink } from 'react-router-dom'
+import Logo from '../ui/Logo'
 
 export default function Sidebar({ navItems }) {
   return (
     <aside className="hidden md:flex flex-col h-screen w-[25.6rem] fixed left-0 top-0 bg-primary-container border-r border-outline-variant py-md z-40">
       <div className="px-lg pb-xl flex flex-col">
-        <span className="font-headline-md text-headline-md font-bold text-on-primary tracking-tight">
-          Ingenieria Sol
-        </span>
-        <span className="font-label-sm text-label-sm text-on-primary-container uppercase mt-xs">
-          Operaciones Empresariales
-        </span>
+        <Logo className="w-[17rem] mx-auto text-on-primary" />
       </div>
       <nav className="flex-1 flex flex-col gap-1 overflow-y-auto">
         {navItems.map((item) => (

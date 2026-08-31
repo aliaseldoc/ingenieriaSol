@@ -23,7 +23,7 @@ export default defineConfig({
       strategies: 'generateSW',
       registerType: 'prompt',
       injectRegister: false,
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon-32.png', 'apple-touch-icon.png'],
       manifest: {
         start_url: BASE_PATH,
         scope: BASE_PATH,
