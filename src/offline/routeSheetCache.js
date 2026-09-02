@@ -1,7 +1,7 @@
 // Cache de lectura offline: la hoja de ruta descargada (visitas + parametros)
 // y el perfil del usuario, para que el tecnico pueda seguir viendo sus datos
 // sin conexion. La cola de escrituras pendientes vive en syncQueue.js.
-import { STORES, getAll, getByKey, putValue, putMany, clearStore } from './db'
+import { STORES, getAll, getByKey, putValue, putMany, clearStore, deleteByKey } from './db'
 import {
   VISIT_STATUS,
   TECHNICIAN_EDITABLE_STATUSES,
@@ -143,6 +143,15 @@ export async function updateCachedVisit(visitId, patch) {
   const existing = await getByKey(STORES.VISITS, visitId)
   if (!existing) return
   await putValue(STORES.VISITS, { ...existing, ...patch, _cachedAt: new Date().toISOString() })
+}
+
+// Saca del cache de lectura una visita que ya no existe en el servidor (hoy
+// solo pasa cuando el tecnico elimina un reporte propio). Sin esto seguiria
+// apareciendo en el plan mensual mientras no se vuelva a descargar la hoja
+// de ruta, y peor todavia sin conexion.
+export async function removeVisitFromCache(visitId) {
+  await deleteByKey(STORES.VISITS, visitId)
+  await deleteByKey(STORES.VISIT_PARAMETERS, visitId)
 }
 
 export async function saveVisitParametersToCache(visitId, parameterRows) {

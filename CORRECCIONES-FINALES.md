@@ -37,5 +37,8 @@
 (CORREGIDO)-Al descargar la hoja de ruta offline solo descargue las visitas pendientes de realizar y no todo el historial.
 
 -El tecnico puede generar un reporte
+    
 
--Agregar un boton solo en la vista del supervisor para ignorar las alertertas por bajo combustible o service vencido
+(CORREGIDO)-Agregar un boton solo en la vista del supervisor para ignorar las alertertas por bajo combustible o service vencido
+
+-Ajustar estilos de envio de email

@@ -121,6 +121,13 @@ export async function createUnplannedVisit(equipmentId, actorId) {
   return visitId
 }
 
+// Baja de un reporte propio todavia no enviado. Borra tambien la hoja de ruta
+// que se habia creado para el (ver 0020_eliminar_reporte_tecnico.sql).
+export async function deleteUnplannedVisit(visitId) {
+  const { error } = await supabase.rpc('delete_unplanned_visit', { p_visit_id: visitId })
+  if (error) throw error
+}
+
 function signatureColumns({
   technicianSignature,
   technicianSignatureAt,

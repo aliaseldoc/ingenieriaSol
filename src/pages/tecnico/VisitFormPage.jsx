@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useVisitDetail, useVisitParameters, useVisitEvents } from '../../hooks/useVisits'
-import { saveVisitOrQueue, getPendingWriteForVisit } from '../../offline/syncQueue'
+import { saveVisitOrQueue, getPendingWriteForVisit, removePendingWrite } from '../../offline/syncQueue'
+import { removeVisitFromCache } from '../../offline/routeSheetCache'
 import { useConnectivityStatus } from '../../offline/useOfflineSync'
 import { getEquipmentById } from '../../api/equipment'
+import { deleteUnplannedVisit } from '../../api/visits'
 import {
   CHECKLIST_CATEGORY,
   CHECKLIST_ITEM_STATUS,
@@ -19,6 +21,7 @@ import {
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import EmptyState from '../../components/ui/EmptyState'
+import ConfirmModal from '../../components/ui/ConfirmModal'
 import VisitDetailPanel from '../../features/visitReview/VisitDetailPanel'
 import VisitMetadataCard from '../../features/visitForm/VisitMetadataCard'
 import VisitChecklistSection from '../../features/visitForm/VisitChecklistSection'
@@ -60,6 +63,9 @@ export default function VisitFormPage() {
   const [pendingWrite, setPendingWrite] = useState(undefined)
   const [equipmentDetail, setEquipmentDetail] = useState(null)
   const [loadingEquipmentDetail, setLoadingEquipmentDetail] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
   // Clave del ultimo snapshot ya persistido (server o cola offline); si el
   // snapshot actual coincide, el autoguardado no tiene nada nuevo que hacer.
   const lastSavedKeyRef = useRef(null)
@@ -311,6 +317,27 @@ export default function VisitFormPage() {
     )
   }
 
+  // El reporte se borra entero en el servidor, asi que hay que sacar tambien
+  // lo que quedo del lado del dispositivo: el autoguardado pudo dejar una
+  // escritura encolada y una copia en el cache de lectura, y si sobreviven la
+  // visita reaparece en el plan (o se reintenta sincronizar algo que ya no
+  // existe).
+  async function handleDeleteReport() {
+    setConfirmDelete(false)
+    if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current)
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteUnplannedVisit(visitId)
+      await removePendingWrite(visitId)
+      await removeVisitFromCache(visitId)
+      navigate('/tecnico', { replace: true })
+    } catch (error) {
+      setDeleteError(error)
+      setDeleting(false)
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
     if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current)
@@ -339,6 +366,9 @@ export default function VisitFormPage() {
   // podido medir todo: ahi ningun campo es obligatorio. En una visita
   // planificada el formulario sigue exigiendo lo de siempre.
   const fieldsOptional = Boolean(visit.is_unplanned)
+  // Mismo criterio que aplica delete_unplanned_visit del lado de la base.
+  // Sin conexion no se puede: la baja no pasa por la cola de sincronizacion.
+  const canDeleteReport = fieldsOptional && !visit.submitted_at && online
 
   return (
     <div className="w-full">
@@ -428,8 +458,26 @@ export default function VisitFormPage() {
               No se pudo guardar: {saveError?.message ?? 'error desconocido'}.
             </p>
           )}
+          {deleteError && (
+            <p role="alert" className="font-body-sm text-body-sm text-error">
+              No se pudo eliminar el reporte: {deleteError.message ?? 'error desconocido'}.
+            </p>
+          )}
           <div className="flex justify-end gap-sm">
-            <Button type="submit" variant="primary" disabled={saving}>
+            {/* Solo un reporte propio sin enviar: una visita planificada la
+                organiza el administrativo y no le toca al tecnico borrarla. */}
+            {canDeleteReport && (
+              <Button
+                type="button"
+                variant="destructive-outline"
+                icon="delete"
+                disabled={saving || deleting}
+                onClick={() => setConfirmDelete(true)}
+              >
+                {deleting ? 'Eliminando…' : 'Eliminar Reporte'}
+              </Button>
+            )}
+            <Button type="submit" variant="primary" disabled={saving || deleting}>
               Finalizar Reporte
             </Button>
           </div>
@@ -442,6 +490,17 @@ export default function VisitFormPage() {
         onUpdated={setEquipmentDetail}
         onDeleted={() => setEquipmentDetail(null)}
       />
+
+      <ConfirmModal
+        open={confirmDelete}
+        title="Eliminar reporte"
+        confirmLabel="Eliminar"
+        danger
+        onConfirm={handleDeleteReport}
+        onCancel={() => setConfirmDelete(false)}
+      >
+        Se va a eliminar este reporte con todo lo que hayas cargado. No se puede deshacer.
+      </ConfirmModal>
     </div>
   )
 }
