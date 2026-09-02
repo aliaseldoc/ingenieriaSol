@@ -40,15 +40,25 @@ function formatDate(isoDate) {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-// Las plantillas de EmailJS insertan estos fragmentos con {{{...}}} (sin
-// escapar), asi que cualquier texto libre que venga de un usuario (nombre,
-// notas, motor) se escapa aca antes de armar el HTML.
+// Regla de las plantillas (ver emailjs-templates/): todo parametro terminado
+// en _html llega ya armado y la plantilla lo inserta con {{{...}}} sin
+// escapar, asi que el texto libre que venga de un usuario (nombre, notas,
+// motor) se escapa aca. El resto de los parametros van como texto plano y la
+// plantilla los inserta con {{...}}, que EmailJS ya escapa — por eso no hay
+// que pre-escaparlos, o se veria "MERCEDES &amp; BENZ".
 function escapeHtml(text) {
   return String(text ?? '').replace(
     /[&<>"']/g,
     (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char])
   )
 }
+
+// Estilos en linea para los fragmentos: los clientes de correo no aplican
+// hojas de estilo, y lo que se hereda del <td> contenedor no es confiable en
+// Outlook. Los valores coinciden con los de emailjs-templates/.
+const TEXT_STYLE = 'margin:0 0 10px 0;font-size:14px;line-height:21px;color:#12181a;'
+const LIST_STYLE = 'margin:0 0 10px 0;padding-left:20px;font-size:14px;line-height:21px;color:#12181a;'
+const LABEL_STYLE = 'color:#1f4a3d;'
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -107,9 +117,11 @@ async function sendNotificationEmails(callerClient, routeSheetId) {
     if (!isFirst) await sleep(1100)
     isFirst = false
 
-    const equipmentListHtml = `<ul>${client.equipmentLabels.map((label) => `<li>${escapeHtml(label)}</li>`).join('')}</ul>`
+    const equipmentListHtml = `<ul style="${LIST_STYLE}">${client.equipmentLabels
+      .map((label) => `<li style="margin-bottom:4px;">${escapeHtml(label)}</li>`)
+      .join('')}</ul>`
     const descripcionBlockHtml = routeSheet.descripcion?.trim()
-      ? `<p><strong>Detalle:</strong> ${escapeHtml(routeSheet.descripcion)}</p>`
+      ? `<p style="${TEXT_STYLE}"><strong style="${LABEL_STYLE}">Detalle:</strong> ${escapeHtml(routeSheet.descripcion)}</p>`
       : ''
     await sendTemplateEmail(EMAILJS_TEMPLATE_ID_NOTIFICATION, {
       to_email: client.contact_email,
@@ -156,22 +168,36 @@ async function sendResultsEmail(callerClient, visitId) {
   const technicians = (visit.route_sheets?.route_sheet_technicians ?? []).map((rst) => rst.profiles?.full_name).filter(Boolean)
 
   const parametersBlockHtml = outOfRange.length
-    ? `<p><strong>Parámetros fuera de rango:</strong></p><ul>${outOfRange
-        .map((p) => `<li>${escapeHtml(p.metric_label)}: ${escapeHtml(p.value)} ${escapeHtml(p.unit ?? '')}</li>`)
+    ? `<p style="${TEXT_STYLE}"><strong style="${LABEL_STYLE}">Parámetros fuera de rango:</strong></p><ul style="${LIST_STYLE}">${outOfRange
+        .map(
+          (p) =>
+            `<li style="margin-bottom:4px;">${escapeHtml(p.metric_label)}: <strong>${escapeHtml(p.value)} ${escapeHtml(
+              p.unit ?? ''
+            )}</strong></li>`
+        )
         .join('')}</ul>`
-    : '<p>Todos los parámetros medidos estuvieron dentro de rango.</p>'
+    : `<p style="${TEXT_STYLE}">Todos los parámetros medidos estuvieron dentro de rango.</p>`
 
   await sendTemplateEmail(EMAILJS_TEMPLATE_ID_RESULTS, {
     to_email: client.contact_email,
-    equipment_label: escapeHtml([visit.equipment?.motor, visit.equipment?.generador].filter(Boolean).join(' / ')),
+    // Sin escapar: la plantilla lo inserta con {{...}} y EmailJS ya escapa.
+    equipment_label: [visit.equipment?.motor, visit.equipment?.generador].filter(Boolean).join(' / '),
     scheduled_date: formatDate(visit.scheduled_date),
     service_type_label: SERVICE_TYPE_LABELS[visit.service_type] ?? visit.service_type,
-    technicians_block_html: technicians.length ? `<p><strong>Técnico(s):</strong> ${escapeHtml(technicians.join(', '))}</p>` : '',
-    parameters_block_html: parametersBlockHtml,
-    fault_block_html: visit.fault_reported
-      ? `<p style="color:#9c2f2b"><strong>Falla reportada:</strong> ${escapeHtml(visit.fault_description ?? '')}</p>`
+    technicians_block_html: technicians.length
+      ? `<p style="${TEXT_STYLE}"><strong style="${LABEL_STYLE}">Técnico(s):</strong> ${escapeHtml(technicians.join(', '))}</p>`
       : '',
-    notes_block_html: visit.notes ? `<p><strong>Notas del técnico:</strong> ${escapeHtml(visit.notes)}</p>` : '',
+    parameters_block_html: parametersBlockHtml,
+    // Recuadro rojo tenue en vez de solo texto rojo: en un mail la falla es
+    // lo que el cliente tiene que ver primero.
+    fault_block_html: visit.fault_reported
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 10px 0;background-color:#f6dad8;border-left:4px solid #9c2f2b;border-radius:4px;"><tr><td style="padding:12px 14px;font-size:14px;line-height:21px;color:#6b1512;"><strong>Falla reportada:</strong> ${escapeHtml(
+          visit.fault_description ?? ''
+        )}</td></tr></table>`
+      : '',
+    notes_block_html: visit.notes
+      ? `<p style="${TEXT_STYLE}"><strong style="${LABEL_STYLE}">Notas del técnico:</strong> ${escapeHtml(visit.notes)}</p>`
+      : '',
   })
 
   return { ok: true, sentTo: [client.contact_email] }
