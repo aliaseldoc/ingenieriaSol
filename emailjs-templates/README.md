@@ -95,11 +95,43 @@ Lo que corresponde en producción es conectar un **servicio transaccional**
 a verificar el dominio remitente con registros SPF y DKIM en el DNS, que es
 justamente lo que hace que los mails no caigan en spam.
 
-**Ojo con esto**: para mandar desde `@ingenieriasol.com.ar` hace falta acceso al
-DNS del dominio. Es el paso que más puede demorar (la propagación puede tardar
-horas). Si no hay acceso al DNS, la alternativa es mandar desde un subdominio o
-desde una dirección del propio proveedor, con `Reply-To` apuntando a la casilla
-real.
+**Ojo con esto**: autenticar el dominio con SPF y DKIM requiere acceso al DNS de
+`ingenieriasol.com.ar`. Es el paso que más demora (la propagación puede tardar
+horas) y es el que de verdad mejora la entregabilidad.
+
+### Sin acceso al DNS: verificar un remitente individual
+
+Mientras no haya DNS, el camino que funciona es **single sender verification**:
+el proveedor manda un mail de confirmación a la dirección remitente y alcanza
+con hacer clic. **Necesita acceso al buzón, no al DNS.** Se puede mandar a
+cualquier destinatario igual, con dos contras a tener presentes:
+
+- Sin SPF/DKIM hay más riesgo de caer en spam. Hay que revisar esa carpeta al
+  probar, y volver sobre la autenticación del dominio apenas haya DNS.
+- El plan gratis de Brevo agrega una línea *"Sent with Brevo"* al pie del mail.
+  En un correo con membrete a un cliente se nota; se saca con el plan pago.
+
+Brevo se elige por descarte: el plan gratis de SendGrid dejó de existir en 2026
+(60 días de prueba y después pago), y Resend sin dominio verificado solo deja
+mandarse mails a uno mismo. Brevo son 300/día gratis para siempre y no exige
+dominio para arrancar.
+
+### Configuración concreta (Brevo por SMTP)
+
+1. Cuenta en brevo.com.
+2. *Senders, Domains & Dedicated IPs* → **Senders** → *Add a sender* con la
+   dirección remitente → confirmar desde ese buzón.
+3. *Settings* → **SMTP & API** → solapa **SMTP** → *Generate a new SMTP key*:
+
+   | Dato | Valor |
+   |---|---|
+   | Servidor | `smtp-relay.brevo.com` |
+   | Puerto | `587` |
+   | Usuario | el **SMTP login** que muestra el panel |
+   | Contraseña | la **SMTP key** — no la API key, son distintas |
+
+4. En EmailJS, *Add New Service* con la opción **SMTP** y esos cuatro datos.
+   *From Email* = el remitente verificado, *From Name* = `Ingeniería Sol`.
 
 ## El logo
 
