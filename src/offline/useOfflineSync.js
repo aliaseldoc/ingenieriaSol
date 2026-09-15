@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { isOnline } from './network'
 import { getPendingWrites, flushPendingWrites, syncQueueEvents } from './syncQueue'
+import { getPendingPunches, flushPendingPunches } from './punchQueue'
 
-// Fuente unica para el resto de los hooks: relee la cola completa al montar
-// y cada vez que syncQueue emite 'change' (se encolo algo, se saco algo, o
-// termino un flush).
-function usePendingWriteEntries() {
+// Relee una cola completa al montar y cada vez que se emite 'change' (se
+// encolo algo, se saco algo, o termino un flush). Visitas y fichajes
+// comparten el mismo canal de eventos.
+function useQueueEntries(loadEntries) {
   const [entries, setEntries] = useState([])
 
   const reload = useCallback(() => {
-    getPendingWrites().then(setEntries)
-  }, [])
+    loadEntries().then(setEntries)
+  }, [loadEntries])
 
   useEffect(() => {
     reload()
@@ -19,6 +20,15 @@ function usePendingWriteEntries() {
   }, [reload])
 
   return entries
+}
+
+function usePendingWriteEntries() {
+  return useQueueEntries(getPendingWrites)
+}
+
+// Fichajes hechos sin conexion que todavia no llegaron al servidor.
+export function usePendingPunches() {
+  return useQueueEntries(getPendingPunches)
 }
 
 export function useConnectivityStatus() {
@@ -43,7 +53,7 @@ export function useConnectivityStatus() {
 }
 
 export function usePendingSyncCount() {
-  return usePendingWriteEntries().length
+  return usePendingWriteEntries().length + usePendingPunches().length
 }
 
 // Set<visitId> con escritura pendiente, para marcar tarjetas individuales
@@ -56,13 +66,16 @@ export function usePendingVisitIds() {
 export function useSyncController() {
   const online = useConnectivityStatus()
   const entries = usePendingWriteEntries()
+  const punchEntries = usePendingPunches()
   const [syncing, setSyncing] = useState(false)
 
   const syncNow = useCallback(async () => {
     if (!isOnline() || syncing) return null
     setSyncing(true)
     try {
-      return await flushPendingWrites()
+      const result = await flushPendingWrites()
+      await flushPendingPunches()
+      return result
     } finally {
       setSyncing(false)
     }
@@ -79,5 +92,5 @@ export function useSyncController() {
 
   const conflicts = entries.filter((entry) => entry.lastError === 'conflict')
 
-  return { online, pendingCount: entries.length, syncing, syncNow, conflicts }
+  return { online, pendingCount: entries.length + punchEntries.length, syncing, syncNow, conflicts }
 }

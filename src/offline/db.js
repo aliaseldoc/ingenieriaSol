@@ -3,12 +3,16 @@
 // src/offline/* pasa siempre por estos helpers.
 
 const DB_NAME = 'isol-offline'
-const DB_VERSION = 1
+// v2: store de fichajes pendientes (ver punchQueue.js). onupgradeneeded
+// solo crea los stores que faltan, asi que subir la version no toca los datos
+// ya guardados de las visitas.
+const DB_VERSION = 2
 
 export const STORES = {
   VISITS: 'visits',
   VISIT_PARAMETERS: 'visitParameters',
   PENDING_WRITES: 'pendingWrites',
+  PENDING_PUNCHES: 'pendingPunches',
   META: 'meta',
 }
 
@@ -16,6 +20,7 @@ const STORE_KEY_PATHS = {
   [STORES.VISITS]: 'id',
   [STORES.VISIT_PARAMETERS]: 'visit_id',
   [STORES.PENDING_WRITES]: 'visitId',
+  [STORES.PENDING_PUNCHES]: 'id',
   [STORES.META]: 'key',
 }
 

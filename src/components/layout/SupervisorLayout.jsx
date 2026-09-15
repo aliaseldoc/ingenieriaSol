@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: '/supervisor/clientes', icon: 'domain', label: 'Clientes' },
   { to: '/supervisor/calendario', icon: 'calendar_month', label: 'Calendario' },
   { to: '/supervisor/personal', icon: 'group', label: 'Personal' },
+  { to: '/supervisor/fichajes', icon: 'fingerprint', label: 'Fichajes' },
   { to: '/supervisor/resumen', icon: 'insights', label: 'Resumen' },
 ]
 

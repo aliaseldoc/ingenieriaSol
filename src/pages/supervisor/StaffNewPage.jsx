@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createStaffMember } from '../../api/staff'
+import { describeEmployeeError, isClockPinTaken, setClockPinForUsername } from '../../api/employees'
 import { ROLES, ROLE_LABELS } from '../../lib/constants'
 import { toISODateString } from '../../lib/dateUtils'
+import { normalizeClockPin } from '../../features/timesheet/clockFileParser'
 import Button from '../../components/ui/Button'
 import Field from '../../components/ui/Field'
 import FormSection from '../../components/ui/FormSection'
@@ -16,6 +18,7 @@ function emptyForm() {
     phone: '',
     address: '',
     registeredAt: toISODateString(new Date()),
+    clockPin: '',
   }
 }
 
@@ -29,14 +32,33 @@ export default function StaffNewPage() {
     event.preventDefault()
     setErrorMessage('')
     setSubmitting(true)
+    const clockPin = normalizeClockPin(form.clockPin)
     try {
+      // Se valida antes de crear la cuenta: despues ya no se puede deshacer.
+      if (clockPin && (await isClockPinTaken(clockPin))) {
+        setErrorMessage('Ya existe un empleado con ese N° en el reloj.')
+        return
+      }
       await createStaffMember(form)
-      navigate('/supervisor/personal', { replace: true })
     } catch (error) {
       setErrorMessage(error.message || 'No se pudo crear el usuario.')
+      return
     } finally {
       setSubmitting(false)
     }
+
+    // El legajo lo crea la base junto con el perfil; aca solo se le carga el N° del reloj.
+    if (clockPin) {
+      try {
+        await setClockPinForUsername(form.username, clockPin)
+      } catch (error) {
+        setErrorMessage(
+          `La cuenta se creó, pero no se pudo guardar el N° en el reloj (${describeEmployeeError(error, 'error desconocido')}). Cargalo desde el detalle del personal.`
+        )
+        return
+      }
+    }
+    navigate('/supervisor/personal', { replace: true })
   }
 
   return (
@@ -97,6 +119,11 @@ export default function StaffNewPage() {
                 value={form.registeredAt}
                 onChange={(value) => setForm((f) => ({ ...f, registeredAt: value }))}
                 required
+              />
+              <Field
+                label="N° en el reloj"
+                value={form.clockPin}
+                onChange={(value) => setForm((f) => ({ ...f, clockPin: value }))}
               />
             </div>
           </FormSection>

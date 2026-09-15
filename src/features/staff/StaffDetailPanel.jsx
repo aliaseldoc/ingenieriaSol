@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Modal from '../../components/ui/Modal'
 import StatusChip from '../../components/ui/StatusChip'
 import FormSection from '../../components/ui/FormSection'
@@ -7,6 +7,8 @@ import { ROLE_LABELS } from '../../lib/constants'
 import { formatDate } from '../../lib/dateUtils'
 import { updateProfile } from '../../api/profiles'
 import { renameStaffUsername } from '../../api/staff'
+import { describeEmployeeError, getEmployeeByProfileId, isClockPinTaken, setClockPinForProfile } from '../../api/employees'
+import { normalizeClockPin } from '../timesheet/clockFileParser'
 
 const ROLE_TONE = { administrativo: 'neutral', tecnico: 'success', supervisor: 'warning' }
 
@@ -19,28 +21,51 @@ function DetailField({ label, value }) {
   )
 }
 
-function toFormValues(staff) {
+function toFormValues(staff, employee) {
   return {
     username: staff.username ?? '',
     full_name: staff.full_name ?? '',
     role: staff.role,
     phone: staff.phone ?? '',
     address: staff.address ?? '',
+    clock_pin: employee?.clock_pin ?? '',
   }
 }
 
 export default function StaffDetailPanel({ staff, onClose, onUpdated }) {
   const [isEditing, setIsEditing] = useState(false)
   const [form, setForm] = useState(null)
+  const [formError, setFormError] = useState('')
+  // Legajo de fichaje vinculado al perfil (lo crea la base con el perfil).
+  const [employee, setEmployee] = useState(null)
+
+  const staffId = staff?.id ?? null
+
+  useEffect(() => {
+    let isMounted = true
+    setEmployee(null)
+    if (staffId) {
+      getEmployeeByProfileId(staffId)
+        .then((loaded) => {
+          if (isMounted) setEmployee(loaded)
+        })
+        .catch(() => {})
+    }
+    return () => {
+      isMounted = false
+    }
+  }, [staffId])
 
   function startEditing() {
-    setForm(toFormValues(staff))
+    setForm(toFormValues(staff, employee))
+    setFormError('')
     setIsEditing(true)
   }
 
   function stopEditing() {
     setIsEditing(false)
     setForm(null)
+    setFormError('')
   }
 
   function handleClose() {
@@ -50,7 +75,25 @@ export default function StaffDetailPanel({ staff, onClose, onUpdated }) {
 
   async function handleSubmit(event) {
     event.preventDefault()
-    const { username, ...profileFields } = form
+    const { username, clock_pin: clockPinInput, ...profileFields } = form
+    const clockPin = normalizeClockPin(clockPinInput)
+
+    // El N° del reloj va primero: es lo que mas probablemente falle (repetido)
+    // y asi no queda el perfil guardado a medias.
+    if (clockPin !== (employee?.clock_pin ?? '')) {
+      try {
+        if (clockPin && (await isClockPinTaken(clockPin, employee?.id))) {
+          setFormError('Ya existe un empleado con ese N° en el reloj.')
+          return
+        }
+        await setClockPinForProfile(staff.id, clockPin)
+        setEmployee(await getEmployeeByProfileId(staff.id))
+      } catch (error) {
+        setFormError(describeEmployeeError(error, 'No se pudo guardar el N° en el reloj.'))
+        return
+      }
+    }
+
     const normalizedUsername = username.trim().toLowerCase()
     if (normalizedUsername !== staff.username) {
       await renameStaffUsername(staff.id, normalizedUsername)
@@ -92,8 +135,12 @@ export default function StaffDetailPanel({ staff, onClose, onUpdated }) {
               </div>
               <Field label="Teléfono" value={form.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} />
               <Field label="Dirección" value={form.address} onChange={(v) => setForm((f) => ({ ...f, address: v }))} />
+              <Field label="N° en el reloj" value={form.clock_pin} onChange={(v) => setForm((f) => ({ ...f, clock_pin: v }))} />
             </div>
           </FormSection>
+          {formError && (
+            <p role="alert" className="font-body-sm text-body-sm text-error">{formError}</p>
+          )}
         </form>
       )}
 
@@ -112,6 +159,7 @@ export default function StaffDetailPanel({ staff, onClose, onUpdated }) {
             <DetailField label="Teléfono" value={staff.phone} />
             <DetailField label="Dirección" value={staff.address} />
             <DetailField label="Fecha de Registro" value={staff.registered_at ? formatDate(staff.registered_at) : null} />
+            <DetailField label="N° en el reloj" value={employee?.clock_pin} />
           </div>
         </section>
       )}

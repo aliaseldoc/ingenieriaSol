@@ -19,6 +19,7 @@ import TechnicianRouteSheetsModal from '../../features/dashboard/TechnicianRoute
 import CompletedVisitsModal from '../../features/dashboard/CompletedVisitsModal'
 import EquipmentHistoryPanel from '../../features/equipmentInventory/EquipmentHistoryPanel'
 import FuelAlerts from '../../features/dashboard/FuelAlerts'
+import TimesheetAlerts from '../../features/dashboard/TimesheetAlerts'
 import VisitSummaryModal from '../../features/calendar/VisitSummaryModal'
 import Spinner from '../../components/ui/Spinner'
 
@@ -122,6 +123,9 @@ export default function DashboardPage() {
         <KpiCard icon="warning" label="Alertas de Service Anual" value={alertCount} sublabel="Vencidas o próximas a vencer" tone="warning" />
         <KpiCard icon="local_gas_station" label="Alertas de Combustible" value={fuelAlerts.active.length} sublabel="Equipos con ≤ 30% de combustible" tone="soft" />
       </div>
+
+      {/* El fichaje es solo del supervisor: el administrativo no lo ve (ni tiene acceso por RLS). */}
+      {profile?.role === ROLES.SUPERVISOR && <TimesheetAlerts />}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-md lg:flex-1 lg:min-h-0">
         <DashboardPanel title="Actividad Reciente">
