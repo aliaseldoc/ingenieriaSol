@@ -5,7 +5,7 @@ import { VISIT_STATUS } from '../lib/constants'
 export async function listEquipmentWithClients() {
   const { data, error } = await supabase
     .from('equipment')
-    .select('*, clients(id, name)')
+    .select('*, clients(id, name, active)')
     .order('motor')
   if (error) throw error
   return data

@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
-import { useAuth } from '../../context/AuthContext'
-import { deleteClient } from '../../api/clients'
-import { requestDeletion } from '../../api/deletionRequests'
-import { ROLES } from '../../lib/constants'
+import { useState } from 'react'
+import { deleteClient, updateClient } from '../../api/clients'
+import { isActiveClient } from '../../lib/constants'
 import Modal from '../../components/ui/Modal'
 import ConfirmModal from '../../components/ui/ConfirmModal'
+import Switch from '../../components/ui/Switch'
+import EquipmentRow from '../equipmentInventory/EquipmentRow'
 
 function DetailField({ label, value }) {
   return (
@@ -15,32 +15,31 @@ function DetailField({ label, value }) {
   )
 }
 
-export default function ClientDetailModal({ client, onClose, onEdit, onDeleted }) {
-  const { profile } = useAuth()
+// Solo administrativo y supervisor llegan a la vista Clientes, y los dos
+// pueden hacer lo mismo con el cliente: cambiar su estado, modificarlo o
+// eliminarlo.
+export default function ClientDetailModal({ client, equipmentList, onClose, onEdit, onDeleted, onUpdated, onOpenEquipment }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [requestStatus, setRequestStatus] = useState('idle') // 'idle' | 'sending' | 'sent'
-  const isSupervisor = profile?.role === ROLES.SUPERVISOR
-  const isAdministrativo = profile?.role === ROLES.ADMINISTRATIVO
-
-  useEffect(() => {
-    if (client) setRequestStatus('idle')
-  }, [client])
+  const [savingActive, setSavingActive] = useState(false)
+  const [activeError, setActiveError] = useState('')
 
   function handleClose() {
     setErrorMessage('')
+    setActiveError('')
     onClose()
   }
 
-  async function handleRequestDeletion() {
-    setRequestStatus('sending')
-    setErrorMessage('')
+  // El switch guarda en el momento, sin pasar por "Modificar".
+  async function handleChangeActive(active) {
+    setSavingActive(true)
+    setActiveError('')
     try {
-      await requestDeletion({ entityType: 'cliente', entityId: client.id, entityName: client.name, requestedBy: profile.id })
-      setRequestStatus('sent')
+      onUpdated(await updateClient(client.id, { active }))
     } catch (error) {
-      setRequestStatus('idle')
-      setErrorMessage(error.message || 'No se pudo enviar la solicitud.')
+      setActiveError(error.message || 'No se pudo cambiar el estado del cliente.')
+    } finally {
+      setSavingActive(false)
     }
   }
 
@@ -61,23 +60,8 @@ export default function ClientDetailModal({ client, onClose, onEdit, onDeleted }
 
   const actions = [
     { label: 'Cerrar', variant: 'secondary-outline', onClick: handleClose },
-    ...(isSupervisor
-      ? [
-          { label: 'Eliminar', variant: 'destructive-outline', icon: 'delete', onClick: () => setConfirmingDelete(true) },
-          { label: 'Modificar', variant: 'primary', icon: 'edit', onClick: () => onEdit(client) },
-        ]
-      : []),
-    ...(isAdministrativo && requestStatus !== 'sent'
-      ? [
-          {
-            label: requestStatus === 'sending' ? 'Enviando…' : 'Solicitar Eliminación',
-            variant: 'destructive-outline',
-            icon: 'delete',
-            onClick: handleRequestDeletion,
-            disabled: requestStatus === 'sending',
-          },
-        ]
-      : []),
+    { label: 'Eliminar', variant: 'destructive-outline', icon: 'delete', onClick: () => setConfirmingDelete(true) },
+    { label: 'Modificar', variant: 'primary', icon: 'edit', onClick: () => onEdit(client) },
   ]
 
   return (
@@ -85,6 +69,22 @@ export default function ClientDetailModal({ client, onClose, onEdit, onDeleted }
       <Modal open={Boolean(client)} title="Detalle del Cliente" onClose={handleClose} size="lg" actions={actions}>
         {client && (
           <div className="space-y-md">
+            <div>
+              <p className="font-label-sm text-label-sm text-on-surface-variant uppercase mb-xs">Estado</p>
+              <Switch
+                id="client-active"
+                checked={isActiveClient(client)}
+                disabled={savingActive}
+                onChange={handleChangeActive}
+                label={isActiveClient(client) ? 'Activo' : 'Inactivo'}
+              />
+              {activeError && (
+                <p role="alert" className="font-body-sm text-body-sm text-error mt-xs">
+                  {activeError}
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-md">
               <DetailField label="CUIT" value={client.tax_id} />
               <DetailField label="Contacto" value={client.contact_name} />
@@ -98,16 +98,30 @@ export default function ClientDetailModal({ client, onClose, onEdit, onDeleted }
                 </div>
               )}
             </div>
-            {requestStatus === 'sent' && (
-              <p className="font-body-sm text-body-sm text-tertiary-fixed-dim">
-                Solicitud enviada, a la espera de aprobación del supervisor.
-              </p>
-            )}
-            {errorMessage && !confirmingDelete && (
-              <p role="alert" className="font-body-sm text-body-sm text-error">
-                {errorMessage}
-              </p>
-            )}
+
+            <section>
+              <h3 className="list-title-bar font-label-md text-label-md uppercase tracking-wider mb-md px-md py-sm rounded">
+                Equipos ({equipmentList.length})
+              </h3>
+              {equipmentList.length === 0 ? (
+                <p className="font-body-sm text-body-sm text-on-surface-variant">Este cliente todavía no tiene equipos cargados.</p>
+              ) : (
+                <div className="border border-outline-variant rounded overflow-hidden">
+                  {/* Mismas columnas que EquipmentRow en md+; por debajo cada
+                      fila pasa a mini-card con sus propias etiquetas. */}
+                  <div className="hidden md:grid md:grid-cols-12 gap-sm pl-xl pr-sm py-xs bg-surface-container font-label-sm text-label-sm text-on-surface-variant uppercase">
+                    <span className="col-span-4">Equipo</span>
+                    <span className="col-span-2">Combustible</span>
+                    <span className="col-span-2">Horas de Uso</span>
+                    <span className="col-span-2">Último Service</span>
+                    <span className="col-span-2">Condición</span>
+                  </div>
+                  {equipmentList.map((equipment, index) => (
+                    <EquipmentRow key={equipment.id} equipment={equipment} onOpenHistory={onOpenEquipment} index={index} />
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         )}
       </Modal>

@@ -1,3 +1,5 @@
+import StatusChip from '../../components/ui/StatusChip'
+import { isActiveClient } from '../../lib/constants'
 import EquipmentRow from './EquipmentRow'
 
 export default function ClientGroupRow({ client, equipmentList, expanded, onToggleExpanded, onOpenHistory }) {
@@ -13,6 +15,7 @@ export default function ClientGroupRow({ client, equipmentList, expanded, onTogg
         </span>
         <span className="font-label-md text-label-md text-on-secondary">{client.name}</span>
         <span className="font-label-sm text-label-sm text-secondary-fixed-dim">({equipmentList.length})</span>
+        {!isActiveClient(client) && <StatusChip label="Inactivo" tone="neutral" variant="tag" />}
       </button>
       {expanded && (
         <div>

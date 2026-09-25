@@ -16,6 +16,7 @@ import {
 import { formatDate, formatDateTime } from '../../lib/dateUtils'
 import StatusChip from '../../components/ui/StatusChip'
 import Timeline from '../../components/ui/Timeline'
+import EquipmentSheetButton from '../equipmentInventory/EquipmentSheetButton'
 import ParametersTable from './ParametersTable'
 
 const CHECKLIST_STATUS_ICON = {
@@ -44,7 +45,18 @@ function SignatureDisplay({ label, signature, signatureName, signatureAt }) {
   )
 }
 
-export default function VisitDetailPanel({ visit, parameters, events, actions, actionsPosition = 'bottom' }) {
+// showEquipmentSheet y previousParameters son del informe que revisan
+// administrativo y supervisor; la vista del tecnico no los pasa (ya tiene su
+// propio boton de ficha tecnica en VisitFormPage.jsx).
+export default function VisitDetailPanel({
+  visit,
+  parameters,
+  previousParameters,
+  events,
+  actions,
+  actionsPosition = 'bottom',
+  showEquipmentSheet = false,
+}) {
   const timelineEvents = events.map((event) => ({
     id: event.id,
     label: VISIT_STATUS_LABELS[event.event_type] ?? VISIT_EVENT_EXTRA_LABELS[event.event_type] ?? event.event_type,
@@ -60,7 +72,8 @@ export default function VisitDetailPanel({ visit, parameters, events, actions, a
           <h2 className="font-headline-md text-headline-md text-on-surface">{visit.equipment?.clients?.name}</h2>
           <h3 className="font-body-md text-body-md text-on-surface-variant font-normal">{visit.equipment?.motor}</h3>
         </div>
-        <div className="flex items-center gap-sm">
+        <div className="flex items-center flex-wrap gap-sm">
+          {showEquipmentSheet && <EquipmentSheetButton equipmentId={visit.equipment_id} />}
           {/* Reporte generado por el tecnico, fuera de la planificacion del
               administrativo: conviene que se note en las tres vistas que
               usan este panel (recepcion, validacion y el propio tecnico). */}
@@ -130,7 +143,11 @@ export default function VisitDetailPanel({ visit, parameters, events, actions, a
 
         <div className="border border-outline-variant rounded p-md md:col-span-2">
           <h3 className="list-title-bar -mx-md -mt-md mb-sm font-body-lg text-body-lg uppercase px-md py-sm rounded-t">Parámetros Registrados</h3>
-          <ParametersTable parameters={parameters} fuelUnit={visit.checklist_data?.combustible_unidad ?? 'porcentaje'} />
+          <ParametersTable
+            parameters={parameters}
+            previousParameters={previousParameters}
+            fuelUnit={visit.checklist_data?.combustible_unidad ?? 'porcentaje'}
+          />
         </div>
 
         <div className="border border-outline-variant rounded p-md md:col-span-2">

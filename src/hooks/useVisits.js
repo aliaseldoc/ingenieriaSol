@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  getPreviousVisitParameters,
   getVisitById,
   listAllSubmittedVisits,
   listUnassignedVisits,
@@ -98,6 +99,12 @@ export function useVisitParameters(visitId) {
       return getCachedVisitParameters(visitId)
     }
   }, [visitId])
+}
+
+// Solo lo usan administrativo y supervisor (columna "Ultimo valor registrado"
+// del informe), por eso no tiene cache offline como useVisitParameters.
+export function usePreviousVisitParameters(visit) {
+  return useAsync(() => (visit ? getPreviousVisitParameters(visit) : Promise.resolve([])), [visit?.id])
 }
 
 export function useVisitEvents(visitId) {

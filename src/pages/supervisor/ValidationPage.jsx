@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { useVisitsPendingReview, useVisitParameters, useVisitEvents } from '../../hooks/useVisits'
+import { useVisitsPendingReview, useVisitParameters, usePreviousVisitParameters, useVisitEvents } from '../../hooks/useVisits'
 import { approveVisit, rejectVisit, requestVisitRevision } from '../../api/visits'
 import { sendVisitResultsEmail } from '../../api/notifications'
 import { logVisitEvent } from '../../api/visitEvents'
 import { VISIT_STATUS, VISIT_EVENT_RESULTADOS_ENVIADOS } from '../../lib/constants'
 import VisitReviewQueue from '../../features/visitReview/VisitReviewQueue'
 import VisitDetailPanel from '../../features/visitReview/VisitDetailPanel'
-import DeletionRequestsQueue from '../../features/validation/DeletionRequestsQueue'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import EmptyState from '../../components/ui/EmptyState'
@@ -28,6 +27,7 @@ export default function ValidationPage() {
 
   const selectedVisit = approvedVisit ?? visits?.find((visit) => visit.id === selectedId) ?? null
   const { data: parameters } = useVisitParameters(selectedId)
+  const { data: previousParameters } = usePreviousVisitParameters(selectedVisit)
   const { data: events, reload: reloadEvents } = useVisitEvents(selectedId)
   const resultsSentCount = (events ?? []).filter((event) => event.event_type === VISIT_EVENT_RESULTADOS_ENVIADOS).length
 
@@ -86,14 +86,15 @@ export default function ValidationPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-md">
         <div className="lg:col-span-4 flex flex-col gap-md">
           <VisitReviewQueue visits={visits ?? []} selectedId={selectedId} onSelect={handleSelectVisit} />
-          <DeletionRequestsQueue />
         </div>
         <div className="lg:col-span-8">
           {selectedVisit ? (
             <VisitDetailPanel
               visit={selectedVisit}
               parameters={parameters ?? []}
+              previousParameters={previousParameters ?? []}
               events={events ?? []}
+              showEquipmentSheet
               actions={
                 <>
                   {emailMessage && (

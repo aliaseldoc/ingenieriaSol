@@ -98,6 +98,13 @@ export const CONDITION_STATUS_LABELS = {
   [CONDITION_STATUS.FUERA_SERVICIO]: 'Fuera de Servicio',
 }
 
+// Un cliente inactivo (ver 0023) conserva su ficha y su historial, pero sale
+// de la operacion: sus equipos no se planifican ni generan alertas. Sin el
+// dato (un embed que no pidio `active`) se lo toma como activo.
+export function isActiveClient(client) {
+  return client?.active !== false
+}
+
 // Cantidad de dias antes del vencimiento del service anual para mostrar la alerta.
 export const ANNUAL_SERVICE_ALERT_WINDOW_DAYS = 30
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useEquipment } from '../../hooks/useEquipment'
@@ -9,7 +9,7 @@ import { useRouteSheetsInRange } from '../../hooks/useRouteSheets'
 import { useTechnicians } from '../../hooks/useTechnicians'
 import { listRecentEvents } from '../../api/visitEvents'
 import { updateEquipment } from '../../api/equipment'
-import { CONDITION_STATUS, ROLE_HOME_PATH, ROLES, VISIT_STATUS } from '../../lib/constants'
+import { CONDITION_STATUS, ROLE_HOME_PATH, ROLES, VISIT_STATUS, isActiveClient } from '../../lib/constants'
 import { startOfMonth, endOfMonth, toISODateString, getNextAnnualServiceDue } from '../../lib/dateUtils'
 import KpiCard from '../../components/ui/KpiCard'
 import AnnualServiceAlerts from '../../features/dashboard/AnnualServiceAlerts'
@@ -40,8 +40,11 @@ export default function DashboardPage() {
   const { profile } = useAuth()
   const navigate = useNavigate()
   const { equipment, loading: equipmentLoading, reload: reloadEquipment } = useEquipment()
-  const alerts = useAnnualServiceAlerts(equipment)
-  const fuelAlerts = useFuelAlerts(equipment)
+  // Los equipos de clientes inactivos siguen en el inventario, pero ya no se
+  // atienden: no cuentan como grupos activos ni generan alertas.
+  const operatingEquipment = useMemo(() => equipment.filter((item) => isActiveClient(item.clients)), [equipment])
+  const alerts = useAnnualServiceAlerts(operatingEquipment)
+  const fuelAlerts = useFuelAlerts(operatingEquipment)
   const { data: visitsThisMonth, loading: visitsLoading } = useVisitsThisMonth()
   const now = new Date()
   const { data: routeSheetsThisMonth, loading: routeSheetsLoading } = useRouteSheetsInRange(
@@ -82,7 +85,7 @@ export default function DashboardPage() {
   }
 
   const canMuteAlerts = profile?.role === ROLES.SUPERVISOR
-  const activeEquipmentCount = equipment.filter((item) => item.condition_status !== CONDITION_STATUS.FUERA_SERVICIO).length
+  const activeEquipmentCount = operatingEquipment.filter((item) => item.condition_status !== CONDITION_STATUS.FUERA_SERVICIO).length
   const completedVisits = visitsThisMonth.filter((visit) => visit.status === VISIT_STATUS.APROBADA).length
   const completionPercentage = visitsThisMonth.length > 0 ? Math.round((completedVisits / visitsThisMonth.length) * 100) : 0
   // Los KPI cuentan lo mismo que muestran las listas de abajo: las alertas
@@ -138,7 +141,7 @@ export default function DashboardPage() {
 
         <DashboardPanel title="Alertas de Service Anual">
           <AnnualServiceAlerts
-            equipment={equipment}
+            equipment={operatingEquipment}
             alerts={alerts}
             onSelectEquipment={setHistoryEquipment}
             canMute={canMuteAlerts}
@@ -166,6 +169,7 @@ export default function DashboardPage() {
           setHistoryEquipment(updated)
           reloadEquipment()
         }}
+        onDeleted={reloadEquipment}
       />
 
       <VisitSummaryModal routeSheet={summaryRouteSheet} onClose={() => setSummaryRouteSheet(null)} />
