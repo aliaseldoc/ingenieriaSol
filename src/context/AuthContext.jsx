@@ -23,7 +23,12 @@ export function AuthProvider({ children }) {
       try {
         const loadedProfile = await getProfile(currentSession.user.id)
         if (isMounted) setProfile(loadedProfile)
-        await cacheProfile(loadedProfile)
+        // La copia local es solo para poder entrar sin conexion. Si no se
+        // puede guardar, el perfil ya llego del servidor: no es motivo para
+        // dejar al usuario afuera.
+        await cacheProfile(loadedProfile).catch((cacheError) => {
+          console.error('No se pudo guardar el perfil para uso sin conexión', cacheError)
+        })
       } catch (error) {
         // Sin red, la sesion (JWT valido en localStorage) puede seguir
         // viva aunque este fetch falle. En vez de cerrar sesion, se usa el

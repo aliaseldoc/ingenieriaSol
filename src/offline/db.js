@@ -21,10 +21,10 @@ const STORE_KEY_PATHS = {
 
 let dbPromise = null
 
-function openDb() {
-  if (dbPromise) return dbPromise
-  dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION)
+// Sin `version` abre la base en la version que ya tenga en este navegador.
+function requestDb(version) {
+  return new Promise((resolve, reject) => {
+    const request = version ? indexedDB.open(DB_NAME, version) : indexedDB.open(DB_NAME)
     request.onupgradeneeded = () => {
       const db = request.result
       for (const [storeName, keyPath] of Object.entries(STORE_KEY_PATHS)) {
@@ -35,6 +35,20 @@ function openDb() {
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
+  })
+}
+
+// Si una version mas nueva de la app ya subio la base en este navegador (otra
+// rama corrida en el mismo localhost, o un deploy que despues se revirtio),
+// IndexedDB no deja abrirla con una version menor y tira VersionError. Eso
+// cortaba hasta el login (ver cacheProfile en AuthContext). Los stores nunca
+// se borran al subir de version, asi que los que usa esta sigue teniendolos:
+// se abre en la version que ya tenga.
+function openDb() {
+  if (dbPromise) return dbPromise
+  dbPromise = requestDb(DB_VERSION).catch((error) => {
+    if (error?.name !== 'VersionError') throw error
+    return requestDb()
   })
   return dbPromise
 }
