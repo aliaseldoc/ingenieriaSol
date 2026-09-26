@@ -18,6 +18,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
 import Button from '../../components/ui/Button'
 import NewReportModal from '../../features/visitForm/NewReportModal'
+import { useSupervisorNotes } from '../../features/supervisorNotes/SupervisorNotesContext'
 
 const STATUS_TONE = {
   [VISIT_STATUS.APROBADA]: 'success',
@@ -61,7 +62,16 @@ function groupVisitsByDateAndClient(visits) {
     }))
 }
 
-function DateGroupList({ section, dateGroups, expandedGroupKeys, onToggleGroup, onSelectVisit, pendingVisitIds, downloadedVisitIds }) {
+function DateGroupList({
+  section,
+  dateGroups,
+  expandedGroupKeys,
+  onToggleGroup,
+  onSelectVisit,
+  pendingVisitIds,
+  downloadedVisitIds,
+  unreadNoteVisitIds,
+}) {
   return (
     <div className="space-y-lg">
       {dateGroups.map(({ dateKey, clientGroups }) => {
@@ -86,6 +96,9 @@ function DateGroupList({ section, dateGroups, expandedGroupKeys, onToggleGroup, 
               {clientGroups.map((group) => {
                 const key = clientGroupKey(section, dateKey, group.clientId)
                 const expanded = expandedGroupKeys.has(key)
+                // Los grupos arrancan contraidos: el aviso tiene que verse
+                // tambien en el encabezado del cliente.
+                const hasUnreadNotes = group.visits.some((visit) => unreadNoteVisitIds.has(visit.id))
                 return (
                   <div key={key} className="border border-outline-variant rounded-lg overflow-hidden bg-surface-container-lowest">
                     <button
@@ -97,6 +110,7 @@ function DateGroupList({ section, dateGroups, expandedGroupKeys, onToggleGroup, 
                         {expanded ? 'expand_more' : 'chevron_right'}
                       </span>
                       <span className="flex-1 font-label-md text-label-md text-on-secondary">{group.clientName}</span>
+                      {hasUnreadNotes && <StatusChip label="Nota nueva" tone="error" variant="tag" />}
                       <span className="font-label-sm text-label-sm text-secondary-fixed-dim">({group.visits.length})</span>
                     </button>
                     {expanded && (
@@ -113,6 +127,11 @@ function DateGroupList({ section, dateGroups, expandedGroupKeys, onToggleGroup, 
                               <p className="font-body-sm text-body-sm text-on-surface-variant">
                                 {SERVICE_TYPE_LABELS[visit.service_type] ?? 'Sin tipo'}
                               </p>
+                              {unreadNoteVisitIds.has(visit.id) && (
+                                <div className="mt-xs">
+                                  <StatusChip label="Nota nueva" tone="error" variant="tag" />
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center gap-sm">
                               {visit.scheduled_time_start && (
@@ -146,6 +165,7 @@ export default function MonthlyPlanPage() {
   const { data: visits, loading, reload } = useTechnicianVisits(profile?.id)
   const online = useConnectivityStatus()
   const pendingVisitIds = usePendingVisitIds()
+  const { unreadVisitIds } = useSupervisorNotes()
   // Vacio por defecto = todos los grupos de cliente arrancan contraidos.
   const [expandedGroupKeys, setExpandedGroupKeys] = useState(() => new Set())
   const [downloading, setDownloading] = useState(false)
@@ -282,6 +302,7 @@ export default function MonthlyPlanPage() {
               onSelectVisit={goToVisit}
               pendingVisitIds={pendingVisitIds}
               downloadedVisitIds={downloadedVisitIds}
+              unreadNoteVisitIds={unreadVisitIds}
             />
           )}
 
@@ -298,6 +319,7 @@ export default function MonthlyPlanPage() {
                 onSelectVisit={goToVisit}
                 pendingVisitIds={pendingVisitIds}
                 downloadedVisitIds={downloadedVisitIds}
+                unreadNoteVisitIds={unreadVisitIds}
               />
             </div>
           )}

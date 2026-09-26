@@ -6,7 +6,7 @@ import {
   VISIT_CHECKLIST_ITEMS,
   VISIT_STATUS_LABELS,
   VISIT_EVENT_EXTRA_LABELS,
-  VISIT_EVENT_RESULTADOS_ENVIADOS,
+  VISIT_EVENT_NOTA_SUPERVISOR,
   VISIT_CHANGES_FIELDS,
   VISIT_CHANGE_FIELD_TYPE,
   SI_NO_LABELS,
@@ -45,9 +45,19 @@ function SignatureDisplay({ label, signature, signatureName, signatureAt }) {
   )
 }
 
-// showEquipmentSheet y previousParameters son del informe que revisan
-// administrativo y supervisor; la vista del tecnico no los pasa (ya tiene su
-// propio boton de ficha tecnica en VisitFormPage.jsx).
+// Quien leyo una nota del supervisor, con los nombres de los tecnicos de la
+// visita (visit_event_reads guarda solo el id).
+function describeNoteReads(reads, technicians) {
+  if (!reads?.length) return 'Sin leer'
+  const namesById = new Map((technicians ?? []).map((technician) => [technician.id, technician.full_name]))
+  const readers = reads.map((read) => `${namesById.get(read.profile_id) ?? 'Técnico'} (${formatDateTime(read.read_at)})`)
+  return `Leída por ${readers.join(' · ')}`
+}
+
+// showEquipmentSheet, previousParameters y showNoteReads son del informe que
+// revisan administrativo y supervisor; la vista del tecnico no los pasa (ya
+// tiene su propio boton de ficha tecnica en VisitFormPage.jsx). historyFooter
+// se muestra dentro de la tarjeta "Historial", debajo de los eventos.
 export default function VisitDetailPanel({
   visit,
   parameters,
@@ -56,6 +66,8 @@ export default function VisitDetailPanel({
   actions,
   actionsPosition = 'bottom',
   showEquipmentSheet = false,
+  showNoteReads = false,
+  historyFooter = null,
 }) {
   const timelineEvents = events.map((event) => ({
     id: event.id,
@@ -63,6 +75,10 @@ export default function VisitDetailPanel({
     actor: event.profiles?.full_name ?? 'Sistema',
     timestamp: formatDateTime(event.created_at),
     notes: event.notes,
+    meta:
+      showNoteReads && event.event_type === VISIT_EVENT_NOTA_SUPERVISOR
+        ? describeNoteReads(event.visit_event_reads, visit.technicians)
+        : null,
   }))
 
   return (
@@ -217,6 +233,7 @@ export default function VisitDetailPanel({
         <div className="border border-outline-variant rounded p-md md:col-span-2">
           <h3 className="list-title-bar -mx-md -mt-md mb-sm font-body-lg text-body-lg uppercase px-md py-sm rounded-t">Historial</h3>
           <Timeline events={timelineEvents} />
+          {historyFooter && <div className="mt-md pt-md border-t border-outline-variant">{historyFooter}</div>}
         </div>
       </div>
 

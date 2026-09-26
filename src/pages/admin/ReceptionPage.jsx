@@ -65,6 +65,7 @@ export default function ReceptionPage() {
               previousParameters={previousParameters ?? []}
               events={events ?? []}
               showEquipmentSheet
+              showNoteReads
               actions={
                 <Button
                   variant="primary"

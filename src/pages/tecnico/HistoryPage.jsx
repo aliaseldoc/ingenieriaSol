@@ -7,6 +7,7 @@ import { formatDateTime } from '../../lib/dateUtils'
 import StatusChip from '../../components/ui/StatusChip'
 import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
+import { useSupervisorNotes } from '../../features/supervisorNotes/SupervisorNotesContext'
 
 const STATUS_TONE = {
   [VISIT_STATUS.APROBADA]: 'success',
@@ -19,6 +20,7 @@ export default function HistoryPage() {
   const { profile } = useAuth()
   const navigate = useNavigate()
   const { data: visits, loading } = useTechnicianVisits(profile?.id)
+  const { unreadVisitIds } = useSupervisorNotes()
 
   const history = useMemo(() => {
     return (visits ?? [])
@@ -53,6 +55,11 @@ export default function HistoryPage() {
                 <p className="font-body-sm text-body-sm text-on-surface-variant">
                   {visit.equipment?.clients?.name} · {SERVICE_TYPE_LABELS[visit.service_type] ?? 'Sin tipo'}
                 </p>
+                {unreadVisitIds.has(visit.id) && (
+                  <div className="mt-xs">
+                    <StatusChip label="Nota nueva" tone="error" variant="tag" />
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-sm">
                 <span className="font-label-sm text-label-sm text-on-surface-variant">{formatDateTime(visit.submitted_at)}</span>

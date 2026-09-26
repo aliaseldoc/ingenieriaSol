@@ -1,5 +1,7 @@
 import RoleLayoutShell from './RoleLayoutShell'
 import SyncStatusBar from './SyncStatusBar'
+import { SupervisorNotesProvider } from '../../features/supervisorNotes/SupervisorNotesContext'
+import NotificationBell from '../../features/supervisorNotes/NotificationBell'
 
 const NAV_ITEMS = [
   { to: '/tecnico', end: true, icon: 'calendar_month', label: 'Mi Plan' },
@@ -7,5 +9,14 @@ const NAV_ITEMS = [
 ]
 
 export default function TecnicoLayout() {
-  return <RoleLayoutShell navItems={NAV_ITEMS} title="Ingeniería Sol · Técnico" statusBar={<SyncStatusBar />} />
+  return (
+    <SupervisorNotesProvider>
+      <RoleLayoutShell
+        navItems={NAV_ITEMS}
+        title="Ingeniería Sol · Técnico"
+        statusBar={<SyncStatusBar />}
+        headerAction={<NotificationBell />}
+      />
+    </SupervisorNotesProvider>
+  )
 }

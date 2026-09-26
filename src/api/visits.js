@@ -279,23 +279,8 @@ export async function approveVisit(visitId, reviewedBy, reviewNotes) {
   await logVisitEvent(visitId, 'aprobada', reviewedBy, reviewNotes)
 }
 
-export async function rejectVisit(visitId, reviewedBy, reviewNotes) {
-  const { error } = await supabase
-    .from('visits')
-    .update({ status: VISIT_STATUS.RECHAZADA, reviewed_by: reviewedBy, reviewed_at: new Date().toISOString(), review_notes: reviewNotes })
-    .eq('id', visitId)
-  if (error) throw error
-  await logVisitEvent(visitId, 'rechazada', reviewedBy, reviewNotes)
-}
-
-export async function requestVisitRevision(visitId, reviewedBy, reviewNotes) {
-  const { error } = await supabase
-    .from('visits')
-    .update({ status: VISIT_STATUS.REVISION_SOLICITADA, reviewed_by: reviewedBy, reviewed_at: new Date().toISOString(), review_notes: reviewNotes })
-    .eq('id', visitId)
-  if (error) throw error
-  await logVisitEvent(visitId, 'revision_solicitada', reviewedBy, reviewNotes)
-}
+// La otra salida de la validacion ("Reparacion Solicitada") aprueba la visita
+// y abre el caso en una sola transaccion: vive en src/api/repairs.js.
 
 // Reemplaza los parametros cuantitativos de la visita por los valores actuales
 // del formulario (el conjunto de metricas es fijo, ver VISIT_PARAMETER_DEFINITIONS).

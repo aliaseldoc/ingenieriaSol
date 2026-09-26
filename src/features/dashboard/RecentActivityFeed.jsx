@@ -10,6 +10,8 @@ const EVENT_ICON = {
   aprobada: 'check_circle',
   rechazada: 'cancel',
   resultados_enviados: 'mail',
+  nota_supervisor: 'chat',
+  reparacion_solicitada: 'build',
 }
 
 const EVENT_LABEL = {
@@ -21,6 +23,8 @@ const EVENT_LABEL = {
   aprobada: 'Aprobada',
   rechazada: 'Rechazada',
   resultados_enviados: 'Resultados enviados por mail',
+  nota_supervisor: 'Nota al técnico',
+  reparacion_solicitada: 'Reparación solicitada',
 }
 
 export default function RecentActivityFeed({ events, onSelectEvent }) {

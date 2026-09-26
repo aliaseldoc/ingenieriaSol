@@ -62,6 +62,7 @@ export default function VisitDetailPage() {
           previousParameters={previousParameters ?? []}
           events={events ?? []}
           showEquipmentSheet
+          showNoteReads
           actions={
             visit.status === VISIT_STATUS.APROBADA ? (
               <Button variant="secondary-outline" icon="mail" disabled={sendingEmail} onClick={handleSendResults}>

@@ -35,10 +35,18 @@ export const VISIT_STATUS_LABELS = {
 }
 
 // visit_events tambien registra hitos que no son un cambio de status (ver
-// Timeline en VisitDetailPanel.jsx): la clave de este evento puntual.
+// Timeline en VisitDetailPanel.jsx): las claves de esos eventos puntuales.
 export const VISIT_EVENT_RESULTADOS_ENVIADOS = 'resultados_enviados'
+// Nota informativa del supervisor al tecnico: no cambia el estado de la
+// visita y le llega como aviso en la app (ver SupervisorNotesContext.jsx).
+export const VISIT_EVENT_NOTA_SUPERVISOR = 'nota_supervisor'
+// "Reparacion Solicitada" de la validacion: la visita queda aprobada y se abre
+// un caso en Reparaciones (ver request_visit_repair en 0024).
+export const VISIT_EVENT_REPARACION_SOLICITADA = 'reparacion_solicitada'
 export const VISIT_EVENT_EXTRA_LABELS = {
   [VISIT_EVENT_RESULTADOS_ENVIADOS]: 'Resultados enviados por mail',
+  [VISIT_EVENT_NOTA_SUPERVISOR]: 'Nota del supervisor',
+  [VISIT_EVENT_REPARACION_SOLICITADA]: 'Aprobada · Reparación solicitada',
 }
 
 // Estados de una visita que el tecnico todavia puede editar.
@@ -47,6 +55,60 @@ export const TECHNICIAN_EDITABLE_STATUSES = [
   VISIT_STATUS.BORRADOR,
   VISIT_STATUS.REVISION_SOLICITADA,
 ]
+
+// Casos de la vista Reparaciones (ver 0024): los abre el supervisor con
+// "Reparacion Solicitada" y los siguen supervisor y administrativo.
+export const REPAIR_STATUS = {
+  PENDIENTE_PRESUPUESTO: 'pendiente_presupuesto',
+  PRESUPUESTO_ENVIADO: 'presupuesto_enviado',
+  APROBADA: 'aprobada',
+  EN_EJECUCION: 'en_ejecucion',
+  FINALIZADA: 'finalizada',
+  CANCELADA: 'cancelada',
+}
+
+// En el orden en que avanza un caso: el selector de estado y los filtros de
+// la vista siguen este mismo orden.
+export const REPAIR_STATUS_LABELS = {
+  [REPAIR_STATUS.PENDIENTE_PRESUPUESTO]: 'Pendiente de Presupuesto',
+  [REPAIR_STATUS.PRESUPUESTO_ENVIADO]: 'Presupuesto Enviado',
+  [REPAIR_STATUS.APROBADA]: 'Aprobada por el Cliente',
+  [REPAIR_STATUS.EN_EJECUCION]: 'En Ejecución',
+  [REPAIR_STATUS.FINALIZADA]: 'Finalizada',
+  [REPAIR_STATUS.CANCELADA]: 'Cancelada',
+}
+
+export const REPAIR_STATUS_TONE = {
+  [REPAIR_STATUS.PENDIENTE_PRESUPUESTO]: 'warning',
+  [REPAIR_STATUS.PRESUPUESTO_ENVIADO]: 'neutral',
+  [REPAIR_STATUS.APROBADA]: 'success',
+  [REPAIR_STATUS.EN_EJECUCION]: 'warning',
+  [REPAIR_STATUS.FINALIZADA]: 'success',
+  [REPAIR_STATUS.CANCELADA]: 'error',
+}
+
+// Un caso sigue abierto hasta que se finaliza o se cancela.
+export const OPEN_REPAIR_STATUSES = [
+  REPAIR_STATUS.PENDIENTE_PRESUPUESTO,
+  REPAIR_STATUS.PRESUPUESTO_ENVIADO,
+  REPAIR_STATUS.APROBADA,
+  REPAIR_STATUS.EN_EJECUCION,
+]
+
+// Fecha del caso que se completa sola (con la de hoy) al pasar a ese estado,
+// si todavia estaba vacia. Despues se puede corregir a mano.
+export const REPAIR_STATUS_DATE_FIELD = {
+  [REPAIR_STATUS.PRESUPUESTO_ENVIADO]: 'budget_sent_at',
+  [REPAIR_STATUS.APROBADA]: 'client_approved_at',
+  [REPAIR_STATUS.FINALIZADA]: 'completed_at',
+}
+
+export const REPAIR_EVENT_TYPE = {
+  CREADA: 'creada',
+  ESTADO: 'estado',
+  NOTA: 'nota',
+  DATOS: 'datos',
+}
 
 export const SERVICE_TYPE = {
   PREVENTIVO: 'preventivo',

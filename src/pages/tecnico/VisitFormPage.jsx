@@ -7,6 +7,7 @@ import { removeVisitFromCache } from '../../offline/routeSheetCache'
 import { useConnectivityStatus } from '../../offline/useOfflineSync'
 import { getEquipmentById } from '../../api/equipment'
 import { deleteUnplannedVisit } from '../../api/visits'
+import { markVisitNotesRead } from '../../api/visitEvents'
 import {
   CHECKLIST_CATEGORY,
   CHECKLIST_ITEM_STATUS,
@@ -15,6 +16,7 @@ import {
   VISIT_CHECKLIST_ITEMS,
   VISIT_CHANGES_FIELDS,
   VISIT_PARAMETER_DEFINITIONS,
+  VISIT_EVENT_NOTA_SUPERVISOR,
   getPressureUnit,
   getPressureUnitKey,
 } from '../../lib/constants'
@@ -29,13 +31,24 @@ import VisitParametersForm from '../../features/visitForm/VisitParametersForm'
 import VisitChangesSection from '../../features/visitForm/VisitChangesSection'
 import VisitObservationsSection from '../../features/visitForm/VisitObservationsSection'
 import EquipmentHistoryPanel from '../../features/equipmentInventory/EquipmentHistoryPanel'
+import SupervisorNotesCard from '../../features/supervisorNotes/SupervisorNotesCard'
+import { useSupervisorNotes } from '../../features/supervisorNotes/SupervisorNotesContext'
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
+// Todo el estado local del formulario es de una sola visita: al pasar de una a
+// otra sin salir de esta ruta (ej. desde la campanita de notas del supervisor)
+// el formulario se vuelve a montar de cero.
 export default function VisitFormPage() {
+  const { visitId } = useParams()
+  return <VisitForm key={visitId} />
+}
+
+function VisitForm() {
   const { visitId } = useParams()
   const { profile } = useAuth()
   const navigate = useNavigate()
+  const { reload: reloadSupervisorNotes } = useSupervisorNotes()
 
   const { data: visit, loading: visitLoading } = useVisitDetail(visitId)
   const { data: existingParameters } = useVisitParameters(visitId)
@@ -66,6 +79,9 @@ export default function VisitFormPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
+  // Notas del supervisor que el tecnico no habia leido al abrir la visita;
+  // null = todavia no se revisaron.
+  const [newNoteIds, setNewNoteIds] = useState(null)
   // Clave del ultimo snapshot ya persistido (server o cola offline); si el
   // snapshot actual coincide, el autoguardado no tiene nada nuevo que hacer.
   const lastSavedKeyRef = useRef(null)
@@ -251,6 +267,24 @@ export default function VisitFormPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshotKey, initialized])
 
+  // Las notas del supervisor sin leer quedan marcadas "Nueva" en pantalla y se
+  // registran como leidas, lo que apaga el aviso de la campanita. Se hace una
+  // sola vez y con el historial ya cargado (trae las lecturas propias), asi no
+  // depende de si el aviso ya habia terminado de cargar. Sin conexion el
+  // historial no llega y queda para la proxima vez que se abra.
+  useEffect(() => {
+    if (!events || newNoteIds !== null) return
+    const unreadIds = events
+      .filter((event) => event.event_type === VISIT_EVENT_NOTA_SUPERVISOR)
+      .filter((event) => !(event.visit_event_reads ?? []).some((read) => read.profile_id === profile.id))
+      .map((event) => event.id)
+    setNewNoteIds(new Set(unreadIds))
+    if (unreadIds.length === 0) return
+    markVisitNotesRead(visitId)
+      .then(reloadSupervisorNotes)
+      .catch((error) => console.error('No se pudieron marcar las notas como leídas', error))
+  }, [events, newNoteIds, visitId, profile.id, reloadSupervisorNotes])
+
   if (visitLoading || pendingWrite === undefined) return <Spinner label="Cargando visita…" />
 
   // Sin conexion solo estan cacheadas las visitas pendientes de realizar
@@ -282,6 +316,10 @@ export default function VisitFormPage() {
     )
   }
 
+  const supervisorNotes = (events ?? []).filter((event) => event.event_type === VISIT_EVENT_NOTA_SUPERVISOR).reverse()
+  const supervisorNotesCard =
+    supervisorNotes.length > 0 ? <SupervisorNotesCard notes={supervisorNotes} newNoteIds={newNoteIds ?? new Set()} /> : null
+
   if (!TECHNICIAN_EDITABLE_STATUSES.includes(visit.status)) {
     return (
       <div>
@@ -291,6 +329,7 @@ export default function VisitFormPage() {
             Volver
           </Button>
         </div>
+        {supervisorNotesCard && <div className="mb-lg">{supervisorNotesCard}</div>}
         <VisitDetailPanel
           visit={visit}
           parameters={existingParameters ?? []}
@@ -381,6 +420,8 @@ export default function VisitFormPage() {
             {visit.equipment?.motor} · {visit.equipment?.clients?.name}
           </p>
         </div>
+
+        {supervisorNotesCard}
 
         <VisitMetadataCard
           visit={visit}
