@@ -14,15 +14,26 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let isMounted = true
+    // Usuario del perfil que quedo cargado (null si no hay perfil). Distingue
+    // un cambio real de usuario de los avisos que Supabase repite con la misma
+    // sesion (ver onAuthStateChange mas abajo). Sigue al perfil y no a la
+    // sesion para que, si el perfil no se pudo cargar, el proximo aviso lo
+    // vuelva a intentar.
+    let profileUserId = null
+
+    function applyProfile(nextProfile) {
+      profileUserId = nextProfile?.id ?? null
+      if (isMounted) setProfile(nextProfile)
+    }
 
     async function loadProfileForSession(currentSession) {
       if (!currentSession) {
-        if (isMounted) setProfile(null)
+        applyProfile(null)
         return
       }
       try {
         const loadedProfile = await getProfile(currentSession.user.id)
-        if (isMounted) setProfile(loadedProfile)
+        applyProfile(loadedProfile)
         // La copia local es solo para poder entrar sin conexion. Si no se
         // puede guardar, el perfil ya llego del servidor: no es motivo para
         // dejar al usuario afuera.
@@ -35,11 +46,11 @@ export function AuthProvider({ children }) {
         // ultimo perfil cacheado — solo si es del mismo usuario, para no
         // mostrar datos de otro tecnico en una tablet compartida.
         if (!isNetworkError(error)) {
-          if (isMounted) setProfile(null)
+          applyProfile(null)
           return
         }
         const cachedProfile = await getCachedProfile()
-        if (isMounted) setProfile(cachedProfile?.id === currentSession.user.id ? cachedProfile : null)
+        applyProfile(cachedProfile?.id === currentSession.user.id ? cachedProfile : null)
       }
     }
 
@@ -52,6 +63,12 @@ export function AuthProvider({ children }) {
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
+      // Supabase repite SIGNED_IN cada vez que la app vuelve a primer plano
+      // (desbloquear el celular, volver de otra app o pestaña) y avisa
+      // TOKEN_REFRESHED al renovar el token. Si el usuario es el mismo no hay
+      // nada que recargar: marcar loading hacia que ProtectedRoute desmontara
+      // la vista actual (con lo que se estuviera cargando) y la armara de cero.
+      if ((newSession?.user?.id ?? null) === profileUserId) return
       setLoading(true)
       loadProfileForSession(newSession).finally(() => {
         if (isMounted) setLoading(false)
