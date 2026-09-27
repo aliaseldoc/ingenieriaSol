@@ -10,7 +10,6 @@ import Field from '../../components/ui/Field'
 import { useAuth } from '../../context/AuthContext'
 import { useEquipmentHistory } from '../../hooks/useEquipment'
 import { updateEquipment, deleteEquipment } from '../../api/equipment'
-import { requestDeletion } from '../../api/deletionRequests'
 import {
   SERVICE_TYPE_LABELS,
   VISIT_STATUS,
@@ -56,6 +55,9 @@ function computeDefaultDueDate(changedAt, storedDueAt, years) {
 
 function toFormValues(equipment) {
   return {
+    service_start_date: equipment.service_start_date ?? '',
+    service_end_date: equipment.service_end_date ?? '',
+    purchase_order: equipment.purchase_order ?? '',
     motor: equipment.motor ?? '',
     generador: equipment.generador ?? '',
     serial_number: equipment.serial_number ?? '',
@@ -94,22 +96,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
   const [form, setForm] = useState(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [requestStatus, setRequestStatus] = useState('idle') // 'idle' | 'sending' | 'sent'
-  const isSupervisor = profile?.role === ROLES.SUPERVISOR
-  const isAdministrativo = profile?.role === ROLES.ADMINISTRATIVO
   const isTecnico = profile?.role === ROLES.TECNICO
-
-  async function handleRequestDeletion() {
-    setRequestStatus('sending')
-    setErrorMessage('')
-    try {
-      await requestDeletion({ entityType: 'equipo', entityId: equipment.id, entityName: equipment.motor, requestedBy: profile.id })
-      setRequestStatus('sent')
-    } catch (error) {
-      setRequestStatus('idle')
-      setErrorMessage(error.message || 'No se pudo enviar la solicitud.')
-    }
-  }
 
   function startEditing() {
     setForm(toFormValues(equipment))
@@ -124,7 +111,6 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
   function handleClose() {
     stopEditing()
     setErrorMessage('')
-    setRequestStatus('idle')
     onClose()
   }
 
@@ -151,6 +137,8 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
         : null
     const updated = await updateEquipment(equipment.id, {
       ...form,
+      service_start_date: form.service_start_date || null,
+      service_end_date: form.service_end_date || null,
       power_kva: form.power_kva !== '' ? Number(form.power_kva) : null,
       fuel_capacity: form.fuel_capacity !== '' ? Number(form.fuel_capacity) : null,
       fuel_liters: liters,
@@ -195,21 +183,12 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
       ]
     : [
         { label: 'Cerrar', variant: 'secondary-outline', onClick: handleClose },
-        ...(isSupervisor
-          ? [{ label: 'Eliminar', variant: 'destructive-outline', icon: 'delete', onClick: () => setConfirmingDelete(true) }]
-          : []),
-        ...(isAdministrativo && requestStatus !== 'sent'
+        ...(!isTecnico
           ? [
-              {
-                label: requestStatus === 'sending' ? 'Enviando…' : 'Solicitar Eliminación',
-                variant: 'destructive-outline',
-                icon: 'delete',
-                onClick: handleRequestDeletion,
-                disabled: requestStatus === 'sending',
-              },
+              { label: 'Eliminar', variant: 'destructive-outline', icon: 'delete', onClick: () => setConfirmingDelete(true) },
+              { label: 'Editar', variant: 'primary', icon: 'edit', onClick: startEditing },
             ]
           : []),
-        ...(!isTecnico ? [{ label: 'Editar', variant: 'primary', icon: 'edit', onClick: startEditing }] : []),
       ]
 
   return (
@@ -217,6 +196,14 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
     <Modal open={Boolean(equipment)} title={`Detalle de ${equipment?.motor ?? ''}`} onClose={handleClose} size="lg" actions={actions}>
       {equipment && isEditing && (
         <form id="edit-equipment-form" onSubmit={handleSubmit} className="space-y-md mb-lg">
+          <FormSection title="Datos Administrativos">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+              <Field label="Inicio del Servicio" type="date" value={form.service_start_date} onChange={(v) => setForm((f) => ({ ...f, service_start_date: v }))} />
+              <Field label="Fin del Servicio" type="date" value={form.service_end_date} onChange={(v) => setForm((f) => ({ ...f, service_end_date: v }))} />
+              <Field label="Orden de Compra" value={form.purchase_order} onChange={(v) => setForm((f) => ({ ...f, purchase_order: v }))} />
+            </div>
+          </FormSection>
+
           <FormSection title="Datos Principales">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
               <Field label="Motor" value={form.motor} onChange={(v) => setForm((f) => ({ ...f, motor: v }))} />
@@ -291,6 +278,18 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
         </form>
       )}
 
+      {/* Datos de gestion del servicio contratado: al tecnico no le suman. */}
+      {equipment && !isEditing && !isTecnico && (
+        <section className="mb-lg">
+          <h3 className="list-title-bar font-label-md text-label-md uppercase tracking-wider mb-md px-md py-sm rounded">Datos Administrativos</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-md">
+            <DetailField label="Inicio del Servicio" value={equipment.service_start_date ? formatDate(equipment.service_start_date) : null} />
+            <DetailField label="Fin del Servicio" value={equipment.service_end_date ? formatDate(equipment.service_end_date) : null} />
+            <DetailField label="Orden de Compra" value={equipment.purchase_order || null} />
+          </div>
+        </section>
+      )}
+
       {equipment && !isEditing && (
         <section className="mb-lg">
           <div className="list-title-bar flex items-center justify-between mb-md px-md py-sm rounded">
@@ -301,16 +300,6 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
               variant="dot"
             />
           </div>
-          {requestStatus === 'sent' && (
-            <p className="font-body-sm text-body-sm text-tertiary-fixed-dim mb-md">
-              Solicitud enviada, a la espera de aprobación del supervisor.
-            </p>
-          )}
-          {errorMessage && !confirmingDelete && (
-            <p role="alert" className="font-body-sm text-body-sm text-error mb-md">
-              {errorMessage}
-            </p>
-          )}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-md">
             <DetailField label="Cliente" value={equipment.clients?.name} />
             <DetailField label="Motor" value={equipment.motor} />

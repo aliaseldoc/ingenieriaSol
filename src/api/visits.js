@@ -110,6 +110,35 @@ export async function listVisitParametersForVisits(visitIds) {
   return data
 }
 
+// Una visita en estos estados ya tiene valores que sirven de referencia: el
+// tecnico la envio y el supervisor no la rechazo.
+const PREVIOUS_VISIT_STATUSES = [VISIT_STATUS.ENVIADA, VISIT_STATUS.REVISION_SOLICITADA, VISIT_STATUS.APROBADA]
+
+// Columna "Ultimo valor registrado" del informe: los parametros de la visita
+// anterior del mismo equipo. Se leen de visit_parameters y no del espejo de la
+// ficha (hours_of_use, starts_count...), que solo se actualiza al recibir.
+export async function getPreviousVisitParameters(visit) {
+  if (!visit.scheduled_date) return []
+  const { data: candidates, error } = await supabase
+    .from('visits')
+    .select('id, scheduled_date, submitted_at')
+    .eq('equipment_id', visit.equipment_id)
+    .neq('id', visit.id)
+    .in('status', PREVIOUS_VISIT_STATUSES)
+    .lte('scheduled_date', visit.scheduled_date)
+    .order('scheduled_date', { ascending: false })
+    .order('submitted_at', { ascending: false })
+  if (error) throw error
+
+  // Otra visita del mismo dia solo cuenta como anterior si se envio antes.
+  const previousVisit = candidates.find(
+    (candidate) =>
+      candidate.scheduled_date < visit.scheduled_date ||
+      new Date(candidate.submitted_at) < new Date(visit.submitted_at)
+  )
+  return previousVisit ? listVisitParametersForVisits([previousVisit.id]) : []
+}
+
 // Reporte del tecnico: una visita generada por el propio tecnico, por fuera de
 // la planificacion. La creacion entera (hoja de ruta + autoasignacion + visita)
 // vive en la funcion create_unplanned_visit, porque el tecnico no tiene permiso
@@ -250,23 +279,8 @@ export async function approveVisit(visitId, reviewedBy, reviewNotes) {
   await logVisitEvent(visitId, 'aprobada', reviewedBy, reviewNotes)
 }
 
-export async function rejectVisit(visitId, reviewedBy, reviewNotes) {
-  const { error } = await supabase
-    .from('visits')
-    .update({ status: VISIT_STATUS.RECHAZADA, reviewed_by: reviewedBy, reviewed_at: new Date().toISOString(), review_notes: reviewNotes })
-    .eq('id', visitId)
-  if (error) throw error
-  await logVisitEvent(visitId, 'rechazada', reviewedBy, reviewNotes)
-}
-
-export async function requestVisitRevision(visitId, reviewedBy, reviewNotes) {
-  const { error } = await supabase
-    .from('visits')
-    .update({ status: VISIT_STATUS.REVISION_SOLICITADA, reviewed_by: reviewedBy, reviewed_at: new Date().toISOString(), review_notes: reviewNotes })
-    .eq('id', visitId)
-  if (error) throw error
-  await logVisitEvent(visitId, 'revision_solicitada', reviewedBy, reviewNotes)
-}
+// La otra salida de la validacion ("Reparacion Solicitada") aprueba la visita
+// y abre el caso en una sola transaccion: vive en src/api/repairs.js.
 
 // Reemplaza los parametros cuantitativos de la visita por los valores actuales
 // del formulario (el conjunto de metricas es fijo, ver VISIT_PARAMETER_DEFINITIONS).

@@ -16,6 +16,7 @@ import CalendarPage from '../pages/admin/CalendarPage'
 import ReceptionPage from '../pages/admin/ReceptionPage'
 import SummaryPage from '../pages/admin/SummaryPage'
 import VisitDetailPage from '../pages/admin/VisitDetailPage'
+import RepairsPage from '../pages/admin/RepairsPage'
 
 import TecnicoLayout from '../components/layout/TecnicoLayout'
 import MonthlyPlanPage from '../pages/tecnico/MonthlyPlanPage'
@@ -56,6 +57,7 @@ export default function AppRouter() {
             <Route path="clientes" element={<ClientsPage />} />
             <Route path="calendario" element={<CalendarPage />} />
             <Route path="recepcion" element={<ReceptionPage />} />
+            <Route path="reparaciones" element={<RepairsPage />} />
             <Route path="resumen" element={<SummaryPage />} />
             <Route path="visita/:visitId" element={<VisitDetailPage />} />
             <Route path="perfil" element={<ProfilePage />} />
@@ -76,6 +78,7 @@ export default function AppRouter() {
           <Route path="/supervisor" element={<SupervisorLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="validacion" element={<ValidationPage />} />
+            <Route path="reparaciones" element={<RepairsPage />} />
             <Route path="equipos" element={<EquipmentPage />} />
             <Route path="clientes" element={<ClientsPage />} />
             <Route path="calendario" element={<CalendarPage />} />

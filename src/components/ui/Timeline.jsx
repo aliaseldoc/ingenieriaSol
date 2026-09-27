@@ -1,3 +1,5 @@
+// `meta` es una linea opcional debajo de las notas de un evento (ej. quien leyo
+// una nota del supervisor).
 export default function Timeline({ events }) {
   if (events.length === 0) {
     return <p className="font-body-sm text-body-sm text-on-surface-variant">Todavía no hay eventos registrados.</p>
@@ -12,7 +14,8 @@ export default function Timeline({ events }) {
           <p className="font-body-sm text-body-sm text-on-surface-variant">
             {event.actor} · {event.timestamp}
           </p>
-          {event.notes && <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">{event.notes}</p>}
+          {event.notes && <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs whitespace-pre-wrap">{event.notes}</p>}
+          {event.meta && <p className="font-label-sm text-label-sm text-on-surface-variant mt-xs italic">{event.meta}</p>}
         </li>
       ))}
     </ol>

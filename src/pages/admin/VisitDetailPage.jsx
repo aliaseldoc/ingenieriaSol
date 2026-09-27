@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { useVisitDetail, useVisitParameters, useVisitEvents } from '../../hooks/useVisits'
+import { useVisitDetail, useVisitParameters, usePreviousVisitParameters, useVisitEvents } from '../../hooks/useVisits'
 import { sendVisitResultsEmail } from '../../api/notifications'
 import { logVisitEvent } from '../../api/visitEvents'
 import { VISIT_STATUS, VISIT_EVENT_RESULTADOS_ENVIADOS } from '../../lib/constants'
@@ -16,6 +16,7 @@ export default function VisitDetailPage() {
   const { profile } = useAuth()
   const { data: visit, loading } = useVisitDetail(visitId)
   const { data: parameters } = useVisitParameters(visitId)
+  const { data: previousParameters } = usePreviousVisitParameters(visit)
   const { data: events, reload: reloadEvents } = useVisitEvents(visitId)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailMessage, setEmailMessage] = useState(null)
@@ -58,7 +59,10 @@ export default function VisitDetailPage() {
         <VisitDetailPanel
           visit={visit}
           parameters={parameters ?? []}
+          previousParameters={previousParameters ?? []}
           events={events ?? []}
+          showEquipmentSheet
+          showNoteReads
           actions={
             visit.status === VISIT_STATUS.APROBADA ? (
               <Button variant="secondary-outline" icon="mail" disabled={sendingEmail} onClick={handleSendResults}>

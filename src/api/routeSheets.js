@@ -3,7 +3,7 @@ import { VISIT_STATUS } from '../lib/constants'
 import { logVisitEvent } from './visitEvents'
 
 const ROUTE_SHEET_SELECT =
-  '*, vehicles(plate, name), route_sheet_technicians(profiles(id, full_name)), visits(id, equipment_id, status, submitted_at, service_type, equipment(motor, client_id, clients(name)))'
+  '*, vehicles(plate, name), route_sheet_technicians(profiles(id, full_name)), visits(id, equipment_id, status, submitted_at, service_type, equipment(motor, client_id, clients(name, active)))'
 
 // Aplana route_sheet_technicians a un array simple technicians = [{ id, full_name }, ...].
 function normalizeRouteSheet(row) {

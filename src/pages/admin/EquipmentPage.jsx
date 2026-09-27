@@ -57,6 +57,9 @@ function equipmentToReportRow(item) {
 
 const EMPTY_EQUIPMENT_FORM = {
   client_id: '',
+  service_start_date: '',
+  service_end_date: '',
+  purchase_order: '',
   motor: '',
   generador: '',
   serial_number: '',
@@ -134,6 +137,8 @@ export default function EquipmentPage() {
     try {
       await createEquipment({
         ...equipmentForm,
+        service_start_date: equipmentForm.service_start_date || null,
+        service_end_date: equipmentForm.service_end_date || null,
         power_kva: equipmentForm.power_kva ? Number(equipmentForm.power_kva) : null,
         fuel_capacity: equipmentForm.fuel_capacity ? Number(equipmentForm.fuel_capacity) : null,
         created_by: profile.id,
@@ -265,6 +270,14 @@ export default function EquipmentPage() {
               ))}
             </select>
           </div>
+
+          <FormSection title="Datos Administrativos">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+              <Field label="Inicio del Servicio" type="date" value={equipmentForm.service_start_date} onChange={(v) => setEquipmentForm((f) => ({ ...f, service_start_date: v }))} />
+              <Field label="Fin del Servicio" type="date" value={equipmentForm.service_end_date} onChange={(v) => setEquipmentForm((f) => ({ ...f, service_end_date: v }))} />
+              <Field label="Orden de Compra" value={equipmentForm.purchase_order} onChange={(v) => setEquipmentForm((f) => ({ ...f, purchase_order: v }))} />
+            </div>
+          </FormSection>
 
           <FormSection title="Datos Principales">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-md">

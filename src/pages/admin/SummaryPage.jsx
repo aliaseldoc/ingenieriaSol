@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useEquipment } from '../../hooks/useEquipment'
 import { useVisitsThisMonth } from '../../hooks/useVisits'
 import { getNextAnnualServiceDue, daysBetween, formatDate, isAnnualAlertMuted } from '../../lib/dateUtils'
-import { ROLE_HOME_PATH, VISIT_STATUS, VISIT_STATUS_LABELS } from '../../lib/constants'
+import { ROLE_HOME_PATH, VISIT_STATUS, VISIT_STATUS_LABELS, isActiveClient } from '../../lib/constants'
 import KpiCard from '../../components/ui/KpiCard'
 import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
@@ -34,7 +34,9 @@ export default function SummaryPage() {
   )
 
   const today = new Date()
+  // A los equipos de clientes inactivos ya no se les hace el service.
   const upcomingAnnualServices = equipment
+    .filter((item) => isActiveClient(item.clients))
     .map((item) => ({ item, dueDate: getNextAnnualServiceDue(item) }))
     .filter(({ dueDate }) => dueDate && daysBetween(today, dueDate) <= FUTURE_WINDOW_DAYS)
     .sort((a, b) => a.dueDate - b.dueDate)

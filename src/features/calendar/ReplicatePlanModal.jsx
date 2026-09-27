@@ -5,10 +5,22 @@ import StatusChip from '../../components/ui/StatusChip'
 import { replicateRouteSheets } from '../../api/routeSheets'
 import { addMonths, businessDayOrdinalOfMonth, endOfMonth, nthBusinessDayOfMonth, toISODateString } from '../../lib/dateUtils'
 import { getRouteSheetLabel } from '../../lib/visitColor'
+import { isActiveClient } from '../../lib/constants'
+
+// Los equipos de clientes inactivos no se replican: ya no se les da servicio.
+function replicableVisits(routeSheet) {
+  return (routeSheet.visits ?? []).filter((visit) => isActiveClient(visit.equipment?.clients))
+}
+
+function countSkippedVisits(routeSheets) {
+  return routeSheets
+    .filter((routeSheet) => routeSheet.scheduled_date)
+    .reduce((total, routeSheet) => total + (routeSheet.visits ?? []).length - replicableVisits(routeSheet).length, 0)
+}
 
 function buildRows(routeSheets) {
   return routeSheets
-    .filter((routeSheet) => routeSheet.scheduled_date && (routeSheet.visits ?? []).length > 0)
+    .filter((routeSheet) => routeSheet.scheduled_date && replicableVisits(routeSheet).length > 0)
     // listRouteSheetsInRange ordena por scheduled_time_start (hora), no por
     // fecha, asi que hojas de dias distintos pueden llegar mezcladas si una
     // tiene un horario mas temprano que otra de un dia anterior. Se reordena
@@ -30,8 +42,9 @@ function buildRows(routeSheets) {
       const targetMonth = addMonths(source, 1)
       const adjusted = nthBusinessDayOfMonth(targetMonth, ordinal)
       const totalBusinessDaysInTargetMonth = businessDayOrdinalOfMonth(endOfMonth(targetMonth))
-      const visits = routeSheet.visits
-      const label = getRouteSheetLabel(routeSheet)
+      const visits = replicableVisits(routeSheet)
+      // La etiqueta se arma solo con lo que efectivamente se replica.
+      const label = getRouteSheetLabel({ ...routeSheet, visits })
 
       return {
         routeSheetId: routeSheet.id,
@@ -68,6 +81,8 @@ export default function ReplicatePlanModal({ open, routeSheets, createdBy, onClo
     onReplicated()
   }
 
+  const skippedVisitCount = countSkippedVisits(routeSheets)
+
   return (
     <Modal
       open={open}
@@ -84,6 +99,11 @@ export default function ReplicatePlanModal({ open, routeSheets, createdBy, onClo
         },
       ]}
     >
+      {skippedVisitCount > 0 && (
+        <p className="font-body-sm text-body-sm text-on-surface-variant mb-md">
+          Se omiten {skippedVisitCount} equipo(s) de clientes inactivos.
+        </p>
+      )}
       {rows.length === 0 ? (
         <p className="font-body-md text-body-md text-on-surface-variant">
           No hay hojas de ruta con equipos en este mes para replicar.

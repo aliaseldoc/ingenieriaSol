@@ -4,7 +4,7 @@ import ConfirmModal from '../../components/ui/ConfirmModal'
 import Field from '../../components/ui/Field'
 import { createRouteSheetWithVisits, updateRouteSheetDetails, deleteRouteSheet } from '../../api/routeSheets'
 import { isVisitLocked, hasLockedVisits } from '../../lib/visitColor'
-import { SERVICE_TYPE, SERVICE_TYPE_LABELS, VISIT_OCCURRENCE_LABELS } from '../../lib/constants'
+import { SERVICE_TYPE, SERVICE_TYPE_LABELS, VISIT_OCCURRENCE_LABELS, isActiveClient } from '../../lib/constants'
 
 const EMPTY_FORM = { serviceType: SERVICE_TYPE.PREVENTIVO, scheduledDate: '', descripcion: '', visitOccurrence: '' }
 const LARGE_INPUT = 'font-body-lg text-body-lg'
@@ -67,13 +67,19 @@ export default function RouteSheetFormModal({
     return haystack.includes(normalizedSearch)
   }
 
+  // Los clientes inactivos no se ofrecen para planificar. Al editar, los que
+  // ya tienen equipos en esta hoja se siguen mostrando (pudieron desactivarse
+  // despues de armarla) para poder conservarlos o quitarlos.
+  const plannedClientIds = new Set((isEdit ? (routeSheet?.visits ?? []) : []).map((visit) => visit.equipment?.client_id))
+  const selectableClients = clients.filter((client) => isActiveClient(client) || plannedClientIds.has(client.id))
+
   const visibleClients = normalizedSearch
-    ? clients.filter(
+    ? selectableClients.filter(
         (client) =>
           client.name.toLowerCase().includes(normalizedSearch) ||
           equipment.some((item) => item.client_id === client.id && matchesSearch(item))
       )
-    : clients
+    : selectableClients
 
   function toggleClient(clientId) {
     const clientEquipmentIds = equipment.filter((item) => item.client_id === clientId).map((item) => item.id)
@@ -187,8 +193,8 @@ export default function RouteSheetFormModal({
 
           <div className="space-y-xs">
             <label className="font-label-md text-label-md text-on-surface block">Clientes y Equipos</label>
-            {clients.length === 0 ? (
-              <p className="font-body-md text-body-md text-on-surface-variant">Todavía no hay clientes cargados.</p>
+            {selectableClients.length === 0 ? (
+              <p className="font-body-md text-body-md text-on-surface-variant">No hay clientes activos para planificar.</p>
             ) : (
               <>
                 <Field
@@ -203,7 +209,7 @@ export default function RouteSheetFormModal({
                 )}
               </>
             )}
-            {clients.length > 0 && visibleClients.length > 0 && (
+            {selectableClients.length > 0 && visibleClients.length > 0 && (
               <div className="border border-outline-variant rounded-lg max-h-[32rem] overflow-y-auto">
                 {visibleClients.map((client) => {
                   const clientEquipment = equipment.filter((item) => item.client_id === client.id)

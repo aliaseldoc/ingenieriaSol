@@ -3,6 +3,7 @@ import RoleLayoutShell from './RoleLayoutShell'
 const NAV_ITEMS = [
   { to: '/supervisor', end: true, icon: 'dashboard', label: 'Panel de Control' },
   { to: '/supervisor/validacion', icon: 'fact_check', label: 'Validación' },
+  { to: '/supervisor/reparaciones', icon: 'build', label: 'Reparaciones' },
   { to: '/supervisor/equipos', icon: 'precision_manufacturing', label: 'Equipos' },
   { to: '/supervisor/clientes', icon: 'domain', label: 'Clientes' },
   { to: '/supervisor/calendario', icon: 'calendar_month', label: 'Calendario' },

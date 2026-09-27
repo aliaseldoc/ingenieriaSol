@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { useVisitsPendingReview, useAllSubmittedVisits, useVisitParameters, useVisitEvents } from '../../hooks/useVisits'
+import {
+  useVisitsPendingReview,
+  useAllSubmittedVisits,
+  useVisitParameters,
+  usePreviousVisitParameters,
+  useVisitEvents,
+} from '../../hooks/useVisits'
 import { markVisitReceived } from '../../api/visits'
 import { VISIT_STATUS } from '../../lib/constants'
 import VisitReviewQueue from '../../features/visitReview/VisitReviewQueue'
@@ -24,6 +30,7 @@ export default function ReceptionPage() {
   const selectedVisit =
     visits?.find((visit) => visit.id === selectedId) ?? receivedVisits?.find((visit) => visit.id === selectedId) ?? null
   const { data: parameters } = useVisitParameters(selectedId)
+  const { data: previousParameters } = usePreviousVisitParameters(selectedVisit)
   const { data: events } = useVisitEvents(selectedId)
 
   async function handleMarkReceived() {
@@ -55,7 +62,10 @@ export default function ReceptionPage() {
             <VisitDetailPanel
               visit={selectedVisit}
               parameters={parameters ?? []}
+              previousParameters={previousParameters ?? []}
               events={events ?? []}
+              showEquipmentSheet
+              showNoteReads
               actions={
                 <Button
                   variant="primary"

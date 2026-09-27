@@ -8,11 +8,22 @@ const PARAMETER_ORDER = new Map(VISIT_PARAMETER_DEFINITIONS.map((definition, ind
 // muestra una sola fila: la unidad que el tecnico eligio en el formulario.
 const HIDDEN_FUEL_KEY_BY_UNIT = { litros: 'nivel_combustible', porcentaje: 'combustible_litros' }
 
-export default function ParametersTable({ parameters, fuelUnit = 'porcentaje' }) {
+function formatParameterValue(parameter) {
+  if (parameter?.value == null) return '—'
+  return `${parameter.value} ${parameter.unit ?? ''}`
+}
+
+// previousParameters (opcional) son los de la visita anterior del equipo: si
+// viene, se agrega la columna "Ultimo valor registrado". El valor anterior se
+// muestra con su propia unidad (la presion pudo cargarse en otra). La vista
+// del tecnico no lo pasa y la tabla queda como siempre.
+export default function ParametersTable({ parameters, previousParameters, fuelUnit = 'porcentaje' }) {
   if (parameters.length === 0) {
     return <p className="font-body-md text-body-md text-on-surface-variant">Sin parámetros registrados.</p>
   }
 
+  const showPrevious = previousParameters != null
+  const previousByKey = new Map((previousParameters ?? []).map((parameter) => [parameter.metric_key, parameter]))
   const hiddenFuelKey = HIDDEN_FUEL_KEY_BY_UNIT[fuelUnit]
   const visibleParameters = parameters.filter((parameter) => parameter.metric_key !== hiddenFuelKey)
 
@@ -30,6 +41,9 @@ export default function ParametersTable({ parameters, fuelUnit = 'porcentaje' })
           <tr className="border-b border-outline-variant">
             <th className="font-label-md text-label-md text-on-surface-variant uppercase py-xs pr-sm">Parámetro</th>
             <th className="font-label-md text-label-md text-on-surface-variant uppercase py-xs pr-sm">Valor</th>
+            {showPrevious && (
+              <th className="font-label-md text-label-md text-on-surface-variant uppercase py-xs pr-sm">Último valor registrado</th>
+            )}
             <th className="font-label-md text-label-md text-on-surface-variant uppercase py-xs">Estado</th>
           </tr>
         </thead>
@@ -40,8 +54,13 @@ export default function ParametersTable({ parameters, fuelUnit = 'porcentaje' })
               <tr key={parameter.id} className="border-b border-outline-variant/50">
                 <td className="font-body-md text-body-md text-on-surface py-xs pr-sm">{parameter.metric_label}</td>
                 <td className={`font-body-lg text-body-lg py-xs pr-sm ${outOfSpec ? 'text-error' : 'text-on-surface'}`}>
-                  {parameter.value ?? '—'} {parameter.unit ?? ''}
+                  {formatParameterValue(parameter)}
                 </td>
+                {showPrevious && (
+                  <td className="font-body-md text-body-md text-on-surface-variant py-xs pr-sm">
+                    {formatParameterValue(previousByKey.get(parameter.metric_key))}
+                  </td>
+                )}
                 <td className="py-xs">
                   {outOfSpec ? (
                     <StatusChip label="Fuera de Rango" tone="error" variant="tag" />

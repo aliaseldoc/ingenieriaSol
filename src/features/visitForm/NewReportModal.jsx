@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useClients } from '../../hooks/useClients'
 import { useEquipment } from '../../hooks/useEquipment'
+import { isActiveClient } from '../../lib/constants'
 import Modal from '../../components/ui/Modal'
 import Spinner from '../../components/ui/Spinner'
 
@@ -19,6 +20,8 @@ export default function NewReportModal({ open, onClose, onConfirm }) {
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
 
+  // A un cliente inactivo ya no se le da servicio: no se ofrece para reportar.
+  const activeClients = useMemo(() => clients.filter(isActiveClient), [clients])
   const equipmentOfClient = useMemo(
     () => equipment.filter((item) => item.client_id === clientId),
     [equipment, clientId]
@@ -88,7 +91,7 @@ export default function NewReportModal({ open, onClose, onConfirm }) {
               <option value="" disabled>
                 Seleccionar cliente
               </option>
-              {clients.map((client) => (
+              {activeClients.map((client) => (
                 <option key={client.id} value={client.id}>
                   {client.name}
                 </option>
