@@ -53,9 +53,21 @@ function openDb() {
   if (dbPromise) return dbPromise
   dbPromise = requestDb(DB_VERSION).catch((error) => {
     if (error?.name !== 'VersionError') throw error
-    return requestDb()
+    return openExistingVersion()
   })
   return dbPromise
+}
+
+// Abrir sin version no dispara onupgradeneeded: si esa base mas nueva se creo
+// sin alguno de los stores de esta version (pendingPunches, por ejemplo), hay
+// que subir una version mas para crearlo, o fichar sin conexion falla.
+async function openExistingVersion() {
+  const db = await requestDb()
+  const faltaAlguno = Object.keys(STORE_KEY_PATHS).some((storeName) => !db.objectStoreNames.contains(storeName))
+  if (!faltaAlguno) return db
+  const nextVersion = db.version + 1
+  db.close()
+  return requestDb(nextVersion)
 }
 
 function promisifyRequest(request) {
