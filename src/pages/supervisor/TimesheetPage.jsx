@@ -10,6 +10,7 @@ import WeekGrid from '../../features/timesheet/WeekGrid'
 import DayPunchesModal from '../../features/timesheet/DayPunchesModal'
 import WeeklyReportSection from '../../features/timesheet/WeeklyReportSection'
 import ImportClockFile from '../../features/timesheet/ImportClockFile'
+import ClockDevicesSection from '../../features/timesheet/ClockDevicesSection'
 import FactoryLocationSettings from '../../features/timesheet/FactoryLocationSettings'
 import { markHoliday, unmarkHoliday } from '../../api/holidays'
 import { WEEK_FILTER, WEEK_FILTER_LABELS } from '../../features/timesheet/punchFlags'
@@ -18,6 +19,7 @@ import { currentWeekStartKey, isValidWeekStartKey } from '../../features/timeshe
 const TAB = {
   SEMANA: 'semana',
   REPORTE: 'reporte',
+  RELOJ: 'reloj',
   IMPORTAR: 'importar',
   FABRICA: 'fabrica',
 }
@@ -25,6 +27,7 @@ const TAB = {
 const TABS = [
   { key: TAB.SEMANA, label: 'Semana' },
   { key: TAB.REPORTE, label: 'Reporte' },
+  { key: TAB.RELOJ, label: 'Reloj' },
   { key: TAB.IMPORTAR, label: 'Importar reloj' },
   { key: TAB.FABRICA, label: 'Fábrica' },
 ]
@@ -169,6 +172,7 @@ export default function TimesheetPage() {
       )}
 
       {WEEK_TABS.includes(tab) && renderWeekTab()}
+      {tab === TAB.RELOJ && <ClockDevicesSection actorId={profile.id} onChanged={timesheet.reload} />}
       {tab === TAB.IMPORTAR && <ImportClockFile actorId={profile.id} onImported={timesheet.reload} />}
       {tab === TAB.FABRICA &&
         (timesheet.hasData ? (

@@ -1,5 +1,16 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/iclock/:accion",
+      "destination": "/api/iclock?accion=:accion"
+    },
+    {
+      "source": "/iclock/:accion/:resto*",
+      "destination": "/api/iclock?accion=:accion"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

@@ -46,14 +46,16 @@ Así, quien no ficha no aparece con el feriado pago como única hora.
 
 ## Lector biométrico
 
-### Recomendación de compra
-Todavía no hay equipo. Requisitos mínimos:
-- Reloj de asistencia por huella (ZKTeco o similar, muy difundido en Argentina).
-- **Exportación de registros de asistencia a pendrive USB** (archivo TXT/DAT/CSV). Es el único requisito crítico: **verificarlo antes de comprar**.
-- Capacidad de huellas y registros holgada para el personal actual.
-- Pantalla, reloj interno con batería y conexión de red (opcional, pensando en una integración automática futura).
+### Equipo elegido
+El cliente confirmó **un reloj con WiFi integrado**, para no depender de que alguien pase el pendrive todas las semanas.
+Modelo de referencia: **ZKTeco F22-ID** (huella + tarjeta, WiFi de fábrica, TCP/IP y RS485 por si el WiFi no llega a la puerta).
+Requisitos, por si hay que cambiar de modelo:
+- **Protocolo push / ADMS** (en el menú aparece como "Servidor en la nube" o "ADMS"). Es el requisito crítico de la integración directa.
+- **Exportación de registros a pendrive USB** (TXT/DAT/CSV), que es el respaldo cuando el equipo se queda sin red.
+- Capacidad de huellas y registros holgada, batería de respaldo y reloj interno.
+- ⚠️ **Preguntar por la versión de firmware y si el ADMS soporta HTTPS** antes de comprar (ver "Si el reloj no habla HTTPS").
 
-### Integración elegida: importación de archivo
+### Integración de respaldo: importación de archivo
 - El supervisor descarga el archivo del reloj (USB) y lo sube en la app.
 - Sin hardware ni programas extra, sin dependencias nuevas.
 - Los fichajes del reloj aparecen en la app **cuando se importan** (no en tiempo real).
@@ -67,6 +69,53 @@ Todavía no hay equipo. Requisitos mínimos:
         - columna 2: `AAAA-MM-DD HH:MM:SS`;
         - el resto de las columnas se ignora.
 - ⚠️ El formato ZKTeco se **valida y ajusta con un archivo real** cuando llegue el equipo. El parser debe quedar aislado en un solo archivo para que ese ajuste sea trivial.
+
+---
+
+## Integración directa con el reloj (WiFi)
+
+El reloj manda cada fichaje **apenas ocurre**, sin que nadie pase el pendrive. Usa el protocolo **push (ADMS)** de ZKTeco: el equipo sale a buscar al servidor por su cuenta, así que **no hace falta IP fija en la fábrica ni abrir puertos** en su router.
+
+### Cómo se conecta
+- En el reloj: **Menú → Comunicación → Servidor en la nube (ADMS)**. Dirección `ingenieria-sol.vercel.app`, puerto `443`, conexión segura activada.
+- Se carga **solo el dominio**: el equipo arma `/iclock/...` por su cuenta. Por eso el endpoint no puede vivir en una subruta, y las Edge Functions de Supabase (`/functions/v1/...`) no sirven para esto.
+- Lo atiende `api/iclock.js` (función del deploy de Vercel del mismo repo), con la traducción del protocolo aislada en `api/_reloj/protocolo.js`. Sin dependencias nuevas.
+- Variables de entorno en Vercel: `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`. Sin prefijo `VITE_`, así no terminan en el paquete del navegador.
+- El endpoint no decide nada del negocio: llama a `ingest_clock_punches`, que valida, guarda y cuenta en una sola transacción.
+
+### Reglas de la integración
+- **Solo se contesta "OK" cuando el fichaje quedó guardado.** Si algo falla, se contesta error: el reloj conserva los registros y reintenta. Contestar bien sin haber guardado los borra del equipo.
+- **Un reloj no dado de alta no recibe configuración ni se le aceptan fichajes.** El alta es por número de serie, desde la pestaña Reloj. Hasta entonces el equipo guarda todo y lo manda cuando se lo habilita.
+- La hora la pone el reloj (el fichaje ocurrió ahí, no en el servidor) y se interpreta en hora argentina.
+- **El desfasaje de hora se mide y se avisa, pero no se corrige solo.** Un comando de hora mal armado correría todos los fichajes; el aviso aparece a partir de 2 minutos de diferencia y se corrige en el equipo.
+- **Nada se descarta.** Lo que todavía no se puede guardar queda en `clock_pending_punches` con el motivo:
+    - `sin_legajo`: ese N° de reloj no está cargado en ningún legajo. Entra solo en cuanto se carga (trigger sobre `employees`).
+    - `semana_cerrada`: entra al reabrir la semana y tocar **Reprocesar**.
+- Los repetidos se descartan solos por la unicidad `(employee_id, punched_at, source)`, la misma que ya protegía la importación. Que un fichaje llegue por WiFi y después en un archivo es inofensivo.
+
+### Si el reloj no habla HTTPS
+Los firmwares viejos de ZKTeco empujan por HTTP plano, y ni Vercel ni Supabase aceptan HTTP. En ese caso el mismo `protocolo.js` corre en una máquina dentro de la fábrica (una Raspberry o una PC siempre encendida) que atiende en HTTP y reenvía. El traductor del protocolo es puro justamente para eso: no sabe dónde corre.
+
+### Seguridad
+- El endpoint está abierto en internet y lo único que identifica al equipo es su número de serie, que viaja en la URL.
+- Mitigaciones: lista blanca de series (`clock_devices`), poder desactivar un equipo, y diario de contactos y rechazos (`clock_device_events`, que se poda solo a los 30 días).
+- `ingest_clock_punches` y `touch_clock_device` son `security definer` y están **revocadas para los usuarios logueados**: solo las llama el servidor con la clave de servicio.
+- Lo peor que puede hacer alguien que adivine una serie es inyectar fichajes, que el supervisor ve y anula. No hay lectura de datos.
+
+### Casos de aceptación de la integración
+Verificados contra un Postgres local (22 casos) y simulando al equipo contra el endpoint (16 casos):
+
+1. Serie desconocida: no entra nada, queda el rechazo anotado y el reloj no recibe configuración.
+2. Lote con un fichaje nuevo, uno repetido y uno de un N° sin legajo: entra uno, el repetido se descarta y el tercero queda en espera.
+3. Reenviar el mismo lote no duplica nada.
+4. Al cargar el N° en un legajo, lo que estaba en espera entra solo.
+5. Fichaje de una semana cerrada: queda en espera; al reabrir y reprocesar, entra.
+6. Filas ilegibles: se cuentan aparte y no rompen el lote.
+7. Filas separadas por espacios en vez de tabulaciones: se leen igual.
+8. Reloj adelantado 10 minutos: queda anotado el desfasaje.
+9. Reloj desactivado: no se le aceptan fichajes.
+10. Un usuario logueado no puede llamar a las funciones del endpoint.
+11. Si la base falla, se contesta error y nunca "OK".
 
 ---
 
@@ -208,7 +257,15 @@ Nuevo ítem **"Fichajes"** en la navegación del supervisor (`/supervisor/fichaj
     - el reporte y el CSV de una semana cerrada salen de esa foto.
 - **Reabrir semana:** con motivo obligatorio. Cierres y reaperturas quedan en un historial.
 
-### 3. Importar reloj
+### 3. Reloj (equipos conectados por WiFi)
+- **Cómo se conecta**: la dirección y el puerto que hay que cargarle al equipo, a la vista para copiarlos.
+- **Alta del reloj**: nombre y número de serie. Sin esto el servidor no le acepta fichajes.
+- **Estado de cada equipo**: conectado o sin contacto (se considera caído a los 30 min sin comunicarse), fichajes recibidos, último fichaje, último contacto, dirección de red y botón para activarlo o desactivarlo.
+- **Aviso de hora corrida** cuando el desfasaje pasa los 2 minutos.
+- **Fichajes en espera**, con el motivo (sin legajo o semana cerrada) y el botón **Reprocesar**.
+- **Últimos movimientos**: el diario del equipo, para la puesta en marcha y para diagnosticar cuando deja de aparecer.
+
+### 4. Importar reloj (respaldo)
 - Subir el archivo (se lee con `file.text()`, nativo).
 - **Vista previa antes de confirmar**, con:
     - filas leídas;
@@ -219,7 +276,7 @@ Nuevo ítem **"Fichajes"** en la navegación del supervisor (`/supervisor/fichaj
 - Reimportar el mismo archivo es seguro: los duplicados se detectan por empleado + fecha y hora + origen.
 - Historial de importaciones: fecha, archivo, quién la hizo y conteos.
 
-### 4. Fábrica
+### 5. Fábrica
 - Ubicación de la fábrica para detectar los fichajes por app hechos lejos de ella:
     - nombre;
     - latitud y longitud;
@@ -248,7 +305,8 @@ Nuevo ítem **"Fichajes"** en la navegación del supervisor (`/supervisor/fichaj
 
 Migraciones, que el usuario aplica pegándolas en el SQL Editor del Dashboard, en este orden:
 1. `supabase/migrations/0021_fichaje.sql`: el módulo completo. Ya aplicada.
-2. `supabase/migrations/0022_feriados_semana.sql`: check de feriado en la vista Semana, bloqueo de feriados con la semana cerrada y versión final de las políticas del técnico. Se puede correr más de una vez.
+2. `supabase/migrations/0022_feriados_semana.sql`: check de feriado en la vista Semana, bloqueo de feriados con la semana cerrada y versión final de las políticas del técnico. Ya aplicada. Se puede correr más de una vez.
+3. `supabase/migrations/0025_reloj_push.sql`: integración directa con el reloj por WiFi (equipos, fichajes en espera, diario y las funciones que usa el endpoint). Se puede correr más de una vez.
 
 Nombres de tablas en inglés y valores en español, igual que el resto del esquema.
 
@@ -263,6 +321,10 @@ Nombres de tablas en inglés y valores en español, igual que el resto del esque
 - **`timesheet_weeks`**: `week_start` (date, PK, siempre lunes), `status` (`abierta` | `cerrada`), `closed_by`, `closed_at`, `snapshot` (jsonb).
 - **`timesheet_week_events`**: `id`, `week_start`, `action` (`cerrada` | `reabierta`), `reason`, `actor_id`, `created_at`.
 - **`timesheet_settings`** (una sola fila): `id` (boolean, PK, `check (id)`), `factory_name`, `factory_latitude`, `factory_longitude`, `factory_radius_m` (default `500`, `check > 0`), `updated_by`, `updated_at`.
+- **`clock_devices`** (0025): `id`, `serial_number` (único), `name`, `active`, `last_seen_at`, `last_push_at`, `last_ip`, `attlog_stamp` (desde dónde sigue mandando el equipo), `clock_offset_seconds` (desfasaje medido), `punches_received`, `created_at`, `created_by`.
+- **`clock_pending_punches`** (0025): fichajes que llegaron y todavía no se pueden guardar. `device_id`, `clock_pin`, `punched_at`, `reason` (`sin_legajo` | `semana_cerrada`), único `(clock_pin, punched_at)`.
+- **`clock_device_events`** (0025): diario del equipo. `device_id`, `serial_number`, `kind` (`contacto` | `fichajes` | `rechazo`), `detail` jsonb. Se borra solo a los 30 días.
+- **`time_punches.device_id`** (0025): qué reloj mandó el fichaje.
 
 ### Seguridad (RLS)
 - Nuevo helper `current_employee_id()` con `security definer`, mismo patrón que `current_staff_role()`.
@@ -298,7 +360,10 @@ Nombres de tablas en inglés y valores en español, igual que el resto del esque
 ## Estructura de archivos sugerida
 
 ```
+api/iclock.js                    ← endpoint que atiende al reloj por WiFi (Vercel)
+api/_reloj/protocolo.js          ← traducción del protocolo push, pura y portable
 src/api/timePunches.js           ← fichajes, importación, correcciones
+src/api/clockDevices.js          ← relojes, fichajes en espera, diario
 src/api/employees.js
 src/api/holidays.js
 src/api/timesheetWeeks.js
@@ -311,6 +376,7 @@ src/features/timesheet/DayPunchesModal.jsx
 src/features/timesheet/PunchCorrectionModal.jsx
 src/features/timesheet/WeeklyReportTable.jsx
 src/features/timesheet/ImportClockFile.jsx
+src/features/timesheet/ClockDevicesSection.jsx
 src/features/timesheet/FactoryLocationSettings.jsx
 src/features/timesheet/geo.js                ← distancia (haversine), función pura
 src/features/dashboard/TimesheetAlerts.jsx

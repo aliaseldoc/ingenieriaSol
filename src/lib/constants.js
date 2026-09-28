@@ -467,3 +467,29 @@ export const TIMESHEET_WEEK_STATUS = {
   ABIERTA: 'abierta',
   CERRADA: 'cerrada',
 }
+
+// Reloj biometrico que manda los fichajes solo por WiFi (protocolo push de
+// ZKTeco). El equipo no acepta una ruta: se le carga solo el dominio y el
+// puerto, y el arma /iclock/... por su cuenta. El endpoint vive en el deploy
+// de Vercel del proyecto (ver api/iclock.js).
+export const CLOCK_PUSH_SERVER = {
+  host: 'ingenieria-sol.vercel.app',
+  port: 443,
+  https: true,
+}
+
+export const PENDING_PUNCH_REASON_LABELS = {
+  sin_legajo: 'Sin legajo',
+  semana_cerrada: 'Semana cerrada',
+}
+
+export const CLOCK_EVENT_KIND_LABELS = {
+  contacto: 'Contacto',
+  fichajes: 'Fichajes',
+  rechazo: 'Rechazo',
+}
+
+// Si el reloj no se comunica en este lapso, la pantalla lo muestra caido.
+export const CLOCK_OFFLINE_MINUTES = 30
+// Desfasaje de hora a partir del cual conviene corregir el reloj.
+export const CLOCK_DRIFT_WARNING_SECONDS = 120
