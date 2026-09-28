@@ -48,9 +48,16 @@ Así, quien no ficha no aparece con el feriado pago como única hora.
 
 ### Equipo elegido
 El cliente confirmó **un reloj con WiFi integrado**, para no depender de que alguien pase el pendrive todas las semanas.
-Modelo de referencia: **ZKTeco F22-ID** (huella + tarjeta, WiFi de fábrica, TCP/IP y RS485 por si el WiFi no llega a la puerta).
+Modelo elegido: **ZKTeco F22** (3.000 huellas, 30.000 eventos, pantalla táctil de 2,4", WiFi de fábrica más TCP/IP y RS485 por si el WiFi no llega a la puerta).
+Su ficha declara compatibilidad con *BioTime PRO (requiere ADMS)*: **ADMS es el protocolo de esta integración**, así que el equipo sirve.
+La variante **MF** (tarjetas Mifare) y la **ID** (tarjetas EM) son la misma máquina con distinto lector de tarjetas: para el fichaje por huella da igual.
+
+Dos detalles prácticos del F22:
+- **La fuente de 12V 3A no viene incluida.** Hay que comprarla aparte.
+- **No trae batería de respaldo.** Sin luz no ficha; los fichajes de ese rato se corrigen a mano (el técnico igual puede fichar por la app). Si la fábrica tiene UPS, conviene colgarlo de ahí.
+
 Requisitos, por si hay que cambiar de modelo:
-- **Protocolo push / ADMS** (en el menú aparece como "Servidor en la nube" o "ADMS"). Es el requisito crítico de la integración directa.
+- **Protocolo push / ADMS** con **dirección y puerto editables** (en el menú aparece como "Servidor en la nube" o "ADMS"). Es el requisito crítico: que el equipo tenga WiFi no alcanza. Los modelos chicos tipo **ZKTeco M1 funcionan solo contra BioTime Cloud**, la nube de la marca, y no se pueden apuntar a nuestro servidor: no sirven para este proyecto.
 - **Exportación de registros a pendrive USB** (TXT/DAT/CSV), que es el respaldo cuando el equipo se queda sin red.
 - Capacidad de huellas y registros holgada, batería de respaldo y reloj interno.
 - ⚠️ **Preguntar por la versión de firmware y si el ADMS soporta HTTPS** antes de comprar (ver "Si el reloj no habla HTTPS").
