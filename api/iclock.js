@@ -13,8 +13,17 @@ import { ACCION, interpretarPedido, parsearFichajes, respuestaSaludo } from './_
 
 const TEXTO_PLANO = 'text/plain; charset=utf-8'
 
+// El panel de Supabase muestra la direccion terminada en /rest/v1/, asi que
+// se acepta pegada tal cual (con o sin barra final) y se deja solo la base.
+function baseDeSupabase(valor) {
+  return String(valor ?? '')
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/rest\/v1$/, '')
+}
+
 async function llamarBase(funcion, parametros) {
-  const url = process.env.SUPABASE_URL
+  const url = baseDeSupabase(process.env.SUPABASE_URL)
   const clave = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !clave) throw new Error('Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en el servidor')
 
