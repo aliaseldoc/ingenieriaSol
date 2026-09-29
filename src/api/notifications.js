@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 
 // supabase.functions.invoke() solo da un mensaje generico ("Edge Function
 // returned a non-2xx status code") cuando la funcion responde con error: el
-// motivo real (permiso, dato faltante, credenciales de EmailJS) viaja en el
+// motivo real (permiso, dato faltante, el rechazo de Brevo) viaja en el
 // cuerpo de esa respuesta y hay que leerlo aparte.
 async function invokeNotificationFunction(body) {
   const { data, error } = await supabase.functions.invoke('send-visit-email', { body })
