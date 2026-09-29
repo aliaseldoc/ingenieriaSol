@@ -203,8 +203,8 @@ export function resultadosHtml(p) {
           <td style="padding:0 24px 8px 24px;font-size:14px;line-height:21px;color:#12181a;">
             ${p.technicians_block_html ?? ''}
             ${p.parameters_block_html ?? ''}
+            ${p.lecturas_block_html ?? ''}
             ${p.fault_block_html ?? ''}
-            ${p.notes_block_html ?? ''}
           </td>
         </tr>
 

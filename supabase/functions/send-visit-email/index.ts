@@ -27,6 +27,21 @@ const MAIL_REPLY_TO = Deno.env.get('MAIL_REPLY_TO') ?? MAIL_FROM_EMAIL
 
 const ALLOWED_ROLES = ['administrativo', 'supervisor']
 
+// Ocurrencia mensual del preventivo: el mismo texto que muestra el panel
+// (VISIT_OCCURRENCE_LABELS en src/lib/constants.js).
+const VISIT_OCCURRENCE_LABELS = {
+  primera: 'Primera Visita',
+  segunda: 'Segunda Visita',
+}
+
+// El combustible se guarda en dos filas (litros y porcentaje: el tecnico carga
+// una y la otra se calcula sola). Se informa la unidad que eligio el tecnico,
+// igual que ParametersTable en el panel.
+const FUEL_KEY_BY_UNIT = {
+  litros: 'combustible_litros',
+  porcentaje: 'nivel_combustible',
+}
+
 const SERVICE_TYPE_LABELS = {
   preventivo: 'Mantenimiento Preventivo',
   correctivo: 'Reparación Correctiva',
@@ -69,6 +84,19 @@ const LABEL_STYLE = 'color:#1f4a3d;'
 // Los estilos de arriba coinciden con los de plantillas.ts: los fragmentos que
 // se arman aca se insertan adentro de ese HTML y tienen que verse igual.
 
+// "Mantenimiento Preventivo (Primera Visita)". La ocurrencia solo aplica al
+// preventivo y puede no estar cargada, en cuyo caso el texto queda como antes.
+function serviceTypeLabel(serviceType, visitOccurrence) {
+  const base = SERVICE_TYPE_LABELS[serviceType] ?? serviceType
+  const ocurrencia = VISIT_OCCURRENCE_LABELS[visitOccurrence]
+  if (serviceType !== 'preventivo' || !ocurrencia) return base
+  return `${base} (${ocurrencia})`
+}
+
+function findParameter(parameters, metricKey) {
+  return (parameters ?? []).find((parameter) => parameter.metric_key === metricKey)
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -107,7 +135,7 @@ async function sendNotificationEmails(callerClient, routeSheetId) {
   const { data: routeSheet, error } = await callerClient
     .from('route_sheets')
     .select(
-      'notification_sent_count, scheduled_date, service_type, descripcion, visits(equipment(motor, generador, clients(id, name, contact_email)))'
+      'notification_sent_count, scheduled_date, service_type, visit_occurrence, descripcion, visits(equipment(motor, generador, clients(id, name, contact_email)))'
     )
     .eq('id', routeSheetId)
     .single()
@@ -143,7 +171,7 @@ async function sendNotificationEmails(callerClient, routeSheetId) {
       : ''
     const datos = {
       scheduled_date: formatDate(routeSheet.scheduled_date),
-      service_type_label: SERVICE_TYPE_LABELS[routeSheet.service_type] ?? routeSheet.service_type,
+      service_type_label: serviceTypeLabel(routeSheet.service_type, routeSheet.visit_occurrence),
       equipment_list_html: equipmentListHtml,
       descripcion_block_html: descripcionBlockHtml,
     }
@@ -168,9 +196,9 @@ async function sendResultsEmail(callerClient, visitId) {
   const { data: visit, error } = await callerClient
     .from('visits')
     .select(
-      `status, service_type, fault_reported, fault_description, notes, scheduled_date,
+      `status, service_type, fault_reported, fault_description, scheduled_date, checklist_data,
        equipment(motor, generador, clients(name, contact_email)),
-       route_sheets(route_sheet_technicians(profiles(full_name)))`
+       route_sheets(visit_occurrence, route_sheet_technicians(profiles(full_name)))`
     )
     .eq('id', visitId)
     .single()
@@ -181,7 +209,21 @@ async function sendResultsEmail(callerClient, visitId) {
   if (!client?.contact_email) throw new Error('El cliente de esta visita no tiene email de contacto cargado.')
 
   const { data: parameters } = await callerClient.from('visit_parameters').select('*').eq('visit_id', visitId)
-  const outOfRange = (parameters ?? []).filter(
+
+  // Horas de uso y combustible se informan siempre, esten o no fuera de rango:
+  // son las dos lecturas que el cliente mira para saber como quedo el equipo.
+  // El combustible se guarda en dos filas y se informa la unidad que eligio el
+  // tecnico, igual que ParametersTable en el panel.
+  const fuelUnit = visit.checklist_data?.combustible_unidad ?? 'porcentaje'
+  const lecturas = [
+    ['Horas de operación', findParameter(parameters, 'horas_operacion')],
+    ['Combustible', findParameter(parameters, FUEL_KEY_BY_UNIT[fuelUnit]) ?? findParameter(parameters, 'nivel_combustible')],
+  ].filter(([, parameter]) => parameter?.value != null)
+
+  // El informe al cliente no lista los parametros fuera de rango: solo avisa
+  // cuando estuvo todo bien. Si hubo alguno afuera no se dice nada, porque
+  // tampoco se puede afirmar lo contrario.
+  const hayFueraDeRango = (parameters ?? []).some(
     (parameter) =>
       (parameter.spec_min != null && parameter.value < parameter.spec_min) ||
       (parameter.spec_max != null && parameter.value > parameter.spec_max)
@@ -189,35 +231,37 @@ async function sendResultsEmail(callerClient, visitId) {
 
   const technicians = (visit.route_sheets?.route_sheet_technicians ?? []).map((rst) => rst.profiles?.full_name).filter(Boolean)
 
-  const parametersBlockHtml = outOfRange.length
-    ? `<p style="${TEXT_STYLE}"><strong style="${LABEL_STYLE}">Parámetros fuera de rango:</strong></p><ul style="${LIST_STYLE}">${outOfRange
+  const parametersBlockHtml = hayFueraDeRango
+    ? ''
+    : `<p style="${TEXT_STYLE}">Todos los parámetros medidos estuvieron dentro de rango.</p>`
+
+  const lecturasBlockHtml = lecturas.length
+    ? `<p style="${TEXT_STYLE}"><strong style="${LABEL_STYLE}">Lecturas del equipo:</strong></p><ul style="${LIST_STYLE}">${lecturas
         .map(
-          (p) =>
-            `<li style="margin-bottom:4px;">${escapeHtml(p.metric_label)}: <strong>${escapeHtml(p.value)} ${escapeHtml(
-              p.unit ?? ''
+          ([label, parameter]) =>
+            `<li style="margin-bottom:4px;">${label}: <strong>${escapeHtml(parameter.value)} ${escapeHtml(
+              parameter.unit ?? ''
             )}</strong></li>`
         )
         .join('')}</ul>`
-    : `<p style="${TEXT_STYLE}">Todos los parámetros medidos estuvieron dentro de rango.</p>`
+    : ''
 
   const datos = {
     // Sin escapar: la plantilla escapa los datos planos.
     equipment_label: [visit.equipment?.motor, visit.equipment?.generador].filter(Boolean).join(' / '),
     scheduled_date: formatDate(visit.scheduled_date),
-    service_type_label: SERVICE_TYPE_LABELS[visit.service_type] ?? visit.service_type,
+    service_type_label: serviceTypeLabel(visit.service_type, visit.route_sheets?.visit_occurrence),
     technicians_block_html: technicians.length
       ? `<p style="${TEXT_STYLE}"><strong style="${LABEL_STYLE}">Técnico(s):</strong> ${escapeHtml(technicians.join(', '))}</p>`
       : '',
     parameters_block_html: parametersBlockHtml,
+    lecturas_block_html: lecturasBlockHtml,
     // Recuadro rojo tenue en vez de solo texto rojo: en un mail la falla es
     // lo que el cliente tiene que ver primero.
     fault_block_html: visit.fault_reported
-      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 10px 0;background-color:#f6dad8;border-left:4px solid #9c2f2b;border-radius:4px;"><tr><td style="padding:12px 14px;font-size:14px;line-height:21px;color:#6b1512;"><strong>Falla reportada:</strong> ${escapeHtml(
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 10px 0;background-color:#f6dad8;border-left:4px solid #9c2f2b;border-radius:4px;"><tr><td style="padding:12px 14px;font-size:14px;line-height:21px;color:#6b1512;"><strong>Falla reportada por el técnico:</strong> ${escapeHtml(
           visit.fault_description ?? ''
         )}</td></tr></table>`
-      : '',
-    notes_block_html: visit.notes
-      ? `<p style="${TEXT_STYLE}"><strong style="${LABEL_STYLE}">Notas del técnico:</strong> ${escapeHtml(visit.notes)}</p>`
       : '',
   }
 
