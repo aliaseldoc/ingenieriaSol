@@ -11,6 +11,7 @@ import DayPunchesModal from '../../features/timesheet/DayPunchesModal'
 import WeeklyReportSection from '../../features/timesheet/WeeklyReportSection'
 import ImportClockFile from '../../features/timesheet/ImportClockFile'
 import ClockDevicesSection from '../../features/timesheet/ClockDevicesSection'
+import OfficialHolidaysModal from '../../features/timesheet/OfficialHolidaysModal'
 import FactoryLocationSettings from '../../features/timesheet/FactoryLocationSettings'
 import { markHoliday, unmarkHoliday } from '../../api/holidays'
 import { WEEK_FILTER, WEEK_FILTER_LABELS } from '../../features/timesheet/punchFlags'
@@ -47,6 +48,7 @@ export default function TimesheetPage() {
   const [selectedCell, setSelectedCell] = useState(null) // { employeeId, dateKey }
   const [savingHolidayKey, setSavingHolidayKey] = useState(null)
   const [holidayError, setHolidayError] = useState('')
+  const [officialHolidaysOpen, setOfficialHolidaysOpen] = useState(false)
   const holidayKeys = new Set(timesheet.holidays.map((holiday) => holiday.date))
 
   // Check de feriado del encabezado de la grilla: aplica a todo el personal
@@ -150,7 +152,10 @@ export default function TimesheetPage() {
             {timesheet.isClosed && <StatusChip label="Cerrada" tone="success" variant="tag" />}
           </WeekPicker>
           {tab === TAB.SEMANA && (
-            <div className="flex items-center gap-sm">
+            <div className="flex flex-wrap items-center gap-sm">
+              <Button variant="secondary-outline" icon="event" onClick={() => setOfficialHolidaysOpen(true)}>
+                Feriados oficiales
+              </Button>
               <label htmlFor="week-filter" className="font-label-sm text-label-sm text-on-surface-variant uppercase">
                 Mostrar
               </label>
@@ -180,6 +185,14 @@ export default function TimesheetPage() {
         ) : (
           <Spinner label="Cargando configuración…" />
         ))}
+
+      <OfficialHolidaysModal
+        open={officialHolidaysOpen}
+        year={Number(weekStartKey.slice(0, 4))}
+        existingKeys={holidayKeys}
+        onClose={() => setOfficialHolidaysOpen(false)}
+        onSaved={timesheet.reload}
+      />
 
       <DayPunchesModal
         row={selectedRow}

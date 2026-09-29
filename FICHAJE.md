@@ -254,6 +254,18 @@ Nuevo ítem **"Fichajes"** en la navegación del supervisor (`/supervisor/fichaj
     - **Anular** fichaje. Nunca se borra: queda con `voided_at`, `voided_by` y `void_reason`.
     - **Corregir hora**: anula el original y crea uno manual que lo referencia (`replaces_punch_id`). El original siempre se conserva.
 
+#### Feriados oficiales (botón en la pestaña Semana)
+- Trae el **calendario oficial de feriados nacionales** del año y lo muestra para confirmar. **Nunca marca nada solo**: son horas que se pagan.
+- Clasificación, que es lo que evita pagar de más:
+    - `inamovible` y `trasladable` son feriados: llegan **tildados**;
+    - `puente` (puente turístico) es un **día no laborable**, no un feriado: llega **sin tildar**, porque si se trabaja se paga como un día común. Si en la fábrica lo tratan como feriado, se tilda a mano;
+    - cualquier tipo nuevo que el calendario agregue y no conozcamos llega sin tildar.
+- Los días que ya están marcados aparecen como "Ya cargado" y no se tocan: no se pisa lo que marcó el supervisor.
+- Los días de una semana cerrada aparecen como "Semana cerrada" y quedan afuera (la base los rechaza, ver 0022).
+- Selector de año: el de la semana que se está viendo y el siguiente, para cargar el año que viene en diciembre.
+- La fuente vive en un solo archivo (`officialHolidays.js`). Si deja de funcionar, se avisa en pantalla y los feriados se siguen marcando a mano con el check de cada día.
+- Fechas ilegibles o imposibles (`2026-02-31`) se descartan antes de tocar la base: una sola fecha inválida haría fallar la carga entera.
+
 ### 2. Reporte semanal
 - Una fila por empleado: legajo, nombre, **horas normales, al 50%, al 100%, total** y días incompletos. Formato `hh:mm`.
 - Detalle por día desplegable.
@@ -384,6 +396,8 @@ src/features/timesheet/PunchCorrectionModal.jsx
 src/features/timesheet/WeeklyReportTable.jsx
 src/features/timesheet/ImportClockFile.jsx
 src/features/timesheet/ClockDevicesSection.jsx
+src/features/timesheet/OfficialHolidaysModal.jsx
+src/features/timesheet/officialHolidays.js   ← calendario oficial de feriados (unica fuente externa)
 src/features/timesheet/FactoryLocationSettings.jsx
 src/features/timesheet/geo.js                ← distancia (haversine), función pura
 src/features/dashboard/TimesheetAlerts.jsx
