@@ -1,0 +1,240 @@
+// Los dos mails que manda la app, en HTML.
+//
+// Antes vivian en el panel de EmailJS y esta carpeta guardaba una copia; ahora
+// que se envia directo por Brevo, el HTML es el codigo y no hay dos lugares que
+// puedan quedar desincronizados.
+//
+// Ojo: esto es HTML de mail, no de la web. Va con tablas, px y estilos en linea
+// a proposito — los clientes de correo (sobre todo Outlook) no soportan
+// flexbox, grid ni hojas de estilo externas.
+//
+// Regla de los datos: los campos terminados en _html llegan ya armados desde
+// index.ts (y ahi se escapa lo que escribio una persona); el resto es texto
+// plano y se escapa aca. Antes lo hacia EmailJS; ahora es responsabilidad
+// nuestra, asi que un dato sin escapar seria un agujero.
+
+export function escapeHtml(text) {
+  return String(text ?? '').replace(
+    /[&<>"']/g,
+    (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char])
+  )
+}
+
+export function notificacionSubject(p) {
+  return `Visita técnica programada — ${p.scheduled_date}`
+}
+
+export function notificacionHtml(p) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f2f2ef;margin:0;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;">
+  <tr>
+    <td align="center">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #d8dad5;border-radius:8px;overflow:hidden;">
+
+        <!-- Membrete -->
+        <tr>
+          <td align="center" style="padding:28px 24px 20px 24px;">
+            <img src="https://aliaseldoc.github.io/ingenieriaSol/logo-email.png"
+                 alt="Ingeniería Sol — Ing. Carlos Raúl Guiñazú"
+                 width="280" style="display:block;width:280px;max-width:80%;height:auto;border:0;" />
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 24px;">
+            <div style="border-top:2px solid #1f4a3d;font-size:0;line-height:0;">&nbsp;</div>
+          </td>
+        </tr>
+
+        <!-- Titulo -->
+        <tr>
+          <td style="padding:20px 24px 4px 24px;">
+            <h1 style="margin:0;font-size:19px;line-height:26px;color:#1f4a3d;font-weight:bold;">
+              Visita técnica programada
+            </h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 24px 18px 24px;">
+            <p style="margin:0;font-size:14px;line-height:21px;color:#5c6360;">
+              Le informamos que tenemos programada una visita de servicio a sus equipos.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Datos de la visita -->
+        <tr>
+          <td style="padding:0 24px 20px 24px;">
+            <!-- Etiqueta arriba y valor abajo, no en dos columnas: con una
+                 columna de ancho fijo el valor se parte en varias lineas en
+                 el celular. Asi aguanta cualquier ancho. -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f2f2ef;border:1px solid #d8dad5;border-radius:6px;">
+              <tr>
+                <td style="padding:14px 16px 0 16px;">
+                  <p style="margin:0 0 2px 0;font-size:11px;line-height:16px;color:#5c6360;text-transform:uppercase;letter-spacing:.6px;">Fecha</p>
+                  <p style="margin:0;font-size:15px;line-height:22px;color:#12181a;font-weight:bold;">${escapeHtml(p.scheduled_date)}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px 14px 16px;">
+                  <p style="margin:0 0 2px 0;font-size:11px;line-height:16px;color:#5c6360;text-transform:uppercase;letter-spacing:.6px;">Servicio</p>
+                  <p style="margin:0;font-size:15px;line-height:22px;color:#12181a;">${escapeHtml(p.service_type_label)}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Equipos a visitar -->
+        <tr>
+          <td style="padding:0 24px 4px 24px;">
+            <p style="margin:0 0 6px 0;font-size:11px;line-height:16px;color:#5c6360;text-transform:uppercase;letter-spacing:.6px;">
+              Equipos a visitar
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 24px 8px 24px;font-size:14px;line-height:21px;color:#12181a;">
+            ${p.equipment_list_html ?? ''}
+            ${p.descripcion_block_html ?? ''}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:8px 24px 24px 24px;">
+            <p style="margin:0;font-size:13px;line-height:20px;color:#5c6360;">
+              Si necesita reprogramar la visita, puede responder este correo.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Pie: datos de la hoja membretada -->
+        <tr>
+          <td style="background-color:#1f4a3d;padding:18px 24px;">
+            <p style="margin:0 0 4px 0;font-size:13px;line-height:19px;color:#ffffff;font-weight:bold;">
+              Ing. Carlos R. Guiñazú
+            </p>
+            <p style="margin:0;font-size:12px;line-height:18px;color:#c3ddd3;">
+              Av. Juan Manuel de Rosas 9.999 — 1757 Gregorio de Laferrere, Pcia. de Bs. As.<br />
+              TE 011 4457 1715 &nbsp;·&nbsp; CUIT 20.10887608.6<br />
+              <a href="mailto:carlos.guinazu@ingenieriasol.com.ar" style="color:#c3ddd3;text-decoration:underline;">carlos.guinazu@ingenieriasol.com.ar</a>
+            </p>
+            <p style="margin:10px 0 0 0;font-size:11px;line-height:17px;color:#8fb5a6;">
+              S.I.P.R.O. Nº 168.679 &nbsp;·&nbsp; Proveedor de la Pcia. de Bs. As. Nº 103.084
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>`
+}
+
+export function resultadosSubject(p) {
+  return `Resultados de la visita técnica — ${p.equipment_label}`
+}
+
+export function resultadosHtml(p) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f2f2ef;margin:0;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;">
+  <tr>
+    <td align="center">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #d8dad5;border-radius:8px;overflow:hidden;">
+
+        <!-- Membrete -->
+        <tr>
+          <td align="center" style="padding:28px 24px 20px 24px;">
+            <img src="https://aliaseldoc.github.io/ingenieriaSol/logo-email.png"
+                 alt="Ingeniería Sol — Ing. Carlos Raúl Guiñazú"
+                 width="280" style="display:block;width:280px;max-width:80%;height:auto;border:0;" />
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 24px;">
+            <div style="border-top:2px solid #1f4a3d;font-size:0;line-height:0;">&nbsp;</div>
+          </td>
+        </tr>
+
+        <!-- Titulo -->
+        <tr>
+          <td style="padding:20px 24px 4px 24px;">
+            <h1 style="margin:0;font-size:19px;line-height:26px;color:#1f4a3d;font-weight:bold;">
+              Resultados de la visita técnica
+            </h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 24px 18px 24px;">
+            <p style="margin:0;font-size:14px;line-height:21px;color:#5c6360;">
+              Le informamos el resultado del servicio realizado sobre su equipo.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Datos de la visita -->
+        <tr>
+          <td style="padding:0 24px 20px 24px;">
+            <!-- Etiqueta arriba y valor abajo, no en dos columnas: con una
+                 columna de ancho fijo, un nombre de equipo largo se parte en
+                 cuatro lineas en el celular. Asi aguanta cualquier ancho. -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f2f2ef;border:1px solid #d8dad5;border-radius:6px;">
+              <tr>
+                <td style="padding:14px 16px 0 16px;">
+                  <p style="margin:0 0 2px 0;font-size:11px;line-height:16px;color:#5c6360;text-transform:uppercase;letter-spacing:.6px;">Equipo</p>
+                  <p style="margin:0;font-size:15px;line-height:22px;color:#12181a;font-weight:bold;">${escapeHtml(p.equipment_label)}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px 0 16px;">
+                  <p style="margin:0 0 2px 0;font-size:11px;line-height:16px;color:#5c6360;text-transform:uppercase;letter-spacing:.6px;">Fecha</p>
+                  <p style="margin:0;font-size:15px;line-height:22px;color:#12181a;">${escapeHtml(p.scheduled_date)}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px 14px 16px;">
+                  <p style="margin:0 0 2px 0;font-size:11px;line-height:16px;color:#5c6360;text-transform:uppercase;letter-spacing:.6px;">Servicio</p>
+                  <p style="margin:0;font-size:15px;line-height:22px;color:#12181a;">${escapeHtml(p.service_type_label)}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Bloques que arma la Edge Function (pueden venir vacios) -->
+        <tr>
+          <td style="padding:0 24px 8px 24px;font-size:14px;line-height:21px;color:#12181a;">
+            ${p.technicians_block_html ?? ''}
+            ${p.parameters_block_html ?? ''}
+            ${p.fault_block_html ?? ''}
+            ${p.notes_block_html ?? ''}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:8px 24px 24px 24px;">
+            <p style="margin:0;font-size:13px;line-height:20px;color:#5c6360;">
+              Ante cualquier consulta puede responder este correo.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Pie: datos de la hoja membretada -->
+        <tr>
+          <td style="background-color:#1f4a3d;padding:18px 24px;">
+            <p style="margin:0 0 4px 0;font-size:13px;line-height:19px;color:#ffffff;font-weight:bold;">
+              Ing. Carlos R. Guiñazú
+            </p>
+            <p style="margin:0;font-size:12px;line-height:18px;color:#c3ddd3;">
+              Av. Juan Manuel de Rosas 9.999 — 1757 Gregorio de Laferrere, Pcia. de Bs. As.<br />
+              TE 011 4457 1715 &nbsp;·&nbsp; CUIT 20.10887608.6<br />
+              <a href="mailto:carlos.guinazu@ingenieriasol.com.ar" style="color:#c3ddd3;text-decoration:underline;">carlos.guinazu@ingenieriasol.com.ar</a>
+            </p>
+            <p style="margin:10px 0 0 0;font-size:11px;line-height:17px;color:#8fb5a6;">
+              S.I.P.R.O. Nº 168.679 &nbsp;·&nbsp; Proveedor de la Pcia. de Bs. As. Nº 103.084
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>`
+}

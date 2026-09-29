@@ -1,15 +1,29 @@
-// Edge Function: envia por mail (via EmailJS) el aviso de una visita programada
-// o el resumen de resultados de una visita ya aprobada. Solo administrativo o
-// supervisor pueden invocarla. Las claves de EmailJS nunca viajan al cliente.
+// Edge Function: envia por mail el aviso de una visita programada o el resumen
+// de resultados de una visita ya aprobada. Solo administrativo o supervisor
+// pueden invocarla. La clave del proveedor de mail nunca viaja al cliente.
+//
+// El envio va directo a Brevo. Antes pasaba por EmailJS, que resulto ser mal
+// lugar para esto: su plan gratuito esta pensado para mandar desde el
+// navegador, no desde un servidor, y la cuenta termino suspendida. Brevo
+// acepta el envio desde un servidor y ademas el HTML del mail pasa a estar en
+// el codigo (ver plantillas.ts), no en el panel de un tercero.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import {
+  escapeHtml,
+  notificacionHtml,
+  notificacionSubject,
+  resultadosHtml,
+  resultadosSubject,
+} from './plantillas.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
-const EMAILJS_SERVICE_ID = Deno.env.get('EMAILJS_SERVICE_ID')
-const EMAILJS_PUBLIC_KEY = Deno.env.get('EMAILJS_PUBLIC_KEY')
-const EMAILJS_PRIVATE_KEY = Deno.env.get('EMAILJS_PRIVATE_KEY')
-const EMAILJS_TEMPLATE_ID_NOTIFICATION = Deno.env.get('EMAILJS_TEMPLATE_ID_NOTIFICATION')
-const EMAILJS_TEMPLATE_ID_RESULTS = Deno.env.get('EMAILJS_TEMPLATE_ID_RESULTS')
+const BREVO_API_KEY = Deno.env.get('BREVO_API_KEY')
+// Direccion verificada en Brevo desde la que salen los mails.
+const MAIL_FROM_EMAIL = Deno.env.get('MAIL_FROM_EMAIL')
+const MAIL_FROM_NAME = Deno.env.get('MAIL_FROM_NAME') ?? 'Ingeniería Sol'
+// A donde contesta el cliente si responde el mail.
+const MAIL_REPLY_TO = Deno.env.get('MAIL_REPLY_TO') ?? MAIL_FROM_EMAIL
 
 const ALLOWED_ROLES = ['administrativo', 'supervisor']
 
@@ -40,50 +54,52 @@ function formatDate(isoDate) {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-// Regla de las plantillas (ver emailjs-templates/): todo parametro terminado
-// en _html llega ya armado y la plantilla lo inserta con {{{...}}} sin
-// escapar, asi que el texto libre que venga de un usuario (nombre, notas,
-// motor) se escapa aca. El resto de los parametros van como texto plano y la
-// plantilla los inserta con {{...}}, que EmailJS ya escapa — por eso no hay
-// que pre-escaparlos, o se veria "MERCEDES &amp; BENZ".
-function escapeHtml(text) {
-  return String(text ?? '').replace(
-    /[&<>"']/g,
-    (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char])
-  )
-}
+// Regla de los datos (ver plantillas.ts): los campos terminados en _html se
+// arman aca, asi que el texto libre que escribio una persona (nombre, notas,
+// motor) se escapa en este archivo. El resto son datos planos y los escapa la
+// plantilla. Escapar dos veces se ve feo ("MERCEDES &amp; BENZ"), no escapar
+// es un agujero.
 
 // Estilos en linea para los fragmentos: los clientes de correo no aplican
 // hojas de estilo, y lo que se hereda del <td> contenedor no es confiable en
-// Outlook. Los valores coinciden con los de emailjs-templates/.
+// Outlook. Los valores coinciden con los de plantillas.ts.
 const TEXT_STYLE = 'margin:0 0 10px 0;font-size:14px;line-height:21px;color:#12181a;'
 const LIST_STYLE = 'margin:0 0 10px 0;padding-left:20px;font-size:14px;line-height:21px;color:#12181a;'
 const LABEL_STYLE = 'color:#1f4a3d;'
+// Los estilos de arriba coinciden con los de plantillas.ts: los fragmentos que
+// se arman aca se insertan adentro de ese HTML y tienen que verse igual.
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-// La API de EmailJS acepta 1 request por segundo; una hoja de ruta con
-// varios clientes manda varios mails seguidos, asi que hay que espaciarlos.
-async function sendTemplateEmail(templateId, templateParams) {
-  if (!EMAILJS_SERVICE_ID || !EMAILJS_PUBLIC_KEY || !EMAILJS_PRIVATE_KEY || !templateId) {
-    throw new Error('Falta configurar las credenciales de EmailJS como secrets de la Edge Function.')
+async function sendEmail({ to, subject, html }) {
+  if (!BREVO_API_KEY || !MAIL_FROM_EMAIL) {
+    throw new Error('Falta configurar BREVO_API_KEY y MAIL_FROM_EMAIL como secrets de la Edge Function.')
   }
-  const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
-      service_id: EMAILJS_SERVICE_ID,
-      template_id: templateId,
-      user_id: EMAILJS_PUBLIC_KEY,
-      accessToken: EMAILJS_PRIVATE_KEY,
-      template_params: templateParams,
+      sender: { email: MAIL_FROM_EMAIL, name: MAIL_FROM_NAME },
+      to: [{ email: to }],
+      replyTo: { email: MAIL_REPLY_TO },
+      subject,
+      htmlContent: html,
     }),
   })
   if (!response.ok) {
-    const errorBody = await response.text()
-    throw new Error(`EmailJS rechazó el envío: ${errorBody}`)
+    // Brevo explica el motivo en JSON ("sender not valid", cuota, etc.): se
+    // muestra ese texto y no el volcado entero, que el administrativo no puede
+    // interpretar.
+    const cuerpo = await response.text()
+    let detalle = cuerpo
+    try {
+      detalle = JSON.parse(cuerpo).message ?? cuerpo
+    } catch {
+      // Se queda con el texto crudo.
+    }
+    throw new Error(`Brevo rechazó el envío: ${detalle}`)
   }
 }
 
@@ -114,7 +130,9 @@ async function sendNotificationEmails(callerClient, routeSheetId) {
       skipped.push(client.name)
       continue
     }
-    if (!isFirst) await sleep(1100)
+    // Espaciado corto entre mails de una misma hoja de ruta: Brevo acepta
+    // varios por segundo, pero no hay apuro y evita rozar cualquier limite.
+    if (!isFirst) await sleep(300)
     isFirst = false
 
     const equipmentListHtml = `<ul style="${LIST_STYLE}">${client.equipmentLabels
@@ -123,12 +141,16 @@ async function sendNotificationEmails(callerClient, routeSheetId) {
     const descripcionBlockHtml = routeSheet.descripcion?.trim()
       ? `<p style="${TEXT_STYLE}"><strong style="${LABEL_STYLE}">Detalle:</strong> ${escapeHtml(routeSheet.descripcion)}</p>`
       : ''
-    await sendTemplateEmail(EMAILJS_TEMPLATE_ID_NOTIFICATION, {
-      to_email: client.contact_email,
+    const datos = {
       scheduled_date: formatDate(routeSheet.scheduled_date),
       service_type_label: SERVICE_TYPE_LABELS[routeSheet.service_type] ?? routeSheet.service_type,
       equipment_list_html: equipmentListHtml,
       descripcion_block_html: descripcionBlockHtml,
+    }
+    await sendEmail({
+      to: client.contact_email,
+      subject: notificacionSubject(datos),
+      html: notificacionHtml(datos),
     })
     sentTo.push(client.contact_email)
   }
@@ -178,9 +200,8 @@ async function sendResultsEmail(callerClient, visitId) {
         .join('')}</ul>`
     : `<p style="${TEXT_STYLE}">Todos los parámetros medidos estuvieron dentro de rango.</p>`
 
-  await sendTemplateEmail(EMAILJS_TEMPLATE_ID_RESULTS, {
-    to_email: client.contact_email,
-    // Sin escapar: la plantilla lo inserta con {{...}} y EmailJS ya escapa.
+  const datos = {
+    // Sin escapar: la plantilla escapa los datos planos.
     equipment_label: [visit.equipment?.motor, visit.equipment?.generador].filter(Boolean).join(' / '),
     scheduled_date: formatDate(visit.scheduled_date),
     service_type_label: SERVICE_TYPE_LABELS[visit.service_type] ?? visit.service_type,
@@ -198,6 +219,12 @@ async function sendResultsEmail(callerClient, visitId) {
     notes_block_html: visit.notes
       ? `<p style="${TEXT_STYLE}"><strong style="${LABEL_STYLE}">Notas del técnico:</strong> ${escapeHtml(visit.notes)}</p>`
       : '',
+  }
+
+  await sendEmail({
+    to: client.contact_email,
+    subject: resultadosSubject(datos),
+    html: resultadosHtml(datos),
   })
 
   return { ok: true, sentTo: [client.contact_email] }
