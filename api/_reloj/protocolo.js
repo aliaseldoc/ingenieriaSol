@@ -72,6 +72,10 @@ export function respuestaSaludo({ serial, stamp }) {
     `GET OPTION FROM: ${serial}`,
     `Stamp=${marca}`,
     `ATTLOGStamp=${marca}`,
+    // OPERLOGStamp es el nombre que usa el protocolo; OpStamp es el alias
+    // viejo. Se mandan los dos: los firmwares nuevos leen el primero y los
+    // viejos el segundo, y sobra el que no entienden.
+    'OPERLOGStamp=0',
     'OpStamp=0',
     'ErrorDelay=30',
     'Delay=10',
@@ -81,5 +85,9 @@ export function respuestaSaludo({ serial, stamp }) {
     'Realtime=1',
     'TimeZone=-3',
     'Encrypt=0',
+    // Sin version de servidor, los firmwares push 3.x repiten el saludo en
+    // vez de pasar a mandar datos.
+    'ServerVer=2.4.1',
+    'PushProtVer=2.4.1',
   ].join('\n')
 }

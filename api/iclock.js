@@ -68,12 +68,39 @@ export default async function handler(pedido, respuesta) {
   if (!serial) return responder(respuesta, 400, 'ERROR: falta el numero de serie')
 
   const tipo = interpretarPedido({ method: pedido.method, accion, query })
+  const verbo = (pedido.method ?? 'GET').toUpperCase()
 
   try {
+    // Un POST que no sabemos leer no puede pasar como si nada: queda anotado
+    // con su tabla y su contenido, que es lo unico que despues permite saber
+    // que mandaba el equipo.
+    if (tipo === ACCION.OTROS_DATOS) {
+      const cuerpo = await leerCuerpo(pedido)
+      await llamarBase('touch_clock_device', {
+        p_serial: serial,
+        p_kind: 'contacto',
+        p_detail: { verbo, query, cuerpo: cuerpo.slice(0, 2000) },
+        p_ip: ip,
+      })
+      return responder(respuesta, 200, 'OK')
+    }
+
     // Los pedidos que no traen datos solo sirven para saber que el reloj
     // sigue vivo: se contestan con OK sin tocar nada mas.
-    if (tipo === ACCION.COMANDOS || tipo === ACCION.RESPUESTA_COMANDO || tipo === ACCION.OTROS_DATOS) {
+    if (tipo === ACCION.COMANDOS || tipo === ACCION.RESPUESTA_COMANDO) {
       await llamarBase('touch_clock_device', { p_serial: serial, p_kind: 'ping', p_detail: null, p_ip: ip })
+      return responder(respuesta, 200, 'OK')
+    }
+
+    // Una accion que no figura en el protocolo tambien se anota: es la pista
+    // de que este firmware habla distinto al que esperabamos.
+    if (tipo === ACCION.DESCONOCIDA) {
+      await llamarBase('touch_clock_device', {
+        p_serial: serial,
+        p_kind: 'contacto',
+        p_detail: { verbo, query, desconocida: true },
+        p_ip: ip,
+      })
       return responder(respuesta, 200, 'OK')
     }
 
@@ -81,7 +108,7 @@ export default async function handler(pedido, respuesta) {
       const estado = await llamarBase('touch_clock_device', {
         p_serial: serial,
         p_kind: 'contacto',
-        p_detail: { query },
+        p_detail: { verbo, query },
         p_ip: ip,
       })
       // Un equipo que no esta dado de alta (o esta desactivado) no recibe
