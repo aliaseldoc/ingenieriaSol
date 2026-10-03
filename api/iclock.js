@@ -9,7 +9,15 @@
 // Si se contesta bien sin haber guardado, el reloj los borra de su memoria y
 // se pierden.
 
-import { ACCION, interpretarPedido, parsearFichajes, respuestaSaludo } from './_reloj/protocolo.js'
+import {
+  ACCION,
+  esTablaConocida,
+  interpretarPedido,
+  parsearFichajes,
+  parsearTiempoReal,
+  respuestaAlta,
+  respuestaSaludo,
+} from './_reloj/protocolo.js'
 
 const TEXTO_PLANO = 'text/plain; charset=utf-8'
 
@@ -75,6 +83,12 @@ export default async function handler(pedido, respuesta) {
     // con su tabla y su contenido, que es lo unico que despues permite saber
     // que mandaba el equipo.
     if (tipo === ACCION.OTROS_DATOS) {
+      // Configuracion, lista de usuarios, estado de la puerta: no son
+      // fichajes y llegan todo el tiempo, asi que no se anotan.
+      if (esTablaConocida(query.table)) {
+        await llamarBase('touch_clock_device', { p_serial: serial, p_kind: 'ping', p_detail: null, p_ip: ip })
+        return responder(respuesta, 200, 'OK')
+      }
       const cuerpo = await leerCuerpo(pedido)
       await llamarBase('touch_clock_device', {
         p_serial: serial,
@@ -104,6 +118,21 @@ export default async function handler(pedido, respuesta) {
       return responder(respuesta, 200, 'OK')
     }
 
+    // El alta se trata como el saludo: un equipo que no esta habilitado no
+    // recibe codigo, y sin codigo no manda nada.
+    if (tipo === ACCION.ALTA) {
+      const estado = await llamarBase('touch_clock_device', {
+        p_serial: serial,
+        p_kind: 'contacto',
+        p_detail: { verbo, query, alta: true },
+        p_ip: ip,
+      })
+      if (!estado?.conocido || !estado?.activo) {
+        return responder(respuesta, 401, 'ERROR: reloj no habilitado')
+      }
+      return responder(respuesta, 200, respuestaAlta({ serial }))
+    }
+
     if (tipo === ACCION.SALUDO) {
       const estado = await llamarBase('touch_clock_device', {
         p_serial: serial,
@@ -120,8 +149,9 @@ export default async function handler(pedido, respuesta) {
       return responder(respuesta, 200, respuestaSaludo({ serial, stamp: estado.attlog_stamp }))
     }
 
-    if (tipo === ACCION.FICHAJES) {
-      const { filas, invalidas } = parsearFichajes(await leerCuerpo(pedido))
+    if (tipo === ACCION.FICHAJES || tipo === ACCION.FICHAJES_TIEMPO_REAL) {
+      const leer = tipo === ACCION.FICHAJES ? parsearFichajes : parsearTiempoReal
+      const { filas, invalidas } = leer(await leerCuerpo(pedido))
       const resultado = await llamarBase('ingest_clock_punches', {
         p_serial: serial,
         p_rows: filas,
