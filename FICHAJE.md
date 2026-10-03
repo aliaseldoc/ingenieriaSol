@@ -90,6 +90,23 @@ El reloj manda cada fichaje **apenas ocurre**, sin que nadie pase el pendrive. U
 - Variables de entorno en Vercel: `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`. Sin prefijo `VITE_`, así no terminan en el paquete del navegador.
 - El endpoint no decide nada del negocio: llama a `ingest_clock_punches`, que valida, guarda y cuenta en una sola transacción.
 
+### Lo que habla el equipo (verificado con un F22/ID real)
+
+Puesto en marcha el 3/10/2026 contra el equipo `CQZ7232760113` (`FirmVer 8.0.4.3-20220708`, `PushVersion 2.0.33S`, `DeviceType=acc`). Dos cosas no coincidían con el protocolo genérico y hay que tenerlas presentes al sumar otro reloj:
+
+- **El alta es obligatoria y va antes que todo.** El equipo saluda y acto seguido hace `POST /iclock/registry` con su ficha técnica completa. Espera que el servidor le conteste `RegistryCode=<algo>`. Si recibe cualquier otra cosa (un `OK`, por ejemplo) **se queda sin registrar, repite el ciclo cada 15 s y no manda un solo fichaje**. En la pantalla se ve como un ✗ rojo sobre el ícono del servidor.
+- **Los equipos de control de acceso no mandan `ATTLOG`, mandan `RTLOG`**, con otro formato: pares `clave=valor` separados por tabulaciones, un evento por línea, apenas ocurre.
+
+```
+time=2026-10-03 14:10:32	pin=9999	cardno=0	event=3	verifytype=1	index=10	...
+```
+
+En el mismo flujo vienen mezcladas líneas de estado de la puerta (`time=…	sensor=01	relay=00	door=01`), que no tienen `pin`.
+
+**Qué cuenta como fichaje:** toda línea con hora válida y un `pin` distinto de 0. No se filtra por el código de `event` a propósito. En las pruebas el único código de verificación correcta fue el `3` (con huella, clave y tarjeta), y las tarjetas no reconocidas llegaron como `event=27` con `pin=0`. Pero la tabla de códigos de ZKTeco cambia entre modelos y firmwares, y descartar por un código desconocido perdería fichajes reales; en cambio, todo lo que no identifica a una persona ya viene con `pin=0` o sin `pin`, así que queda afuera solo.
+
+Las tablas `options`, `rtstate`, `tabledata`, `operlog`, `attphoto` y `biodata` son sincronización del equipo (su configuración, su lista de usuarios, el estado de la puerta): se contestan OK y no se anotan, porque llegan todo el tiempo. Una tabla que no esté en esa lista **sí** se anota con su contenido: es la única forma de enterarse de que un modelo nuevo habla distinto.
+
 ### Reglas de la integración
 - **Solo se contesta "OK" cuando el fichaje quedó guardado.** Si algo falla, se contesta error: el reloj conserva los registros y reintenta. Contestar bien sin haber guardado los borra del equipo.
 - **Un reloj no dado de alta no recibe configuración ni se le aceptan fichajes.** El alta es por número de serie, desde la pestaña Reloj. Hasta entonces el equipo guarda todo y lo manda cuando se lo habilita.
