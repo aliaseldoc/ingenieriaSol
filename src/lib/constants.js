@@ -413,3 +413,83 @@ export const VISIT_CHANGE_TO_EQUIPMENT_TRACKING = [
   { changeKey: 'cambio_filtro_aire', changedAtField: 'air_filter_changed_at', nextDueField: 'air_filter_next_due_at', yearsAhead: 1 },
   { changeKey: 'cambio_bateria', changedAtField: 'battery_changed_at', nextDueField: 'battery_next_due_at', yearsAhead: 2 },
 ]
+
+// Modulo de fichaje (ver FICHAJE.md). Las reglas son iguales para todo el
+// personal: cambiar un valor aca cambia el calculo del reporte del
+// supervisor, la vista del tecnico y la foto que se guarda al cerrar.
+export const TIMESHEET_RULES = {
+  timeZone: 'America/Argentina/Buenos_Aires',
+  dailyNormalMinutes: 9 * 60,
+  lunchDiscountMinutes: 60,
+  saturdayCutoffTime: '13:00',
+  clockReboundMinutes: 2,
+  maxShiftHours: 16,
+  duplicateWarningMinutes: 10,
+  geolocationTimeoutMs: 15000,
+}
+
+export const DEFAULT_FACTORY_RADIUS_M = 500
+
+export const PUNCH_SOURCE = {
+  RELOJ: 'reloj',
+  APP: 'app',
+  MANUAL: 'manual',
+}
+
+export const PUNCH_SOURCE_LABELS = {
+  [PUNCH_SOURCE.RELOJ]: 'Reloj',
+  [PUNCH_SOURCE.APP]: 'App',
+  [PUNCH_SOURCE.MANUAL]: 'Manual',
+}
+
+export const PUNCH_TYPE = {
+  ENTRADA: 'entrada',
+  SALIDA: 'salida',
+}
+
+export const PUNCH_TYPE_LABELS = {
+  [PUNCH_TYPE.ENTRADA]: 'Entrada',
+  [PUNCH_TYPE.SALIDA]: 'Salida',
+}
+
+export const LOCATION_STATUS = {
+  OK: 'ok',
+  SIN_UBICACION: 'sin_ubicacion',
+}
+
+export const LOCATION_ERROR_LABELS = {
+  permiso_denegado: 'Permiso de ubicación denegado',
+  no_disponible: 'Ubicación no disponible',
+  tiempo_agotado: 'Se agotó el tiempo para obtener la ubicación',
+}
+
+export const TIMESHEET_WEEK_STATUS = {
+  ABIERTA: 'abierta',
+  CERRADA: 'cerrada',
+}
+
+// Reloj biometrico que manda los fichajes solo por WiFi (protocolo push de
+// ZKTeco). El equipo no acepta una ruta: se le carga solo el dominio y el
+// puerto, y el arma /iclock/... por su cuenta. El endpoint vive en el deploy
+// de Vercel del proyecto (ver api/iclock.js).
+export const CLOCK_PUSH_SERVER = {
+  host: 'ingenieria-sol.vercel.app',
+  port: 443,
+  https: true,
+}
+
+export const PENDING_PUNCH_REASON_LABELS = {
+  sin_legajo: 'Sin legajo',
+  semana_cerrada: 'Semana cerrada',
+}
+
+export const CLOCK_EVENT_KIND_LABELS = {
+  contacto: 'Contacto',
+  fichajes: 'Fichajes',
+  rechazo: 'Rechazo',
+}
+
+// Si el reloj no se comunica en este lapso, la pantalla lo muestra caido.
+export const CLOCK_OFFLINE_MINUTES = 30
+// Desfasaje de hora a partir del cual conviene corregir el reloj.
+export const CLOCK_DRIFT_WARNING_SECONDS = 120

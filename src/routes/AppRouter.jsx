@@ -22,11 +22,13 @@ import TecnicoLayout from '../components/layout/TecnicoLayout'
 import MonthlyPlanPage from '../pages/tecnico/MonthlyPlanPage'
 import HistoryPage from '../pages/tecnico/HistoryPage'
 import VisitFormPage from '../pages/tecnico/VisitFormPage'
+import PunchPage from '../pages/tecnico/PunchPage'
 
 import SupervisorLayout from '../components/layout/SupervisorLayout'
 import ValidationPage from '../pages/supervisor/ValidationPage'
 import StaffListPage from '../pages/supervisor/StaffListPage'
 import StaffNewPage from '../pages/supervisor/StaffNewPage'
+import TimesheetPage from '../pages/supervisor/TimesheetPage'
 
 function RoleHomeRedirect() {
   const { profile, loading } = useAuth()
@@ -66,6 +68,7 @@ export default function AppRouter() {
           <Route path="/tecnico" element={<TecnicoLayout />}>
             <Route index element={<MonthlyPlanPage />} />
             <Route path="historial" element={<HistoryPage />} />
+            <Route path="fichaje" element={<PunchPage />} />
             <Route path="visita/:visitId" element={<VisitFormPage />} />
             <Route path="perfil" element={<ProfilePage />} />
           </Route>
@@ -81,6 +84,7 @@ export default function AppRouter() {
             <Route path="calendario" element={<CalendarPage />} />
             <Route path="personal" element={<StaffListPage />} />
             <Route path="personal/nuevo" element={<StaffNewPage />} />
+            <Route path="fichajes" element={<TimesheetPage />} />
             <Route path="visita/:visitId" element={<VisitDetailPage />} />
             <Route path="perfil" element={<ProfilePage />} />
             <Route path="resumen" element={<SummaryPage />} />

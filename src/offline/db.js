@@ -3,12 +3,16 @@
 // src/offline/* pasa siempre por estos helpers.
 
 const DB_NAME = 'isol-offline'
-const DB_VERSION = 1
+// v2: store de fichajes pendientes (ver punchQueue.js). onupgradeneeded
+// solo crea los stores que faltan, asi que subir la version no toca los datos
+// ya guardados de las visitas.
+const DB_VERSION = 2
 
 export const STORES = {
   VISITS: 'visits',
   VISIT_PARAMETERS: 'visitParameters',
   PENDING_WRITES: 'pendingWrites',
+  PENDING_PUNCHES: 'pendingPunches',
   META: 'meta',
 }
 
@@ -16,6 +20,7 @@ const STORE_KEY_PATHS = {
   [STORES.VISITS]: 'id',
   [STORES.VISIT_PARAMETERS]: 'visit_id',
   [STORES.PENDING_WRITES]: 'visitId',
+  [STORES.PENDING_PUNCHES]: 'id',
   [STORES.META]: 'key',
 }
 
@@ -48,9 +53,21 @@ function openDb() {
   if (dbPromise) return dbPromise
   dbPromise = requestDb(DB_VERSION).catch((error) => {
     if (error?.name !== 'VersionError') throw error
-    return requestDb()
+    return openExistingVersion()
   })
   return dbPromise
+}
+
+// Abrir sin version no dispara onupgradeneeded: si esa base mas nueva se creo
+// sin alguno de los stores de esta version (pendingPunches, por ejemplo), hay
+// que subir una version mas para crearlo, o fichar sin conexion falla.
+async function openExistingVersion() {
+  const db = await requestDb()
+  const faltaAlguno = Object.keys(STORE_KEY_PATHS).some((storeName) => !db.objectStoreNames.contains(storeName))
+  if (!faltaAlguno) return db
+  const nextVersion = db.version + 1
+  db.close()
+  return requestDb(nextVersion)
 }
 
 function promisifyRequest(request) {
