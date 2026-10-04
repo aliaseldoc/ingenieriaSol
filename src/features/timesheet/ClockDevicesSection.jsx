@@ -250,7 +250,7 @@ export default function ClockDevicesSection({ actorId, onChanged }) {
                       </div>
                       <dl className="grid grid-cols-2 md:grid-cols-4 gap-sm font-body-sm text-body-sm text-on-surface-variant">
                         <div>
-                          <dt className="font-label-sm text-label-sm">Fichajes recibidos</dt>
+                          <dt className="font-label-sm text-label-sm">Fichajes guardados</dt>
                           <dd className="text-on-surface">{device.punches_received}</dd>
                         </div>
                         <div>

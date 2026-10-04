@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createStaffMember } from '../../api/staff'
 import { describeEmployeeError, isClockPinTaken, setClockPinForUsername } from '../../api/employees'
-import { ROLES, ROLE_LABELS } from '../../lib/constants'
+import { FICHAJE_HABILITADO, ROLES, ROLE_LABELS } from '../../lib/constants'
 import { toISODateString } from '../../lib/dateUtils'
 import { normalizeClockPin } from '../../features/timesheet/clockFileParser'
 import Button from '../../components/ui/Button'
@@ -120,11 +120,13 @@ export default function StaffNewPage() {
                 onChange={(value) => setForm((f) => ({ ...f, registeredAt: value }))}
                 required
               />
-              <Field
-                label="N° en el reloj"
-                value={form.clockPin}
-                onChange={(value) => setForm((f) => ({ ...f, clockPin: value }))}
-              />
+              {FICHAJE_HABILITADO && (
+                <Field
+                  label="N° en el reloj"
+                  value={form.clockPin}
+                  onChange={(value) => setForm((f) => ({ ...f, clockPin: value }))}
+                />
+              )}
             </div>
           </FormSection>
 

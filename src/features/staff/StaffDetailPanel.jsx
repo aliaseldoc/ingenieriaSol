@@ -3,7 +3,7 @@ import Modal from '../../components/ui/Modal'
 import StatusChip from '../../components/ui/StatusChip'
 import FormSection from '../../components/ui/FormSection'
 import Field from '../../components/ui/Field'
-import { ROLE_LABELS } from '../../lib/constants'
+import { FICHAJE_HABILITADO, ROLE_LABELS } from '../../lib/constants'
 import { formatDate } from '../../lib/dateUtils'
 import { updateProfile } from '../../api/profiles'
 import { renameStaffUsername } from '../../api/staff'
@@ -135,7 +135,9 @@ export default function StaffDetailPanel({ staff, onClose, onUpdated }) {
               </div>
               <Field label="Teléfono" value={form.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} />
               <Field label="Dirección" value={form.address} onChange={(v) => setForm((f) => ({ ...f, address: v }))} />
-              <Field label="N° en el reloj" value={form.clock_pin} onChange={(v) => setForm((f) => ({ ...f, clock_pin: v }))} />
+              {FICHAJE_HABILITADO && (
+                <Field label="N° en el reloj" value={form.clock_pin} onChange={(v) => setForm((f) => ({ ...f, clock_pin: v }))} />
+              )}
             </div>
           </FormSection>
           {formError && (
@@ -159,7 +161,7 @@ export default function StaffDetailPanel({ staff, onClose, onUpdated }) {
             <DetailField label="Teléfono" value={staff.phone} />
             <DetailField label="Dirección" value={staff.address} />
             <DetailField label="Fecha de Registro" value={staff.registered_at ? formatDate(staff.registered_at) : null} />
-            <DetailField label="N° en el reloj" value={employee?.clock_pin} />
+            {FICHAJE_HABILITADO && <DetailField label="N° en el reloj" value={employee?.clock_pin} />}
           </div>
         </section>
       )}
