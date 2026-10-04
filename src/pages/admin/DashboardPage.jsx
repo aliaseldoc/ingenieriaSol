@@ -9,7 +9,7 @@ import { useRouteSheetsInRange } from '../../hooks/useRouteSheets'
 import { useTechnicians } from '../../hooks/useTechnicians'
 import { listRecentEvents } from '../../api/visitEvents'
 import { updateEquipment } from '../../api/equipment'
-import { CONDITION_STATUS, ROLE_HOME_PATH, ROLES, VISIT_STATUS, isActiveClient } from '../../lib/constants'
+import { CONDITION_STATUS, FICHAJE_HABILITADO, ROLE_HOME_PATH, ROLES, VISIT_STATUS, isActiveClient } from '../../lib/constants'
 import { startOfMonth, endOfMonth, toISODateString, getNextAnnualServiceDue } from '../../lib/dateUtils'
 import KpiCard from '../../components/ui/KpiCard'
 import AnnualServiceAlerts from '../../features/dashboard/AnnualServiceAlerts'
@@ -128,7 +128,7 @@ export default function DashboardPage() {
       </div>
 
       {/* El fichaje es solo del supervisor: el administrativo no lo ve (ni tiene acceso por RLS). */}
-      {profile?.role === ROLES.SUPERVISOR && <TimesheetAlerts />}
+      {FICHAJE_HABILITADO && profile?.role === ROLES.SUPERVISOR && <TimesheetAlerts />}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-md lg:flex-1 lg:min-h-0">
         <DashboardPanel title="Actividad Reciente">

@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { ROLE_HOME_PATH } from '../lib/constants'
+import { FICHAJE_HABILITADO, ROLE_HOME_PATH } from '../lib/constants'
 import ProtectedRoute from './ProtectedRoute'
 import RoleRoute from './RoleRoute'
 import Spinner from '../components/ui/Spinner'
@@ -68,7 +68,7 @@ export default function AppRouter() {
           <Route path="/tecnico" element={<TecnicoLayout />}>
             <Route index element={<MonthlyPlanPage />} />
             <Route path="historial" element={<HistoryPage />} />
-            <Route path="fichaje" element={<PunchPage />} />
+            {FICHAJE_HABILITADO && <Route path="fichaje" element={<PunchPage />} />}
             <Route path="visita/:visitId" element={<VisitFormPage />} />
             <Route path="perfil" element={<ProfilePage />} />
           </Route>
@@ -84,7 +84,7 @@ export default function AppRouter() {
             <Route path="calendario" element={<CalendarPage />} />
             <Route path="personal" element={<StaffListPage />} />
             <Route path="personal/nuevo" element={<StaffNewPage />} />
-            <Route path="fichajes" element={<TimesheetPage />} />
+            {FICHAJE_HABILITADO && <Route path="fichajes" element={<TimesheetPage />} />}
             <Route path="visita/:visitId" element={<VisitDetailPage />} />
             <Route path="perfil" element={<ProfilePage />} />
             <Route path="resumen" element={<SummaryPage />} />

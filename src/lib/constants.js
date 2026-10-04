@@ -468,6 +468,22 @@ export const TIMESHEET_WEEK_STATUS = {
   CERRADA: 'cerrada',
 }
 
+// El modulo de fichaje esta en marcha blanca: el reloj ya recibe fichajes
+// pero la norma todavia no rige en la fabrica, asi que en produccion no se
+// muestra para no confundir a nadie. Mientras este apagado desaparecen las
+// dos pantallas, sus items de menu, las alertas del panel y la solapa de
+// empleados de fabrica.
+//
+// Es una bandera de compilacion: lo que no se habilita no queda accesible ni
+// escribiendo la direccion a mano. Se prende poniendo
+// VITE_FICHAJE_HABILITADO=true (ya esta en .env para desarrollo); en
+// produccion se prende agregando la variable al workflow de GitHub Pages.
+//
+// Importante: NO apaga la toma de fichajes. El endpoint /iclock corre en el
+// servidor (api/iclock.js) y no mira esta bandera, asi que el reloj sigue
+// registrando todo mientras la pantalla esta oculta.
+export const FICHAJE_HABILITADO = import.meta.env.VITE_FICHAJE_HABILITADO === 'true'
+
 // Reloj biometrico que manda los fichajes solo por WiFi (protocolo push de
 // ZKTeco). El equipo no acepta una ruta: se le carga solo el dominio y el
 // puerto, y el arma /iclock/... por su cuenta. El endpoint vive en el deploy

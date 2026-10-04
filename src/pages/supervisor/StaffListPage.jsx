@@ -4,7 +4,7 @@ import { listStaff, setProfileActive } from '../../api/profiles'
 import { createVehicle, setVehicleActive, deleteVehicle } from '../../api/vehicles'
 import { listEmployees, setEmployeeActive } from '../../api/employees'
 import { useAllVehicles } from '../../hooks/useVehicles'
-import { ROLE_LABELS } from '../../lib/constants'
+import { FICHAJE_HABILITADO, ROLE_LABELS } from '../../lib/constants'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import ConfirmModal from '../../components/ui/ConfirmModal'
@@ -48,6 +48,8 @@ export default function StaffListPage() {
   }
 
   async function loadFactoryEmployees() {
+    // Con el fichaje apagado la solapa no existe: no vale la pena el pedido.
+    if (!FICHAJE_HABILITADO) return
     const employees = await listEmployees()
     setFactoryEmployees(employees.filter((employee) => !employee.profile_id))
   }
@@ -167,7 +169,9 @@ export default function StaffListPage() {
         <div>
           <h1 className="font-headline-lg text-headline-lg text-on-surface mb-xs">Personal</h1>
           <p className="font-body-md text-body-md text-on-surface-variant">
-            Gestioná las cuentas del equipo, los empleados de fábrica y la flota de vehículos.
+            {FICHAJE_HABILITADO
+              ? 'Gestioná las cuentas del equipo, los empleados de fábrica y la flota de vehículos.'
+              : 'Gestioná las cuentas del equipo y la flota de vehículos.'}
           </p>
         </div>
         {activeTab === TAB.PERSONAL && (
@@ -175,7 +179,7 @@ export default function StaffListPage() {
             Nuevo Personal
           </Button>
         )}
-        {activeTab === TAB.FABRICA && (
+        {FICHAJE_HABILITADO && activeTab === TAB.FABRICA && (
           <Button variant="primary" icon="person_add" onClick={() => setEmployeeModal({ employee: null })}>
             Nuevo Empleado
           </Button>
@@ -191,9 +195,11 @@ export default function StaffListPage() {
         <Button variant={activeTab === TAB.PERSONAL ? 'primary' : 'secondary-outline'} onClick={() => setActiveTab(TAB.PERSONAL)}>
           Personal
         </Button>
-        <Button variant={activeTab === TAB.FABRICA ? 'primary' : 'secondary-outline'} onClick={() => setActiveTab(TAB.FABRICA)}>
-          Empleados de fábrica
-        </Button>
+        {FICHAJE_HABILITADO && (
+          <Button variant={activeTab === TAB.FABRICA ? 'primary' : 'secondary-outline'} onClick={() => setActiveTab(TAB.FABRICA)}>
+            Empleados de fábrica
+          </Button>
+        )}
         <Button variant={activeTab === TAB.VEHICULOS ? 'primary' : 'secondary-outline'} onClick={() => setActiveTab(TAB.VEHICULOS)}>
           Vehículos
         </Button>
@@ -232,7 +238,7 @@ export default function StaffListPage() {
         </div>
       )}
 
-      {activeTab === TAB.FABRICA && renderFactoryEmployees()}
+      {FICHAJE_HABILITADO && activeTab === TAB.FABRICA && renderFactoryEmployees()}
 
       {activeTab === TAB.VEHICULOS &&
         (vehiclesLoading ? (
