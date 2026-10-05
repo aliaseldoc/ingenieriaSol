@@ -50,13 +50,15 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'No autenticado' }, 401)
   }
 
+  // Una cuenta desactivada o eliminada todavia puede leer su propio perfil
+  // (asi la app le explica por que no entra), asi que el rol solo no alcanza.
   const { data: callerProfile } = await callerClient
     .from('profiles')
-    .select('role')
+    .select('role, active, deleted_at')
     .eq('id', user.id)
     .single()
 
-  if (callerProfile?.role !== 'supervisor') {
+  if (callerProfile?.role !== 'supervisor' || !callerProfile.active || callerProfile.deleted_at) {
     return jsonResponse({ error: 'Solo un supervisor puede cambiar el usuario' }, 403)
   }
 

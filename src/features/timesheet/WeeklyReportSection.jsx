@@ -4,14 +4,12 @@ import Modal from '../../components/ui/Modal'
 import ConfirmModal from '../../components/ui/ConfirmModal'
 import StatusChip from '../../components/ui/StatusChip'
 import TextAreaField from '../../components/ui/TextAreaField'
-import { closeTimesheetWeek, listWeekEvents, reopenTimesheetWeek } from '../../api/timesheetWeeks'
-import { rowsToCsv, downloadCsv } from '../../lib/csv'
+import { closeTimesheetWeek, listWeekEvents, reopenTimesheetWeek, sendWeekReport } from '../../api/timesheetWeeks'
 import { formatDateTime } from '../../lib/dateUtils'
 import { DAY_STATUS, toWeekSnapshot } from './computeTimesheet'
-import { formatMinutes, formatShortDayLabel } from './workTime'
+import { formatShortDayLabel } from './workTime'
+import { buildWeeklyReportSheets, weeklyReportFileName } from './weeklyReportXlsx'
 import WeeklyReportTable from './WeeklyReportTable'
-
-const CSV_HEADERS = ['Legajo', 'Empleado', 'Horas normales', 'Horas al 50%', 'Horas al 100%', 'Total', 'Días incompletos']
 
 // Dias que impiden cerrar: incompletos o con una jornada todavia en curso.
 function findCloseBlockers(rows) {
@@ -22,9 +20,31 @@ function findCloseBlockers(rows) {
   )
 }
 
-export default function WeeklyReportSection({ weekStartKey, rows, week, isClosed, onChanged }) {
+// La Edge Function cierre-semanal solo manda sola las semanas cerradas en los
+// ultimos dias (ver DIAS_PARA_ENVIO_AUTOMATICO alla); una mas vieja se manda
+// con el boton.
+const AUTO_SEND_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+
+// Si el reporte de la semana cerrada ya salio por mail, o si va a salir.
+function ReportMailStatus({ week, hasRecipients }) {
+  let text
+  if (week?.report_sent_at) {
+    text = `Reporte enviado por mail el ${formatDateTime(week.report_sent_at)}.`
+  } else if (!hasRecipients) {
+    text = 'El reporte no se manda por mail: todavía no hay destinatarios cargados (más abajo).'
+  } else if (week?.closed_at && Date.now() - new Date(week.closed_at).getTime() > AUTO_SEND_WINDOW_MS) {
+    text = 'Esta semana se cerró hace más de 7 días y no salió por mail. Usá "Enviar reporte ahora" si hace falta.'
+  } else {
+    text = 'El reporte sale por mail a las 09:00.'
+  }
+  return <p className="font-body-sm text-body-sm text-on-surface-variant">{text}</p>
+}
+
+export default function WeeklyReportSection({ weekStartKey, rows, week, isClosed, hasRecipients, onChanged }) {
   const [events, setEvents] = useState([])
-  const [dialog, setDialog] = useState(null) // 'cerrar' | 'bloqueada' | 'reabrir'
+  const [dialog, setDialog] = useState(null) // 'cerrar' | 'bloqueada' | 'reabrir' | 'enviar'
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
   const [reopenReason, setReopenReason] = useState('')
   const [working, setWorking] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -46,17 +66,19 @@ export default function WeeklyReportSection({ weekStartKey, rows, week, isClosed
     setErrorMessage('')
   }
 
-  function handleExport() {
-    const csvRows = displayRows.map((row) => [
-      row.clockPin ?? '',
-      row.fullName,
-      formatMinutes(row.totals.normalMinutes),
-      formatMinutes(row.totals.extra50Minutes),
-      formatMinutes(row.totals.extra100Minutes),
-      formatMinutes(row.totals.totalMinutes),
-      row.totals.incompleteDays,
-    ])
-    downloadCsv(`fichajes-semana-${weekStartKey}.csv`, rowsToCsv(CSV_HEADERS, csvRows))
+  // El mismo Excel que sale adjunto en el mail del lunes (weeklyReportXlsx.js).
+  // La libreria se carga recien aca: no hace falta en el resto de la app.
+  async function handleExport() {
+    setExporting(true)
+    setExportError('')
+    try {
+      const { default: writeXlsxFile } = await import('write-excel-file/browser')
+      await writeXlsxFile(buildWeeklyReportSheets(displayRows)).toFile(weeklyReportFileName(weekStartKey))
+    } catch (error) {
+      setExportError(error?.message || 'No se pudo generar el Excel.')
+    } finally {
+      setExporting(false)
+    }
   }
 
   async function runAction(action) {
@@ -75,6 +97,10 @@ export default function WeeklyReportSection({ weekStartKey, rows, week, isClosed
 
   function handleConfirmClose() {
     runAction(() => closeTimesheetWeek(weekStartKey, toWeekSnapshot(rows, weekStartKey)))
+  }
+
+  function handleConfirmSend() {
+    runAction(() => sendWeekReport(weekStartKey))
   }
 
   function handleReopen(event) {
@@ -98,9 +124,14 @@ export default function WeeklyReportSection({ weekStartKey, rows, week, isClosed
           )}
         </div>
         <div className="flex flex-wrap gap-sm">
-          <Button variant="secondary-outline" icon="download" onClick={handleExport} disabled={displayRows.length === 0}>
-            Exportar CSV
+          <Button variant="secondary-outline" icon="download" onClick={handleExport} disabled={displayRows.length === 0 || exporting}>
+            {exporting ? 'Generando…' : 'Exportar Excel'}
           </Button>
+          {isClosed && (
+            <Button variant="secondary-outline" icon="forward_to_inbox" onClick={() => setDialog('enviar')} disabled={!hasRecipients}>
+              Enviar reporte ahora
+            </Button>
+          )}
           {isClosed ? (
             <Button variant="secondary-outline" icon="lock_open" onClick={() => setDialog('reabrir')}>
               Reabrir semana
@@ -113,6 +144,14 @@ export default function WeeklyReportSection({ weekStartKey, rows, week, isClosed
         </div>
       </div>
 
+      {exportError && (
+        <p role="alert" className="font-body-sm text-body-sm text-error">
+          {exportError}
+        </p>
+      )}
+
+      {isClosed && <ReportMailStatus week={week} hasRecipients={hasRecipients} />}
+
       <WeeklyReportTable rows={displayRows} />
 
       {events.length > 0 && (
@@ -121,8 +160,8 @@ export default function WeeklyReportSection({ weekStartKey, rows, week, isClosed
           <ul className="divide-y divide-outline-variant/50">
             {events.map((event) => (
               <li key={event.id} className="px-md py-sm font-body-sm text-body-sm text-on-surface">
-                <strong>{event.action === 'cerrada' ? 'Cerrada' : 'Reabierta'}</strong> el {formatDateTime(event.created_at)} por{' '}
-                {event.profiles?.full_name ?? '—'}
+                <strong>{event.action === 'cerrada' ? 'Cerrada' : 'Reabierta'}</strong> el {formatDateTime(event.created_at)}{' '}
+                {event.actor_id ? `por ${event.profiles?.full_name ?? '—'}` : 'automáticamente'}
                 {event.reason && <span className="text-on-surface-variant"> · Motivo: {event.reason}</span>}
               </li>
             ))}
@@ -138,6 +177,18 @@ export default function WeeklyReportSection({ weekStartKey, rows, week, isClosed
         onConfirm={working ? () => {} : handleConfirmClose}
       >
         Se guarda la foto del reporte y la semana queda bloqueada: no se podrán importar ni corregir fichajes hasta reabrirla.
+        {errorMessage && <span role="alert" className="block text-error mt-sm">{errorMessage}</span>}
+      </ConfirmModal>
+
+      <ConfirmModal
+        open={dialog === 'enviar'}
+        title="Enviar reporte"
+        confirmLabel={working ? 'Enviando…' : 'Enviar reporte'}
+        onCancel={working ? () => {} : closeDialog}
+        onConfirm={working ? () => {} : handleConfirmSend}
+      >
+        Se manda ahora el reporte de esta semana, con el Excel adjunto, a los destinatarios cargados abajo.
+        {week?.report_sent_at && <span className="block mt-sm">Ya se había mandado el {formatDateTime(week.report_sent_at)}: les va a llegar de nuevo.</span>}
         {errorMessage && <span role="alert" className="block text-error mt-sm">{errorMessage}</span>}
       </ConfirmModal>
 

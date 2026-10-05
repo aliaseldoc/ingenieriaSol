@@ -24,3 +24,15 @@ export async function saveTimesheetSettings({ factoryName, latitude, longitude, 
   if (error) throw error
   return data
 }
+
+// A quien le llega el reporte semanal por mail (el dueño y el contador).
+export async function saveReportRecipients(recipients, actorId) {
+  const { data, error } = await supabase
+    .from('timesheet_settings')
+    .update({ report_recipients: recipients, updated_by: actorId, updated_at: new Date().toISOString() })
+    .eq('id', true)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}

@@ -74,6 +74,10 @@ export default function FactoryLocationSettings({ settings, actorId, onSaved }) 
             Los fichajes hechos desde la app a más distancia que el radio se marcan como "Fichado fuera de rango". Es solo informativo:
             no bloquea el fichaje ni cambia las horas.
           </p>
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
+            La ubicación del personal es privada: al fichar solo se guarda a cuántos metros de la fábrica estaba, nunca el lugar. Esa
+            distancia se calcula con la ubicación cargada en ese momento, así que cambiarla acá no modifica los fichajes anteriores.
+          </p>
           <Field label="Nombre" value={form.factoryName} onChange={(value) => setForm((current) => ({ ...current, factoryName: value }))} />
           <div className="space-y-sm">
             <Field

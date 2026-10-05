@@ -13,6 +13,7 @@ import ImportClockFile from '../../features/timesheet/ImportClockFile'
 import ClockDevicesSection from '../../features/timesheet/ClockDevicesSection'
 import OfficialHolidaysModal from '../../features/timesheet/OfficialHolidaysModal'
 import FactoryLocationSettings from '../../features/timesheet/FactoryLocationSettings'
+import ReportRecipientsSettings from '../../features/timesheet/ReportRecipientsSettings'
 import { markHoliday, unmarkHoliday } from '../../api/holidays'
 import { WEEK_FILTER, WEEK_FILTER_LABELS } from '../../features/timesheet/punchFlags'
 import { currentWeekStartKey, isValidWeekStartKey } from '../../features/timesheet/workTime'
@@ -117,15 +118,26 @@ export default function TimesheetPage() {
         </>
       )
     }
+    const recipients = timesheet.settings?.report_recipients ?? []
     return (
-      <WeeklyReportSection
-        key={weekStartKey}
-        weekStartKey={weekStartKey}
-        rows={timesheet.rows}
-        week={timesheet.week}
-        isClosed={timesheet.isClosed}
-        onChanged={timesheet.reload}
-      />
+      <div className="space-y-xl">
+        <WeeklyReportSection
+          key={weekStartKey}
+          weekStartKey={weekStartKey}
+          rows={timesheet.rows}
+          week={timesheet.week}
+          isClosed={timesheet.isClosed}
+          hasRecipients={recipients.length > 0}
+          onChanged={timesheet.reload}
+        />
+        {/* La key fuerza a releer la lista cuando cambia lo guardado. */}
+        <ReportRecipientsSettings
+          key={recipients.join(',')}
+          settings={timesheet.settings}
+          actorId={profile.id}
+          onSaved={timesheet.reload}
+        />
+      </div>
     )
   }
 

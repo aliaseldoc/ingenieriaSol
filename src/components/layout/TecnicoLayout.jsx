@@ -2,7 +2,7 @@ import RoleLayoutShell from './RoleLayoutShell'
 import SyncStatusBar from './SyncStatusBar'
 import { SupervisorNotesProvider } from '../../features/supervisorNotes/SupervisorNotesContext'
 import NotificationBell from '../../features/supervisorNotes/NotificationBell'
-import { FICHAJE_HABILITADO } from '../../lib/constants'
+import { FICHAJE_HABILITADO } from '../../lib/featureFlags'
 
 const NAV_ITEMS = [
   { to: '/tecnico', end: true, icon: 'calendar_month', label: 'Mi Plan' },

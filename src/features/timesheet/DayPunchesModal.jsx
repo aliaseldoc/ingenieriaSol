@@ -2,11 +2,11 @@ import { useState } from 'react'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import StatusChip from '../../components/ui/StatusChip'
-import { LOCATION_ERROR_LABELS, PUNCH_SOURCE_LABELS, PUNCH_TYPE_LABELS } from '../../lib/constants'
+import { LOCATION_ERROR_LABELS, LOCATION_STATUS, PUNCH_SOURCE, PUNCH_SOURCE_LABELS, PUNCH_TYPE_LABELS } from '../../lib/constants'
 import { addManualPunch, correctPunchTime, voidPunch } from '../../api/timePunches'
 import { DAY_STATUS, DAY_TYPE_LABELS, PUNCH_ISSUE_LABELS } from './computeTimesheet'
 import { getPunchFlags } from './punchFlags'
-import { formatDistance, mapsUrl } from './geo'
+import { formatDistance } from './geo'
 import { formatMinutes, formatShortDayLabel, toTimeString, zonedToInstant } from './workTime'
 import PunchCorrectionForm, { CORRECTION_MODE } from './PunchCorrectionForm'
 
@@ -66,12 +66,17 @@ function PunchItem({ punch, settings, canEdit, onCorrect, onVoid }) {
           {flags.afterClose && <StatusChip label="Llegó con la semana cerrada" tone="warning" variant="tag" />}
           {flags.outOfRange && <StatusChip label={`Fichado fuera de rango · ${formatDistance(flags.range.distanceMeters)}`} tone="error" variant="tag" />}
         </div>
-        {punch.latitude != null && punch.longitude != null && (
+        {/* Solo la distancia: la ubicacion de la persona no se guarda. Fuera
+            de rango ya la muestra la etiqueta roja de arriba. */}
+        {flags.range && !flags.outOfRange && (
           <p className="font-body-sm text-body-sm text-on-surface-variant">
-            <a href={mapsUrl(punch.latitude, punch.longitude)} target="_blank" rel="noopener noreferrer" className="text-secondary underline">
-              Ver en mapa
-            </a>
+            A {formatDistance(flags.range.distanceMeters)} de la fábrica
             {punch.accuracy_m != null && ` · precisión ±${Math.round(punch.accuracy_m)} m`}
+          </p>
+        )}
+        {punch.source === PUNCH_SOURCE.APP && punch.location_status === LOCATION_STATUS.OK && !flags.range && (
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
+            Ubicación registrada, sin distancia: la fábrica no tenía ubicación cargada al fichar.
           </p>
         )}
         {flags.withoutLocation && punch.location_error && (

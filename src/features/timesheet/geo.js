@@ -1,41 +1,24 @@
 // Distancia entre un fichaje por app y la fabrica, para la leyenda
-// "Fichado fuera de rango" que ve el supervisor. Funciones puras, Math nativo.
+// "Fichado fuera de rango" que ve el supervisor.
+//
+// La ubicacion de la persona es privada: la base calcula la distancia al
+// fichar y descarta las coordenadas (migracion 0026). Aca no hay coordenadas
+// que leer, solo esa distancia contra el radio configurado. Por lo mismo, si
+// cambia la ubicacion de la fabrica, los fichajes viejos conservan la
+// distancia que se calculo en su momento.
 import { PUNCH_SOURCE } from '../../lib/constants'
-
-const EARTH_RADIUS_M = 6371000
-
-function toRadians(degrees) {
-  return (degrees * Math.PI) / 180
-}
-
-// Formula de haversine: distancia sobre la superficie terrestre, en metros.
-export function distanceInMeters(fromLat, fromLng, toLat, toLng) {
-  const deltaLat = toRadians(toLat - fromLat)
-  const deltaLng = toRadians(toLng - fromLng)
-  const a =
-    Math.sin(deltaLat / 2) ** 2 +
-    Math.cos(toRadians(fromLat)) * Math.cos(toRadians(toLat)) * Math.sin(deltaLng / 2) ** 2
-  return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(a))
-}
 
 export function hasFactoryLocation(settings) {
   return settings?.factory_latitude != null && settings?.factory_longitude != null
 }
 
 // null cuando no aplica: fichaje del reloj o manual (sin ubicacion), fichaje
-// sin ubicacion, o fabrica todavia sin cargar.
+// sin ubicacion, o sin la fabrica cargada al momento de fichar.
 export function getFactoryRange(punch, settings) {
   if (punch.source !== PUNCH_SOURCE.APP) return null
-  if (punch.latitude == null || punch.longitude == null) return null
-  if (!hasFactoryLocation(settings)) return null
-
-  const distanceMeters = distanceInMeters(
-    settings.factory_latitude,
-    settings.factory_longitude,
-    punch.latitude,
-    punch.longitude
-  )
-  return { distanceMeters, outOfRange: distanceMeters > settings.factory_radius_m }
+  if (punch.distance_to_factory_m == null) return null
+  const distanceMeters = punch.distance_to_factory_m
+  return { distanceMeters, outOfRange: settings?.factory_radius_m != null && distanceMeters > settings.factory_radius_m }
 }
 
 // 350 -> "350 m", 3200 -> "3,2 km"

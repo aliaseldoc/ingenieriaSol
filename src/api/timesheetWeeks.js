@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient'
+import { invokeEdgeFunction } from './edgeFunctions'
 
 // Sin fila = semana abierta (nunca se cerro).
 export async function getTimesheetWeek(weekStart) {
@@ -34,4 +35,10 @@ export async function closeTimesheetWeek(weekStart, snapshot) {
 export async function reopenTimesheetWeek(weekStart, reason) {
   const { error } = await supabase.rpc('reopen_timesheet_week', { p_week_start: weekStart, p_reason: reason })
   if (error) throw error
+}
+
+// Manda ya el reporte de una semana cerrada a los destinatarios cargados. Es la
+// misma Edge Function que lo manda sola todos los dias a las 09:00.
+export async function sendWeekReport(weekStart) {
+  return invokeEdgeFunction('cierre-semanal', { accion: 'enviar', weekStart })
 }

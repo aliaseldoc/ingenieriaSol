@@ -8,22 +8,17 @@
 // acepta el envio desde un servidor y ademas el HTML del mail pasa a estar en
 // el codigo (ver plantillas.ts), no en el panel de un tercero.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { sendEmail } from '../_shared/brevo.ts'
 import {
   escapeHtml,
   notificacionHtml,
   notificacionSubject,
   resultadosHtml,
   resultadosSubject,
-} from './plantillas.ts'
+} from '../_shared/plantillas.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
-const BREVO_API_KEY = Deno.env.get('BREVO_API_KEY')
-// Direccion verificada en Brevo desde la que salen los mails.
-const MAIL_FROM_EMAIL = Deno.env.get('MAIL_FROM_EMAIL')
-const MAIL_FROM_NAME = Deno.env.get('MAIL_FROM_NAME') ?? 'Ingeniería Sol'
-// A donde contesta el cliente si responde el mail.
-const MAIL_REPLY_TO = Deno.env.get('MAIL_REPLY_TO') ?? MAIL_FROM_EMAIL
 
 const ALLOWED_ROLES = ['administrativo', 'supervisor']
 
@@ -99,36 +94,6 @@ function findParameter(parameters, metricKey) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-async function sendEmail({ to, subject, html }) {
-  if (!BREVO_API_KEY || !MAIL_FROM_EMAIL) {
-    throw new Error('Falta configurar BREVO_API_KEY y MAIL_FROM_EMAIL como secrets de la Edge Function.')
-  }
-  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({
-      sender: { email: MAIL_FROM_EMAIL, name: MAIL_FROM_NAME },
-      to: [{ email: to }],
-      replyTo: { email: MAIL_REPLY_TO },
-      subject,
-      htmlContent: html,
-    }),
-  })
-  if (!response.ok) {
-    // Brevo explica el motivo en JSON ("sender not valid", cuota, etc.): se
-    // muestra ese texto y no el volcado entero, que el administrativo no puede
-    // interpretar.
-    const cuerpo = await response.text()
-    let detalle = cuerpo
-    try {
-      detalle = JSON.parse(cuerpo).message ?? cuerpo
-    } catch {
-      // Se queda con el texto crudo.
-    }
-    throw new Error(`Brevo rechazó el envío: ${detalle}`)
-  }
 }
 
 async function sendNotificationEmails(callerClient, routeSheetId) {
@@ -300,8 +265,14 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'No autenticado' }, 401)
   }
 
-  const { data: callerProfile } = await callerClient.from('profiles').select('role').eq('id', user.id).single()
-  if (!ALLOWED_ROLES.includes(callerProfile?.role)) {
+  // Una cuenta desactivada o eliminada todavia puede leer su propio perfil
+  // (asi la app le explica por que no entra), asi que el rol solo no alcanza.
+  const { data: callerProfile } = await callerClient
+    .from('profiles')
+    .select('role, active, deleted_at')
+    .eq('id', user.id)
+    .single()
+  if (!ALLOWED_ROLES.includes(callerProfile?.role) || !callerProfile.active || callerProfile.deleted_at) {
     return jsonResponse({ error: 'No tenés permiso para enviar este mail' }, 403)
   }
 

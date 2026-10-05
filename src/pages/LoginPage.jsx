@@ -4,10 +4,12 @@ import LoginCard from '../components/ui/LoginCard'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 import { signInWithUsername } from '../api/auth'
+import { useAuth } from '../context/AuthContext'
 import { isNetworkError } from '../offline/network'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { accessDenied, clearAccessDenied } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [secureSession, setSecureSession] = useState(true)
@@ -18,6 +20,7 @@ export default function LoginPage() {
   async function handleSubmit(event) {
     event.preventDefault()
     setErrorMessage('')
+    clearAccessDenied()
     setSubmitting(true)
     try {
       await signInWithUsername(username, password)
@@ -93,9 +96,9 @@ export default function LoginPage() {
             </label>
           </div>
 
-          {errorMessage && (
+          {(errorMessage || accessDenied) && (
             <p role="alert" className="font-body-sm text-body-sm text-error">
-              {errorMessage}
+              {errorMessage || accessDenied}
             </p>
           )}
 

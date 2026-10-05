@@ -11,6 +11,9 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Por que se rechazo la ultima sesion (cuenta desactivada), para que la
+  // pantalla de ingreso lo explique en vez de un "usuario incorrecto".
+  const [accessDenied, setAccessDenied] = useState('')
 
   useEffect(() => {
     let isMounted = true
@@ -33,6 +36,16 @@ export function AuthProvider({ children }) {
       }
       try {
         const loadedProfile = await getProfile(currentSession.user.id)
+        // Una cuenta desactivada no entra. La base igual ya no le da ningun
+        // permiso (current_staff_role), pero sin esto quedaria adentro viendo
+        // pantallas vacias.
+        if (!loadedProfile.active || loadedProfile.deleted_at) {
+          applyProfile(null)
+          if (isMounted) setAccessDenied('Tu cuenta está desactivada. Consultá con un supervisor.')
+          await signOutRequest().catch(() => {})
+          return
+        }
+        if (isMounted) setAccessDenied('')
         applyProfile(loadedProfile)
         // La copia local es solo para poder entrar sin conexion. Si no se
         // puede guardar, el perfil ya llego del servidor: no es motivo para
@@ -87,7 +100,7 @@ export function AuthProvider({ children }) {
     setProfile(null)
   }
 
-  const value = { session, profile, loading, signOut }
+  const value = { session, profile, loading, signOut, accessDenied, clearAccessDenied: () => setAccessDenied('') }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

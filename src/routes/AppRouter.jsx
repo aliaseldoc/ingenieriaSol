@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { FICHAJE_HABILITADO, ROLE_HOME_PATH } from '../lib/constants'
+import { ROLE_HOME_PATH } from '../lib/constants'
+import { FICHAJE_HABILITADO } from '../lib/featureFlags'
 import ProtectedRoute from './ProtectedRoute'
 import RoleRoute from './RoleRoute'
 import Spinner from '../components/ui/Spinner'
@@ -60,6 +61,8 @@ export default function AppRouter() {
             <Route path="reparaciones" element={<RepairsPage />} />
             <Route path="resumen" element={<SummaryPage />} />
             <Route path="visita/:visitId" element={<VisitDetailPage />} />
+            {/* El administrativo ficha igual que el tecnico: misma pantalla. */}
+            {FICHAJE_HABILITADO && <Route path="fichaje" element={<PunchPage />} />}
             <Route path="perfil" element={<ProfilePage />} />
           </Route>
         </Route>

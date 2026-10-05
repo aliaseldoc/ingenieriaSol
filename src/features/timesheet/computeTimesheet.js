@@ -2,8 +2,10 @@
 // FICHAJE.md). Funciones puras, sin React ni Supabase: las mismas se usan en
 // el reporte del supervisor, en la vista del tecnico y en la foto que se
 // guarda al cerrar la semana, asi los tres siempre dan igual.
-import { PUNCH_SOURCE, PUNCH_TYPE, TIMESHEET_RULES } from '../../lib/constants'
-import { addDaysToKey, minutesBetween, toDateKey, weekDayKeys, weekdayOfKey, zonedToInstant } from './workTime'
+// Con extension explicita: la Edge Function de cierre semanal corre este mismo
+// motor en Deno, que no adivina el ".js" como Vite.
+import { PUNCH_SOURCE, PUNCH_TYPE, TIMESHEET_RULES } from '../../lib/constants.js'
+import { addDaysToKey, minutesBetween, toDateKey, weekDayKeys, weekdayOfKey, zonedToInstant } from './workTime.js'
 
 const MINUTE_MS = 60 * 1000
 

@@ -65,3 +65,21 @@ export function describeEmployeeError(error, fallback) {
   if (error?.code === '23505') return 'Ya existe un empleado con ese N° en el reloj.'
   return error?.message || fallback
 }
+
+// Fichajes cargados de un empleado (para avisar cuantas horas se pierden).
+export async function countEmployeePunches(employeeId) {
+  const { count, error } = await supabase
+    .from('time_punches')
+    .select('id', { count: 'exact', head: true })
+    .eq('employee_id', employeeId)
+  if (error) throw error
+  return count ?? 0
+}
+
+// Solo empleados de fabrica (sin cuenta): borra el legajo, sus fichajes y los
+// que tenia en espera. Devuelve { fichajes, pendientes }.
+export async function deleteFactoryEmployee(employeeId) {
+  const { data, error } = await supabase.rpc('delete_factory_employee', { p_employee_id: employeeId })
+  if (error) throw error
+  return data
+}
