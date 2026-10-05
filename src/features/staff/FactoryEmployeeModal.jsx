@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Modal from '../../components/ui/Modal'
+import Button from '../../components/ui/Button'
 import Field from '../../components/ui/Field'
 import FormSection from '../../components/ui/FormSection'
 import Spinner from '../../components/ui/Spinner'
@@ -86,10 +87,11 @@ export default function FactoryEmployeeModal({ employee = null, onClose, onSaved
         onClose={deleting ? () => {} : () => setDeletion(null)}
         actions={[
           { label: 'Cancelar', variant: 'secondary-outline', onClick: () => setDeletion(null), disabled: deleting },
+          // Corto y sin icono, como el borrado de vehiculos: este modal mide
+          // 28rem (280 px) y con el icono "Cancelar" ya quedaba cortado.
           {
-            label: deleting ? 'Eliminando…' : 'Eliminar definitivamente',
+            label: deleting ? 'Eliminando…' : 'Eliminar',
             variant: 'destructive-outline',
-            icon: 'delete',
             onClick: confirmDelete,
             disabled: deleting || punchCount === null,
           },
@@ -125,7 +127,6 @@ export default function FactoryEmployeeModal({ employee = null, onClose, onSaved
       onClose={saving ? () => {} : onClose}
       actions={[
         { label: 'Cancelar', variant: 'secondary-outline', onClick: onClose, disabled: saving },
-        ...(employee ? [{ label: 'Eliminar', variant: 'destructive-outline', icon: 'delete', onClick: startDeleting, disabled: saving }] : []),
         { label: saving ? 'Guardando…' : 'Guardar Empleado', variant: 'primary', type: 'submit', form: FORM_ID, disabled: saving },
       ]}
     >
@@ -145,6 +146,15 @@ export default function FactoryEmployeeModal({ employee = null, onClose, onSaved
           <p role="alert" className="font-body-sm text-body-sm text-error">
             {errorMessage}
           </p>
+        )}
+        {/* Fuera del pie: en 28rem no entran tres botones, y asi la accion
+            destructiva queda lejos de "Guardar". */}
+        {employee && (
+          <div className="pt-md border-t border-outline-variant">
+            <Button variant="destructive-outline" icon="delete" onClick={startDeleting} disabled={saving}>
+              Eliminar empleado
+            </Button>
+          </div>
         )}
       </form>
     </Modal>
