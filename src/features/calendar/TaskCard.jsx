@@ -1,10 +1,8 @@
 import { SERVICE_TYPE_LABELS } from '../../lib/constants'
-import { getRouteSheetColor, getRouteSheetLabel, VISIT_COLOR_CLASSES } from '../../lib/visitColor'
+import { getRouteSheetColor, getRouteSheetLabel, getRouteSheetSubtitle, VISIT_COLOR_CLASSES } from '../../lib/visitColor'
 
 export default function TaskCard({ routeSheet, onClick, onDragStart }) {
   const color = getRouteSheetColor(routeSheet)
-  const visits = routeSheet.visits ?? []
-  const clientNames = [...new Set(visits.map((visit) => visit.equipment?.clients?.name).filter(Boolean))]
 
   return (
     <div
@@ -26,7 +24,7 @@ export default function TaskCard({ routeSheet, onClick, onDragStart }) {
             {getRouteSheetLabel(routeSheet)}
           </p>
           <p className="font-body-sm text-body-sm text-on-surface-variant truncate">
-            {clientNames.join(', ') || 'Sin cliente'} · {visits.length} equipo{visits.length === 1 ? '' : 's'}
+            {getRouteSheetSubtitle(routeSheet)}
           </p>
         </div>
 

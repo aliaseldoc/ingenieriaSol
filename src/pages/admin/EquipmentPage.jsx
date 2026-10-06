@@ -18,6 +18,7 @@ const EMPTY_EQUIPMENT_FORM = {
   service_start_date: '',
   service_end_date: '',
   purchase_order: '',
+  monthly_visits: '',
   motor: '',
   generador: '',
   serial_number: '',
@@ -99,6 +100,7 @@ export default function EquipmentPage() {
         ...equipmentForm,
         service_start_date: equipmentForm.service_start_date || null,
         service_end_date: equipmentForm.service_end_date || null,
+        monthly_visits: equipmentForm.monthly_visits ? Number(equipmentForm.monthly_visits) : null,
         power_kva: equipmentForm.power_kva ? Number(equipmentForm.power_kva) : null,
         fuel_capacity: equipmentForm.fuel_capacity ? Number(equipmentForm.fuel_capacity) : null,
         created_by: profile.id,
@@ -247,6 +249,7 @@ export default function EquipmentPage() {
               <Field label="Inicio del Servicio" type="date" value={equipmentForm.service_start_date} onChange={(v) => setEquipmentForm((f) => ({ ...f, service_start_date: v }))} />
               <Field label="Fin del Servicio" type="date" value={equipmentForm.service_end_date} onChange={(v) => setEquipmentForm((f) => ({ ...f, service_end_date: v }))} />
               <Field label="Orden de Compra" value={equipmentForm.purchase_order} onChange={(v) => setEquipmentForm((f) => ({ ...f, purchase_order: v }))} />
+              <Field label="Cantidad de Visitas Mensuales" type="number" min="1" max="31" step="1" value={equipmentForm.monthly_visits} onChange={(v) => setEquipmentForm((f) => ({ ...f, monthly_visits: v }))} />
             </div>
           </FormSection>
 

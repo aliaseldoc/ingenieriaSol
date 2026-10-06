@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Modal from '../../components/ui/Modal'
 import { bulkAssignRouteSheets } from '../../api/routeSheets'
 import { formatDate } from '../../lib/dateUtils'
-import { getRouteSheetLabel } from '../../lib/visitColor'
+import { getRouteSheetLabel, getRouteSheetSubtitle } from '../../lib/visitColor'
 
 export default function BulkAssignModal({ open, routeSheets, technicians, vehicles, onClose, onSaved }) {
   const [selectedIds, setSelectedIds] = useState(new Set())
@@ -96,9 +96,6 @@ export default function BulkAssignModal({ open, routeSheets, technicians, vehicl
             <div className="flex-1 min-h-0 border border-outline-variant rounded divide-y divide-outline-variant/50 overflow-y-auto">
               {routeSheets.map((routeSheet) => {
                 const label = getRouteSheetLabel(routeSheet)
-                const clientNames = [
-                  ...new Set((routeSheet.visits ?? []).map((visit) => visit.equipment?.clients?.name).filter(Boolean)),
-                ].join(', ')
 
                 return (
                   <label
@@ -114,7 +111,7 @@ export default function BulkAssignModal({ open, routeSheets, technicians, vehicl
                     <div className="min-w-0 flex-1">
                       <p className="font-label-md text-label-md text-on-surface truncate">{label}</p>
                       <p className="font-body-sm text-body-sm text-on-surface-variant truncate">
-                        {clientNames || 'Sin cliente'}
+                        {getRouteSheetSubtitle(routeSheet)}
                       </p>
                     </div>
                     <span className="font-label-sm text-label-sm text-on-surface-variant shrink-0">

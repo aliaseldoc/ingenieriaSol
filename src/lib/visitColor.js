@@ -56,6 +56,18 @@ export function getRouteSheetLabel(routeSheet) {
     .join(', ')
 }
 
+// Renglon debajo del titulo. Si el titulo ya es la lista de clientes (sin
+// descripcion y con varios equipos) va solo la cantidad, para no repetirlos;
+// si es la descripcion o el motor de su unico equipo, se nombra al cliente.
+export function getRouteSheetSubtitle(routeSheet) {
+  const visits = routeSheet.visits ?? []
+  const equipmentCount = `${visits.length} equipo${visits.length === 1 ? '' : 's'}`
+  if (!routeSheet.descripcion?.trim() && visits.length > 1) return equipmentCount
+
+  const clientNames = [...new Set(visits.map((visit) => visit.equipment?.clients?.name).filter(Boolean))]
+  return `${clientNames.join(', ') || 'Sin cliente'} · ${equipmentCount}`
+}
+
 export const VISIT_COLOR_CLASSES = {
   blanco: 'bg-surface-container-lowest border-outline-variant',
   amarillo: 'bg-warning-container border-warning',
