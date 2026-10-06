@@ -225,13 +225,18 @@ export async function submitVisitForReview(visitId, formSnapshot, actorId) {
 // VISIT_CHANGE_TO_EQUIPMENT_TRACKING marcado "si" en changesData, se pisa su
 // fecha de cambio (hoy) y se recalcula el proximo vencimiento; los campos no
 // marcados "si" no se tocan.
+//
+// Como la recepcion no depende de la validacion, se pueden recibir visitas
+// viejas. Si el equipo ya tiene una visita posterior recibida, la ficha no se
+// toca: lo que tiene es mas nuevo, y copiar esta visita bajaria las horas de
+// uso o correria los vencimientos (decision del usuario, 2026-10-06).
 export async function markVisitReceived(
   visitId,
   receivedBy,
   equipmentId,
   parameters,
   changesData,
-  { isAnnualService, checklistData } = {}
+  { isAnnualService, checklistData, scheduledDate } = {}
 ) {
   const nowIso = new Date().toISOString()
   // La bandeja de recepcion es compartida: si otro administrativo la recibio
@@ -245,6 +250,9 @@ export async function markVisitReceived(
     .select('id')
   if (error) throw error
   if (received.length === 0) return
+  await logVisitEvent(visitId, 'recibida', receivedBy)
+
+  if (await hasNewerReceivedVisit(equipmentId, scheduledDate)) return
 
   const findValue = (metricKey) => (parameters ?? []).find((parameter) => parameter.metric_key === metricKey)?.value
   const fuelPercentage = findValue('nivel_combustible')
@@ -272,8 +280,21 @@ export async function markVisitReceived(
 
   const { error: equipmentError } = await supabase.from('equipment').update(equipmentChanges).eq('id', equipmentId)
   if (equipmentError) throw equipmentError
+}
 
-  await logVisitEvent(visitId, 'recibida', receivedBy)
+// Hay una visita del mismo equipo, de fecha posterior, que ya se recibio. Sin
+// fecha no hay con que comparar, y se copia como siempre.
+async function hasNewerReceivedVisit(equipmentId, scheduledDate) {
+  if (!scheduledDate) return false
+  const { data, error } = await supabase
+    .from('visits')
+    .select('id')
+    .eq('equipment_id', equipmentId)
+    .not('received_at', 'is', null)
+    .gt('scheduled_date', scheduledDate)
+    .limit(1)
+  if (error) throw error
+  return data.length > 0
 }
 
 export async function approveVisit(visitId, reviewedBy, reviewNotes) {

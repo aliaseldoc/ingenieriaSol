@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useAllSubmittedVisits, useVisitParameters, usePreviousVisitParameters, useVisitEvents } from '../../hooks/useVisits'
 import { markVisitReceived } from '../../api/visits'
-import { VISIT_STATUS } from '../../lib/constants'
 import VisitReviewQueue from '../../features/visitReview/VisitReviewQueue'
 import ReceivedVisitsByClient from '../../features/visitReview/ReceivedVisitsByClient'
 import VisitDetailPanel from '../../features/visitReview/VisitDetailPanel'
@@ -11,11 +10,11 @@ import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
 
 // Pendiente de recepcion: el tecnico la envio y nadie la recibio todavia.
-// received_at es de la visita, no de quien mira: apenas cualquier
-// administrativo la recibe, sale de la bandeja de todos, aunque el supervisor
-// todavia no la haya validado (eso lo sigue en su propia pantalla).
+// La recepcion es independiente de la validacion del supervisor: cuenta igual
+// si ya la aprobo o no. received_at es de la visita, no de quien mira: apenas
+// cualquier administrativo la recibe, sale de la bandeja de todos.
 function isPendingReception(visit) {
-  return visit.status === VISIT_STATUS.ENVIADA && !visit.received_at
+  return !visit.received_at
 }
 
 export default function ReceptionPage() {
@@ -23,9 +22,9 @@ export default function ReceptionPage() {
   const { data: submittedVisits, loading, reload } = useAllSubmittedVisits()
   const [selectedId, setSelectedId] = useState(null)
 
-  // Las dos listas salen de la misma consulta: una visita nunca aparece en
-  // las dos ni se pierde entre ellas. "Pendientes" va de la mas vieja a la mas
-  // nueva; "Todas" es el historico.
+  // Las dos listas salen de la misma consulta (las visitas enviadas): una
+  // visita nunca aparece en las dos ni se pierde entre ellas. "Pendientes" va
+  // de la mas vieja a la mas nueva; "Todas" son las recibidas.
   const pendingVisits = (submittedVisits ?? [])
     .filter(isPendingReception)
     .sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at))
@@ -40,6 +39,7 @@ export default function ReceptionPage() {
     await markVisitReceived(selectedId, profile.id, selectedVisit.equipment_id, parameters, selectedVisit.changes_data, {
       isAnnualService: selectedVisit.is_annual_service,
       checklistData: selectedVisit.checklist_data,
+      scheduledDate: selectedVisit.scheduled_date,
     })
     setSelectedId(null)
     reload()
