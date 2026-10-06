@@ -249,12 +249,12 @@ export const VISIT_CHECKLIST_ITEMS = [
 // Parametros cuantitativos medidos durante la visita. Orden = orden de
 // renderizado en el formulario tecnico (ver VisitParametersForm.jsx).
 export const VISIT_PARAMETER_DEFINITIONS = [
-  { key: 'presion_aceite_frio', label: 'Presión de Aceite (en frío)', unit: 'bar', specByUnit: { bar: [4, 8], psi: [58, 116] } },
+  { key: 'presion_aceite_frio', label: 'Presión de Aceite (en frío)', unit: 'bar', specByUnit: { bar: [3.5, 9], psi: [50.8, 130.5] } },
   {
     key: 'tension_alternador',
     label: 'Tensión de Alternador de Carga de Baterías',
     unit: 'V',
-    specByVoltage: { 12: [14, 14.8], 24: [27, 29] },
+    specByVoltage: { 12: [13.5, 14.8], 24: [27, 29] },
   },
   { key: 'tension_generacion_l_n', label: 'Tensión de Generación L-N', unit: 'V', specMin: 215, specMax: 233 },
   { key: 'tension_generacion_l1_l2', label: 'Tensión de Generación L1-L2', unit: 'V', specMin: 375, specMax: 403 },
@@ -263,9 +263,9 @@ export const VISIT_PARAMETER_DEFINITIONS = [
     key: 'presion_aceite_caliente',
     label: 'Presión de Aceite en Caliente',
     unit: 'bar',
-    specByUnit: { bar: [3, 6], psi: [43.5, 87] },
+    specByUnit: { bar: [3, 6.5], psi: [43.5, 94.3] },
   },
-  { key: 'temperatura_agua', label: 'Temperatura del Motor', unit: '°C', specMin: 55, specMax: 75 },
+  { key: 'temperatura_agua', label: 'Temperatura del Motor', unit: '°C', specMin: 50, specMax: 75 },
   // combustible_litros + nivel_combustible se muestran como un unico campo
   // con selector de unidad (ver FuelParameterField.jsx) pero se siguen
   // guardando como 2 filas independientes, sin cambios para los
