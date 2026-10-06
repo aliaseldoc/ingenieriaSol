@@ -234,11 +234,17 @@ export async function markVisitReceived(
   { isAnnualService, checklistData } = {}
 ) {
   const nowIso = new Date().toISOString()
-  const { error } = await supabase
+  // La bandeja de recepcion es compartida: si otro administrativo la recibio
+  // mientras esta pantalla seguia abierta, no se pisa quien la recibio ni se
+  // vuelven a copiar las lecturas a la ficha del equipo.
+  const { data: received, error } = await supabase
     .from('visits')
     .update({ received_by: receivedBy, received_at: nowIso })
     .eq('id', visitId)
+    .is('received_at', null)
+    .select('id')
   if (error) throw error
+  if (received.length === 0) return
 
   const findValue = (metricKey) => (parameters ?? []).find((parameter) => parameter.metric_key === metricKey)?.value
   const fuelPercentage = findValue('nivel_combustible')

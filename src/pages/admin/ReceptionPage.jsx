@@ -1,12 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import {
-  useVisitsPendingReview,
-  useAllSubmittedVisits,
-  useVisitParameters,
-  usePreviousVisitParameters,
-  useVisitEvents,
-} from '../../hooks/useVisits'
+import { useAllSubmittedVisits, useVisitParameters, usePreviousVisitParameters, useVisitEvents } from '../../hooks/useVisits'
 import { markVisitReceived } from '../../api/visits'
 import { VISIT_STATUS } from '../../lib/constants'
 import VisitReviewQueue from '../../features/visitReview/VisitReviewQueue'
@@ -16,19 +10,28 @@ import Button from '../../components/ui/Button'
 import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
 
+// Pendiente de recepcion: el tecnico la envio y nadie la recibio todavia.
+// received_at es de la visita, no de quien mira: apenas cualquier
+// administrativo la recibe, sale de la bandeja de todos, aunque el supervisor
+// todavia no la haya validado (eso lo sigue en su propia pantalla).
+function isPendingReception(visit) {
+  return visit.status === VISIT_STATUS.ENVIADA && !visit.received_at
+}
+
 export default function ReceptionPage() {
   const { profile } = useAuth()
-  const { data: visits, loading, reload } = useVisitsPendingReview()
-  const { data: receivedVisits, loading: receivedLoading, reload: reloadReceived } = useAllSubmittedVisits()
+  const { data: submittedVisits, loading, reload } = useAllSubmittedVisits()
   const [selectedId, setSelectedId] = useState(null)
 
-  // "Todas" es el historico, no la bandeja de pendientes: sin este filtro,
-  // una visita recien enviada (status ENVIADA) aparece duplicada en los dos
-  // listados a la vez.
-  const historicalVisits = (receivedVisits ?? []).filter((visit) => visit.status !== VISIT_STATUS.ENVIADA)
+  // Las dos listas salen de la misma consulta: una visita nunca aparece en
+  // las dos ni se pierde entre ellas. "Pendientes" va de la mas vieja a la mas
+  // nueva; "Todas" es el historico.
+  const pendingVisits = (submittedVisits ?? [])
+    .filter(isPendingReception)
+    .sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at))
+  const historicalVisits = (submittedVisits ?? []).filter((visit) => !isPendingReception(visit))
 
-  const selectedVisit =
-    visits?.find((visit) => visit.id === selectedId) ?? receivedVisits?.find((visit) => visit.id === selectedId) ?? null
+  const selectedVisit = submittedVisits?.find((visit) => visit.id === selectedId) ?? null
   const { data: parameters } = useVisitParameters(selectedId)
   const { data: previousParameters } = usePreviousVisitParameters(selectedVisit)
   const { data: events } = useVisitEvents(selectedId)
@@ -40,10 +43,9 @@ export default function ReceptionPage() {
     })
     setSelectedId(null)
     reload()
-    reloadReceived()
   }
 
-  if (loading || receivedLoading) return <Spinner label="Cargando visitas…" />
+  if (loading) return <Spinner label="Cargando visitas…" />
 
   return (
     <div>
@@ -54,7 +56,7 @@ export default function ReceptionPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-md">
         <div className="lg:col-span-4 flex flex-col gap-md">
-          <VisitReviewQueue visits={visits ?? []} selectedId={selectedId} onSelect={setSelectedId} />
+          <VisitReviewQueue visits={pendingVisits} selectedId={selectedId} onSelect={setSelectedId} />
           <ReceivedVisitsByClient visits={historicalVisits} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
         <div className="lg:col-span-8">
