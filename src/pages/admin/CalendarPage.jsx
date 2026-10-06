@@ -117,18 +117,20 @@ export default function CalendarPage() {
 
   if (unassignedLoading || rangeLoading) return <Spinner label="Cargando calendario…" />
 
-  // Tanto Mes como Semana ajustan su alto al espacio real disponible: en
-  // meses de 5 semanas el calendario llena el 100% sin scroll, en meses de
-  // 6 semanas el calendario crece por encima de ese alto (sin recortarse ni
-  // scrollear internamente, ver MonthCalendar.jsx) y es la PAGINA la que
-  // scrollea para verlo completo — por eso aca NO hay overflow-hidden. Al
-  // ser ambas vistas de alto acotado, el aside de "Hojas de Ruta Sin
-  // Asignar" puede usar el "stretch" por defecto de flexbox para igualar
-  // siempre el alto del calendario, sin JS.
+  // Semana ocupa justo el alto disponible y cada dia scrollea por dentro.
+  // Mes ocupa como minimo ese alto: si sus filas necesitan mas (meses de 6
+  // semanas, dias cargados o pantallas bajas) el calendario crece sin
+  // recortarse ni scrollear internamente (ver MonthCalendar.jsx) y es la
+  // PAGINA la que scrollea — por eso en Mes el alto es minimo y aca NO hay
+  // overflow-hidden.
+  // El aside de "Hojas de Ruta Sin Asignar" iguala siempre el alto del
+  // calendario, sin JS: con contain:size su lista no le suma alto a la fila,
+  // asi la fila mide lo que el calendario y el "stretch" por defecto de
+  // flexbox estira el aside a ese alto. La lista scrollea por dentro.
   // 12.8rem = 6.4rem del TopBar + 3.2rem+3.2rem del padding del <main> (ver
   // RoleLayoutShell.jsx), no un numero adivinado.
   return (
-    <div className="flex flex-col lg:h-[calc(100vh-12.8rem)]">
+    <div className={`flex flex-col ${viewMode === 'mes' ? 'lg:min-h-[calc(100vh-12.8rem)]' : 'lg:h-[calc(100vh-12.8rem)]'}`}>
       <div className="shrink-0 flex flex-col gap-sm mb-sm">
         <div>
           <h1 className="font-headline-lg text-headline-lg text-on-surface mb-xs">Planificación de Rutas</h1>
@@ -176,7 +178,7 @@ export default function CalendarPage() {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-md flex-1 lg:min-h-0">
-        <aside className="order-2 lg:order-1 lg:w-[28rem] shrink-0 max-h-[24rem] lg:max-h-none min-h-0 overflow-hidden lg:pr-xs">
+        <aside className="order-2 lg:order-1 lg:w-[28rem] shrink-0 max-h-[24rem] lg:max-h-none min-h-0 overflow-hidden lg:pr-xs lg:[contain:size] flex flex-col">
           <UnassignedList
             routeSheets={sidebarRouteSheets}
             onSelectRouteSheet={setSelectedRouteSheet}
