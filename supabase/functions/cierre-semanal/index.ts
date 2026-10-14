@@ -84,10 +84,10 @@ async function fetchAllPages(buildQuery) {
 }
 
 // Las mismas consultas que useTimesheetWeek (listEmployees, listPunchesInRange,
-// listHolidaysInRange), con la clave de servicio.
+// listHolidaysInRange, listLunchOverridesInRange), con la clave de servicio.
 async function calcularSemana(admin, weekStartKey) {
   const { from, to } = weekPunchRange(weekStartKey)
-  const [employeesResult, punches, holidaysResult] = await Promise.all([
+  const [employeesResult, punches, holidaysResult, lunchResult] = await Promise.all([
     admin.from('employees').select('*, profiles(role, username)').order('full_name'),
     fetchAllPages(() =>
       admin.from('time_punches').select('*').gte('punched_at', from).lt('punched_at', to).order('punched_at')
@@ -98,13 +98,21 @@ async function calcularSemana(admin, weekStartKey) {
       .gte('date', addDaysToKey(weekStartKey, -1))
       .lte('date', addDaysToKey(weekStartKey, 7))
       .order('date'),
+    admin
+      .from('timesheet_lunch_overrides')
+      .select('*')
+      .gte('work_date', weekStartKey)
+      .lte('work_date', addDaysToKey(weekStartKey, 6))
+      .order('work_date'),
   ])
   if (employeesResult.error) throw employeesResult.error
   if (holidaysResult.error) throw holidaysResult.error
+  if (lunchResult.error) throw lunchResult.error
   return buildWeekReport({
     employees: employeesResult.data,
     punches,
     holidays: holidaysResult.data,
+    lunchOverrides: lunchResult.data,
     weekStartKey,
   })
 }

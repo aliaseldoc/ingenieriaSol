@@ -417,9 +417,19 @@ export const VISIT_CHANGE_TO_EQUIPMENT_TRACKING = [
 // Modulo de fichaje (ver FICHAJE.md). Las reglas son iguales para todo el
 // personal: cambiar un valor aca cambia el calculo del reporte del
 // supervisor, la vista del tecnico y la foto que se guarda al cerrar.
+//
+// Jornada: lunes a jueves de 8 a 18 (9 h netas) y viernes de 8 a 17 (8 h
+// netas), 44 h por semana. Lo que pasa de 44 h en la semana va al 50%; la
+// noche (22 a 06), el sabado desde las 13, el domingo y el feriado trabajado
+// van siempre al 100%.
 export const TIMESHEET_RULES = {
   timeZone: 'America/Argentina/Buenos_Aires',
-  dailyNormalMinutes: 9 * 60,
+  // Jornada de cada dia (0 = domingo ... 6 = sabado): es lo que paga un
+  // feriado aunque no se trabaje. El fin de semana no es laborable.
+  weekdayNormalMinutes: { 1: 9 * 60, 2: 9 * 60, 3: 9 * 60, 4: 9 * 60, 5: 8 * 60 },
+  weeklyNormalMinutes: 44 * 60,
+  nightStartTime: '22:00',
+  nightEndTime: '06:00',
   lunchDiscountMinutes: 60,
   saturdayCutoffTime: '13:00',
   clockReboundMinutes: 2,

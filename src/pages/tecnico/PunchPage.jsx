@@ -4,9 +4,9 @@ import { useMyTimesheet } from '../../hooks/useMyTimesheet'
 import { useConnectivityStatus } from '../../offline/useOfflineSync'
 import { savePunchOrQueue } from '../../offline/punchQueue'
 import { getCurrentLocation } from '../../features/timesheet/geolocation'
-import { DAY_STATUS, DAY_TYPE, DAY_TYPE_LABELS, PUNCH_ISSUE_LABELS } from '../../features/timesheet/computeTimesheet'
-import { getPunchFlags } from '../../features/timesheet/punchFlags'
-import { currentWeekStartKey, formatMinutes, formatPunchDateTime, formatShortDayLabel, toTimeString } from '../../features/timesheet/workTime'
+import { DAY_STATUS, DAY_TYPE, DAY_TYPE_LABELS, LUNCH_SOURCE, PUNCH_ISSUE_LABELS } from '../../features/timesheet/computeTimesheet'
+import { getPunchFlags, isDayWithoutLunch } from '../../features/timesheet/punchFlags'
+import { currentWeekStartKey, formatMinutes, formatPunchDateTime, formatShortDayLabel, toDateKey, toTimeString } from '../../features/timesheet/workTime'
 import WeekPicker from '../../features/timesheet/WeekPicker'
 import {
   LOCATION_ERROR_LABELS,
@@ -111,9 +111,12 @@ function MyDay({ day }) {
   return (
     <li className="bg-surface-container-lowest border border-outline-variant rounded-lg p-md">
       <div className="flex flex-wrap items-center justify-between gap-sm">
-        <p className="font-label-md text-label-md text-on-surface">
-          {formatShortDayLabel(day.dateKey)}
-          {day.dayType !== DAY_TYPE.HABIL && <span className="text-on-surface-variant"> · {DAY_TYPE_LABELS[day.dayType]}</span>}
+        <p className="flex flex-wrap items-center gap-xs font-label-md text-label-md text-on-surface">
+          <span>
+            {formatShortDayLabel(day.dateKey)}
+            {day.dayType !== DAY_TYPE.HABIL && <span className="text-on-surface-variant"> · {DAY_TYPE_LABELS[day.dayType]}</span>}
+          </span>
+          {isDayWithoutLunch(day) && <StatusChip label="Sin almuerzo" tone="neutral" variant="tag" />}
         </p>
         {day.status === DAY_STATUS.INCOMPLETO && <StatusChip label="Incompleto" tone="error" variant="tag" />}
         {day.status === DAY_STATUS.EN_CURSO && <StatusChip label="En curso" tone="warning" variant="tag" />}
@@ -150,6 +153,17 @@ export default function PunchPage() {
   const [draft, setDraft] = useState(null) // { punchType, startedAt, location }
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // { error, text }
+  // El check de almuerzo es de cada dia: lo que se marco ayer no vale hoy.
+  const [lunchChoice, setLunchChoice] = useState(() => ({ dateKey: toDateKey(Date.now()), taken: true }))
+
+  // Cuando la jornada de hoy ya tiene su salida (aunque espere conexion), el
+  // check muestra lo que se declaro y no se cambia mas; si lo marco el
+  // supervisor, muestra lo suyo. Sale del dia ya calculado por el motor, asi
+  // coincide con lo que se liquida.
+  const todayKey = toDateKey(Date.now())
+  const today = days.find((day) => day.dateKey === todayKey)
+  const lunchLocked = Boolean(today) && today.lunchSource !== LUNCH_SOURCE.DEFAULT
+  const lunchTaken = lunchLocked ? today.lunchTaken : lunchChoice.dateKey !== todayKey || lunchChoice.taken
 
   function startPunch(punchType) {
     const startedAt = Date.now()
@@ -176,6 +190,8 @@ export default function PunchPage() {
       location_status: location.status,
       location_error: location.error ?? null,
       created_by: profile.id,
+      // Lo declarado del almuerzo viaja con la salida (tambien sin conexion).
+      ...(punchType === PUNCH_TYPE.SALIDA ? { lunch_taken: lunchTaken } : {}),
     }
     setSaving(true)
     try {
@@ -241,6 +257,28 @@ export default function PunchPage() {
         </button>
       </div>
 
+      <label
+        className={`flex items-start gap-sm mb-sm p-sm rounded-lg border border-outline-variant bg-surface-container-lowest ${
+          lunchLocked ? 'cursor-not-allowed' : 'cursor-pointer'
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={lunchTaken}
+          disabled={lunchLocked || saving}
+          onChange={(event) => setLunchChoice({ dateKey: todayKey, taken: event.target.checked })}
+          className="mt-[0.2rem] w-[2rem] h-[2rem] shrink-0 accent-secondary"
+        />
+        <span>
+          <span className="block font-label-md text-label-md text-on-surface">Hoy frené a almorzar (se descuenta 1 h)</span>
+          <span className="block font-body-sm text-body-sm text-on-surface-variant">
+            {!lunchLocked && 'Si hoy no frenaste a comer, destildalo antes de registrar la salida.'}
+            {lunchLocked && today.lunchSource === LUNCH_SOURCE.SUPERVISOR && 'Lo marcó el supervisor.'}
+            {lunchLocked && today.lunchSource === LUNCH_SOURCE.EMPLEADO && 'Ya registraste la salida de hoy: queda como lo marcaste.'}
+          </span>
+        </span>
+      </label>
+
       <p className="font-body-sm text-body-sm text-on-surface-variant mb-md">
         Los fichajes del reloj de fábrica aparecen cuando el supervisor importa el archivo.
       </p>
@@ -303,6 +341,11 @@ export default function PunchPage() {
                 <dd className="font-headline-md text-headline-md text-on-surface">{toTimeString(draft.startedAt)}</dd>
               </div>
             </dl>
+            {draft.punchType === PUNCH_TYPE.SALIDA && (
+              <p className="font-body-md text-body-md text-on-surface">
+                {lunchTaken ? 'Almuerzo: frenaste a almorzar, se descuenta 1 h.' : 'Almuerzo: no frenaste a almorzar, no se descuenta.'}
+              </p>
+            )}
             <LocationStatus location={draft.location} />
             {!online && (
               <p className="font-body-sm text-body-sm text-on-surface-variant">

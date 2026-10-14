@@ -31,12 +31,15 @@ export function selectReportEmployees({ employees, punches, weekStartKey }) {
   return employees.filter((employee) => (employee.active && clocksIn(employee)) || employeesWithPunches.has(employee.id))
 }
 
-export function buildWeekReport({ employees, punches, holidays, weekStartKey, now = Date.now() }) {
+// lunchOverrides: filas de timesheet_lunch_overrides (lo que marco el
+// supervisor sobre el almuerzo de cada dia).
+export function buildWeekReport({ employees, punches, holidays, lunchOverrides = [], weekStartKey, now = Date.now() }) {
   return computeWeekReport({
     employees: selectReportEmployees({ employees, punches, weekStartKey }),
     punches,
     weekStartKey,
     holidayKeys: holidays.map((holiday) => holiday.date),
+    lunchOverrides,
     now,
   })
 }

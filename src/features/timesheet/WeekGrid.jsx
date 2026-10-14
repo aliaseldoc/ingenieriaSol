@@ -1,5 +1,5 @@
 import { DAY_STATUS } from './computeTimesheet'
-import { DAY_FLAG_DEFINITIONS, getDayFlags, rowMatchesFilter } from './punchFlags'
+import { DAY_FLAG_DEFINITIONS, getDayFlags, isDayWithoutLunch, rowMatchesFilter } from './punchFlags'
 import { formatMinutes, formatShortDayLabel, weekDayKeys } from './workTime'
 
 function DayCellContent({ day }) {
@@ -124,7 +124,7 @@ export default function WeekGrid({ weekStartKey, rows, settings, filter, holiday
                       aria-label={`Ver fichajes de ${row.fullName} del ${formatShortDayLabel(day.dateKey)}`}
                     >
                       <DayCellContent day={day} />
-                      <DayFlagIcons flags={getDayFlags(day.punches, settings)} />
+                      <DayFlagIcons flags={{ ...getDayFlags(day.punches, settings), withoutLunch: isDayWithoutLunch(day) }} />
                     </button>
                   </td>
                 ))}
@@ -140,9 +140,16 @@ export default function WeekGrid({ weekStartKey, rows, settings, filter, holiday
       <ul className="flex flex-wrap gap-md mt-sm font-body-sm text-body-sm text-on-surface-variant">
         <li className="flex items-center gap-xs">
           <span className="material-symbols-outlined text-[1.6rem] text-secondary" aria-hidden="true">
+            info
+          </span>
+          Extras: lo que pasa de 44 h en la semana va al 50% (aparece el día en que se superan); la noche (22 a 06), el sábado desde
+          las 13, el domingo y el feriado trabajado, al 100%
+        </li>
+        <li className="flex items-center gap-xs">
+          <span className="material-symbols-outlined text-[1.6rem] text-secondary" aria-hidden="true">
             check_box
           </span>
-          Check "Feriado": de lunes a viernes se paga como día normal; lo trabajado ese día va aparte, al 100%
+          Check "Feriado": de lunes a viernes paga la jornada de ese día (9 h, el viernes 8 h); lo trabajado ese día va aparte, al 100%
         </li>
         {DAY_FLAG_DEFINITIONS.map((definition) => (
           <li key={definition.key} className="flex items-center gap-xs">

@@ -155,6 +155,7 @@ Verificados contra un Postgres local (22 casos) y simulando al equipo contra el 
 
   Si el último fichaje por app del técnico es del mismo tipo y tiene menos de 10 minutos, se muestra un aviso de posible duplicado.
 - El botón queda deshabilitado mientras se guarda, para evitar el doble toque.
+- Debajo de los dos botones, el check **"Hoy frené a almorzar (se descuenta 1 h)"**: tildado cada día, viaja con la salida y se bloquea una vez registrada (ver "Almuerzo" en las reglas). La confirmación de la salida repite lo que se marcó.
 - Texto de ayuda visible: *"Los fichajes del reloj de fábrica aparecen cuando el supervisor importa el archivo."*
 
 ### Ubicación: privada, solo la distancia
@@ -190,22 +191,33 @@ Verificados contra un Postgres local (22 casos) y simulando al equipo contra el 
 
 ## Reglas de cálculo de horas
 
+Reglas vigentes desde el 14/10/2026: reemplazaron a las anteriores, que eran 9 h por día y lo que pasara de 9 h ese día iba al 50%.
+
 Configuración **igual para todos**. Las reglas viven como constantes en `src/lib/constants.js` (`TIMESHEET_RULES`), sin pantalla de configuración:
 
 | Regla | Valor |
 |---|---|
-| Jornada normal | **9 h**, lunes a viernes (45 h semanales). Horario habitual de 8 a 18 h con 1 h de almuerzo. El sábado no es laborable. |
+| Jornada | Lunes a jueves de 8 a 18 h (9 h netas) y viernes de 8 a 17 h (8 h netas): **44 h por semana**. El sábado no es laborable. |
 | Pago por tiempo trabajado | Se paga desde el fichaje de entrada hasta el de salida. Llegar tarde está permitido y se cobra desde ese momento (ej.: entra 08:20, cobra desde las 08:20). No hay tolerancias, penalizaciones ni horario obligatorio. |
-| Cálculo de extras | **Por día**: lo que excede las 9 h de cada día hábil. |
-| Descuento de almuerzo | **60 min, siempre y por igual**, en cada día hábil (L–V no feriado) con horas trabajadas. Sin excepciones ni ajustes manuales. Nunca deja un día en negativo. |
-| Pausa fichada | Si en el día hay pausas fichadas (salida y nueva entrada), el descuento es `máx(0, 60 − minutos de pausa fichada)`. **Nunca se descuenta dos veces.** |
-| Sábado | Sin descuento. Hasta las 13:00 al **50%**, después de las 13:00 al **100%**. |
-| Domingo | Sin descuento. Todo al **100%**. |
-| Feriado de lunes a viernes | Se cobra **siempre como un día normal**: suma 9 h normales, se trabaje o no. Si además se trabaja, esas horas se pagan aparte, al **100%** y sin descuento de almuerzo. |
+| Horas al 50% | **Por semana**: lo que pasa de **44 h** en la semana. Para las 44 h cuentan las horas diurnas de lunes a viernes (06 a 22), las del sábado de 06 a 13 y las horas que paga un feriado. |
+| Horas al 100% | Siempre, sin importar las 44 h: la **noche (22 a 06)** de cualquier día, el **sábado desde las 13**, el **domingo** y lo trabajado en un **feriado**. |
+| Feriado de lunes a viernes | Se paga **siempre la jornada de ese día**: 9 h de lunes a jueves y 8 h el viernes, se trabaje o no. Esas horas son normales y **cuentan para las 44 h**, así que una semana con un feriado que nadie trabajó se cobra como cualquier semana normal. Si además se trabaja, esas horas se pagan aparte, al **100%** y sin descuento de almuerzo. |
 | Feriado en sábado o domingo | Sin trabajar no suma horas. Si se trabaja, todo al **100%**. |
+| Almuerzo | **60 min** en cada día hábil (lunes a viernes que no sea feriado) con horas trabajadas, **salvo que ese día no se haya almorzado** (ver "Almuerzo" abajo). Se descuenta solo de las horas diurnas, nunca de las que van al 100%, así un turno que pasa la medianoche no pierde dos almuerzos. Nunca deja un día en negativo. |
+| Pausa fichada | Si en el día hay pausas fichadas (salida y nueva entrada), el descuento es `máx(0, 60 − minutos de pausa fichada)`. **Nunca se descuenta dos veces.** |
 | Redondeo | **Ninguno**: minutos exactos. |
 | Semana | **Lunes a domingo.** Reutilizar `startOfWeek` de `src/lib/dateUtils.js`, que ya arranca el lunes. |
-| Zona horaria | `America/Argentina/Buenos_Aires`, vía `Intl.DateTimeFormat` (nativo). Días, horas y el corte de las 13:00 se calculan en esa zona, nunca en la zona del navegador. |
+| Zona horaria | `America/Argentina/Buenos_Aires`, vía `Intl.DateTimeFormat` (nativo). Días, horas y los cortes de las 06:00, 13:00 y 22:00 se calculan en esa zona, nunca en la zona del navegador. |
+
+### Almuerzo: si ese día se almorzó
+Si nadie dice nada, **se almorzó** y se descuenta (el 95% de los días). Se apela a la honestidad de cada uno:
+- **El empleado** (técnico o administrativo) tiene, debajo de los botones de la pantalla "Fichaje", el check **"Hoy frené a almorzar (se descuenta 1 h)"**.
+    - Arranca tildado cada día.
+    - Viaja con la salida (`time_punches.lunch_taken`), así funciona igual sin conexión.
+    - Vale para el día en que empezó el tramo que cierra esa salida: un turno de 20:00 a 02:00 es del lunes. Si hay varias salidas en la jornada, vale la primera que trae el dato.
+    - Una vez registrada la salida, el check queda bloqueado con lo que se marcó.
+- **El supervisor** lo marca desde el detalle del día (`timesheet_lunch_overrides`) y **gana** a lo que dijo el empleado. Así se resuelve a los de fábrica, que fichan solo con el reloj y no ven el check.
+- Corregir la hora de una salida conserva lo que el empleado declaró.
 
 ### Algoritmo por empleado
 1. Tomar los fichajes **no anulados**, ordenados por fecha y hora.
@@ -214,41 +226,50 @@ Configuración **igual para todos**. Las reglas viven como constantes en `src/li
     - Los fichajes de app y manuales traen tipo explícito.
     - Los del reloj se infieren por alternancia: si el empleado está "afuera" es entrada, si está "adentro" es salida.
 4. **Armar tramos** (entrada → salida). Varias entradas y salidas por día están permitidas y se suman.
-5. **Inconsistencias:** el día queda **"fichaje incompleto"** y **no suma horas** hasta que el supervisor lo corrija. Son inconsistencias:
+5. **Inconsistencias:** el día queda **"fichaje incompleto"** y **no suma horas** (ni ocupa lugar en las 44 h) hasta que el supervisor lo corrija. Son inconsistencias:
     - una entrada sin salida;
     - una salida sin entrada;
     - dos entradas explícitas seguidas;
     - un tramo de más de 16 h.
 6. **Cruce de medianoche:** el tramo se parte a las 00:00 y cada parte se clasifica según su propio día.
-7. **Por cada día:** calcular los minutos trabajados y la pausa fichada, aplicar el descuento si corresponde y clasificar en normales, al 50% y al 100% según la tabla.
-8. **Por semana:** sumar por empleado las horas normales, al 50%, al 100%, el total y la cantidad de días incompletos.
+7. **Por cada día:** calcular los minutos trabajados y la pausa fichada, aplicar el almuerzo si corresponde y separar las horas que cuentan para las 44 h (diurnas) de las que van directo al 100%.
+8. **Por semana:** las horas que paga un feriado ocupan su lugar en el cupo de 44 h. Las diurnas trabajadas lo van llenando de lunes a domingo, y lo que lo pasa va al 50%. Por eso el 50% aparece en el día en que la semana supera las 44 h, aunque el día largo haya sido otro.
+9. **Totales:** sumar por empleado las horas normales, al 50%, al 100%, el total y la cantidad de días incompletos.
 
-El motor va en funciones **puras**, sin React ni Supabase (ej. `src/features/timesheet/computeTimesheet.js`), y se usa igual en:
+El motor va en funciones **puras**, sin React ni Supabase (`src/features/timesheet/computeTimesheet.js`), y se usa igual en:
 - el reporte del supervisor;
-- la vista del técnico;
-- la foto que se guarda al cerrar la semana.
+- la vista del técnico y del administrativo;
+- la foto que se guarda al cerrar la semana (también la del cierre automático, que corre el mismo motor en la Edge Function).
 
 ### Casos de aceptación (el motor debe dar exactamente esto)
 
+Semana del lunes 12/10 al domingo 18/10/2026. "Con almuerzo" es lo que pasa si nadie marca nada.
+
 | # | Situación | Resultado |
 |---|---|---|
-| 1 | Mar: entrada reloj 08:00, salida app 18:00 (día habitual) | 10:00 − 1:00 → **9:00 normales** |
-| 2 | Mar: entrada reloj 08:20 (llegó tarde), salida app 18:00 | 9:40 − 1:00 → **8:40 normales** (cobra desde que fichó) |
-| 3 | Mar: entrada app 08:00, salida app 19:30 | 11:30 − 1:00 = 10:30 → **9:00 normales + 1:30 al 50%** |
-| 4 | Mié: reloj 08:00, 12:00, 13:00, 18:00 | 9:00 con 60 min de pausa fichada → sin descuento → **9:00 normales** |
-| 5 | Jue: reloj 08:00, 12:30, 13:00, 18:30 | 10:00 con 30 min de pausa fichada → descuento de 30 → 9:30 → **9:00 normales + 0:30 al 50%** |
-| 6 | Vie: reloj 08:00, salida 13:00 | 5:00 − 1:00 → **4:00 normales** (mismo descuento que cualquier día) |
-| 7 | Sáb: 10:00 a 15:00 | **3:00 al 50% + 2:00 al 100%** |
-| 8 | Dom: 09:00 a 12:00 | **3:00 al 100%** |
-| 9 | Mié feriado trabajado: 08:00 a 18:00 | **9:00 normales** (feriado pago) **+ 10:00 al 100%** (sin descuento) |
-| 10 | Mié feriado sin fichajes | **9:00 normales** (feriado pago) |
-| 11 | Sáb feriado sin fichajes | **0:00** (el sábado no es laborable). Si se trabaja de 10:00 a 15:00: **5:00 al 100%**. |
-| 12 | Lun: entrada reloj 08:00, sin salida | **Día incompleto, 0:00**, con alerta. Si el supervisor agrega la salida de las 18:00 con motivo, pasa a **9:00 normales**. |
-| 13 | Reloj 08:00:05 y 08:00:40 | El segundo se ignora por rebote |
-| 14 | Salida app 18:00 sin señal, sube a las 20:15 | Hora 18:00, marcado **"registrado sin conexión"** |
-| 15 | Salida app con el permiso de ubicación negado | Se guarda, marcado **"sin ubicación"** |
-| 16 | Fábrica con radio de 500 m. Entrada app a 300 m de la fábrica | Sin leyenda |
-| 17 | Fábrica con radio de 500 m. Salida app a 3,2 km, en un cliente | El supervisor ve **"Fichado fuera de rango · 3,2 km"**. Las horas no cambian. |
+| 1 | Lun a jue 08:00 a 18:00 y vie 08:00 a 17:00 | **44:00 normales**, sin extras |
+| 2 | Igual, pero el martes hasta las 20:00 | **44:00 normales + 2:00 al 50%**. El 50% aparece el viernes (6:00 normales + 2:00 al 50%) |
+| 3 | Mar 08:00 a 23:00 | 08 a 22 menos el almuerzo: **13:00 normales**. 22 a 23: **1:00 al 100%** |
+| 4 | Lun 20:00 a mar 02:00 | Lun: 20 a 22 menos el almuerzo, **1:00 normal**, y 22 a 24 **2:00 al 100%**. Mar: **2:00 al 100%**, sin descuento. Si la salida dice "sin almuerzo", el lunes queda en **2:00 normales** |
+| 5 | Sáb 08:00 a 15:00 | 08 a 13 **5:00** para las 44 h + 13 a 15 **2:00 al 100%** |
+| 6 | Sáb 05:00 a 10:00 | 05 a 06 **1:00 al 100%** + 06 a 10 **4:00** para las 44 h |
+| 7 | Dom 09:00 a 12:00 | **3:00 al 100%** |
+| 8 | Mié feriado sin trabajar, el resto de la semana en horario | 35:00 trabajadas + 9:00 del feriado = **44:00 normales** |
+| 9 | Mié feriado sin trabajar, el resto 10 h netas por día | **44:00 normales** (9:00 del feriado + 35:00) **+ 5:00 al 50%** |
+| 10 | Mié feriado trabajado 08:00 a 18:00 | **9:00 normales** (feriado pago) **+ 10:00 al 100%** (sin descuento) |
+| 11 | Vie feriado sin trabajar | **8:00 normales** |
+| 12 | Sáb feriado | Sin trabajar: **0:00**. Trabajado de 10:00 a 15:00: **5:00 al 100%** |
+| 13 | Mar 08:00 a 18:00, salida con "sin almuerzo" | **10:00** sin descuento. Si una segunda salida de esa jornada dice otra cosa, vale la primera |
+| 14 | Mar 08:00 a 18:00 por reloj, el supervisor marca "no almorzó" | **10:00**. Si el empleado dijo "sin almuerzo" y el supervisor "almorzó": **9:00** (gana el supervisor) |
+| 15 | Mar 08:00 a 12:30 y 13:00 a 18:00 (pausa fichada de 30 min) | Con almuerzo se descuentan 30 min más: **9:00**. Sin almuerzo: **9:30** |
+| 16 | El supervisor corrige la hora de una salida "sin almuerzo" | El fichaje que la reemplaza conserva "sin almuerzo" |
+| 17 | Lunes incompleto y el resto de la semana 08:00 a 20:00 | El lunes no suma ni ocupa lugar en las 44 h: **44:00 normales**, sin extras |
+| 18 | Lun: entrada reloj 08:00, sin salida | **Día incompleto, 0:00**, con alerta. Si el supervisor agrega la salida de las 18:00 con motivo, pasa a **9:00 normales** |
+| 19 | Reloj 08:00:05 y 08:00:40 | El segundo se ignora por rebote |
+| 20 | Salida app 18:00 sin señal, sube a las 20:15 | Hora 18:00, marcado **"registrado sin conexión"** |
+| 21 | Salida app con el permiso de ubicación negado | Se guarda, marcado **"sin ubicación"** |
+| 22 | Fábrica con radio de 500 m. Entrada app a 300 m de la fábrica | Sin leyenda |
+| 23 | Fábrica con radio de 500 m. Salida app a 3,2 km, en un cliente | El supervisor ve **"Fichado fuera de rango · 3,2 km"**. Las horas no cambian. |
 
 ---
 
@@ -259,7 +280,7 @@ Nuevo ítem **"Fichajes"** en la navegación del supervisor (`/supervisor/fichaj
 ### 1. Semana (vista principal)
 - Selector de semana (lunes a domingo).
 - A la derecha del texto de cada día, un **check con la leyenda "Feriado"** (si la columna es angosta, pasa debajo del día):
-    - tildado, ese día es feriado para todo el personal: de lunes a viernes se cobra como un día normal (9 h) y lo trabajado se paga aparte, al 100% y sin descuento de almuerzo;
+    - tildado, ese día es feriado para todo el personal: de lunes a viernes paga la jornada de ese día (9 h, el viernes 8 h) y lo trabajado se paga aparte, al 100% y sin descuento de almuerzo;
     - destildado, vuelve a ser un día común;
     - con la semana cerrada no se puede cambiar.
 - Tabla de **empleados × días** con las horas de cada día y distintivos:
@@ -267,8 +288,10 @@ Nuevo ítem **"Fichajes"** en la navegación del supervisor (`/supervisor/fichaj
     - sin ubicación;
     - sin conexión;
     - con corrección manual;
-    - fichado fuera de rango.
+    - fichado fuera de rango;
+    - sin almuerzo (no se descontó la hora).
 - Al hacer clic en una celda se abre el **detalle del día**:
+    - en los días hábiles con fichajes, el check **"Almorzó (se descuenta 1 h)"** con quién lo definió (el supervisor, el empleado o nadie). Lo que marca el supervisor gana; con la semana cerrada no se cambia;
     - lista de fichajes con hora, origen (reloj, app o manual), tipo, distancia a la fábrica (nunca el lugar, ver "Ubicación: privada") y marcas;
     - en los fichajes por app a más distancia de la fábrica que el radio configurado, la leyenda **"Fichado fuera de rango"** con la distancia (ej. *"Fichado fuera de rango · 3,2 km"*). Es solo informativa: no bloquea nada ni cambia las horas;
     - los anulados se muestran **tachados** con su motivo.
@@ -310,6 +333,7 @@ Nuevo ítem **"Fichajes"** en la navegación del supervisor (`/supervisor/fichaj
     - Solo se mandan solas las semanas cerradas en los últimos 7 días: así, el día que se cargan los destinatarios no llegan de golpe todas las semanas acumuladas. Una más vieja se manda con el botón.
 - **El mail** usa el mismo armado que el de visita programada (membrete, caja de datos, pie). Lleva la tabla de horas por persona con una fila de totales y el **Excel adjunto**.
 - **El cálculo es el mismo motor que la pantalla**: la Edge Function importa `src/features/timesheet/` tal cual. Por eso esos módulos llevan la extensión `.js` en sus imports: Deno no la adivina como Vite. Verificado el 5/10/2026 con la semana real del 28/09: el servidor y la pantalla dieron idéntico para las 13 personas, totales y detalle por día.
+- **Si cambia el motor, hay que volver a desplegar `cierre-semanal`**: la función empaqueta el motor al desplegarse. Si no, la pantalla calcula con las reglas nuevas y el cierre de los lunes sigue con las viejas.
 - **Seguridad**: la tarea se identifica con `CRON_SECRET`, guardado en Vault (`cierre_semanal_secret`) y como secret de la Edge Function, nunca en el repo. Una persona solo puede pedir "enviar", con su sesión de supervisor; "cerrar" es exclusivo de la tarea programada.
 - **Horario**: `pg_cron` trabaja en UTC. Argentina es UTC-3 todo el año, así que 00:00 y 09:00 son las 03:00 y las 12:00 UTC. Si vuelve el horario de verano, hay que correr esas dos horas en la 0027.
 
@@ -376,6 +400,7 @@ Migraciones, que el usuario aplica pegándolas en el SQL Editor del Dashboard, e
 3. `supabase/migrations/0025_reloj_push.sql`: integración directa con el reloj por WiFi (equipos, fichajes en espera, diario y las funciones que usa el endpoint). Ya aplicada. Se puede correr más de una vez.
 4. `supabase/migrations/0026_correcciones_510.sql`: cuentas desactivadas sin permisos, eliminación de personal y empleados, ubicación privada, administrativos que fichan, cierre automático y permisos de ejecución de las funciones (ver "Seguridad" abajo). Aplicada el 5/10/2026, validada antes con 54 casos contra un Postgres local. Se puede correr más de una vez.
 5. `supabase/migrations/0027_cron_cierre_semanal.sql`: las dos tareas programadas (`pg_cron` + `pg_net`). Solo corre en Supabase. Aplicada el 5/10/2026.
+6. `supabase/migrations/0029_reglas_horas.sql`: el almuerzo de cada día (`time_punches.lunch_taken` y `timesheet_lunch_overrides`). Las reglas nuevas de horas no tocan la base: están en el motor. Aplicada el 14/10/2026, validada antes con 17 casos contra un Postgres local. Se puede correr más de una vez.
 
 Nombres de tablas en inglés y valores en español, igual que el resto del esquema.
 
@@ -394,6 +419,8 @@ Nombres de tablas en inglés y valores en español, igual que el resto del esque
 - **`clock_pending_punches`** (0025): fichajes que llegaron y todavía no se pueden guardar. `device_id`, `clock_pin`, `punched_at`, `reason` (`sin_legajo` | `semana_cerrada`), único `(clock_pin, punched_at)`.
 - **`clock_device_events`** (0025): diario del equipo. `device_id`, `serial_number`, `kind` (`contacto` | `fichajes` | `rechazo`), `detail` jsonb. Se borra solo a los 30 días.
 - **`time_punches.device_id`** (0025): qué reloj mandó el fichaje.
+- **`time_punches.lunch_taken`** (0029): en una salida, si ese día el empleado frenó a almorzar. Null si no lo declaró. Solo puede ir en una salida.
+- **`timesheet_lunch_overrides`** (0029): el almuerzo de un día marcado por el supervisor. `employee_id` (borrado en cascada con el legajo), `work_date`, `lunch_taken`, `updated_by`, `updated_at`. Clave `(employee_id, work_date)`.
 
 ### Seguridad (RLS)
 - Nuevo helper `current_employee_id()` con `security definer`, mismo patrón que `current_staff_role()`.
@@ -401,7 +428,7 @@ Nombres de tablas en inglés y valores en español, igual que el resto del esque
 - **Técnico y administrativo** (el administrativo desde la 0026):
     - `select` de su propio legajo y de sus fichajes;
     - `insert` en `time_punches` solo si es su `employee_id`, `source = 'app'`, `created_by = auth.uid()` y sin anular;
-    - `select` de `holidays` (lo necesitan para calcular sus horas);
+    - `select` de `holidays` y de su `timesheet_lunch_overrides` (los necesitan para calcular sus horas);
     - nada de `update` ni `delete`;
     - sin acceso a `timesheet_settings`, porque no ven la leyenda de rango.
 - **Cuentas desactivadas o eliminadas** (0026): `current_staff_role()` no les devuelve rol, así que ninguna política las deja pasar. La app además las saca al iniciar sesión. Antes, desactivar solo cambiaba una marca y la cuenta seguía entrando con todos sus permisos.
@@ -415,6 +442,7 @@ Nombres de tablas en inglés y valores en español, igual que el resto del esque
     - un fichaje de app que llega sincronizado a una semana cerrada **se acepta** con `arrived_after_close = true` (no se pierde el dato) y dispara la alerta al supervisor;
     - cualquier otro alta o edición en una semana cerrada se rechaza con el mensaje *"La semana está cerrada. Reabrila para modificar fichajes."*
 - **Feriados:** con la semana cerrada no se puede marcar ni desmarcar un feriado de esa semana.
+- **Almuerzo marcado por el supervisor** (0029): con la semana cerrada no se puede cambiar. Quién y cuándo lo pone el servidor.
 
 ---
 
