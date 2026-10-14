@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { listClients } from '../api/clients'
 
-export function useClients() {
+// enabled = false: no consulta (el calendario de solo lectura no crea hojas).
+export function useClients(enabled = true) {
   const [clients, setClients] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState(null)
 
   const reload = useCallback(async () => {
@@ -19,8 +20,8 @@ export function useClients() {
   }, [])
 
   useEffect(() => {
-    reload()
-  }, [reload])
+    if (enabled) reload()
+  }, [reload, enabled])
 
   return { clients, loading, error, reload }
 }

@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext'
 import Modal from '../../components/ui/Modal'
 import ConfirmModal from '../../components/ui/ConfirmModal'
 import StatusChip from '../../components/ui/StatusChip'
-import { ROLE_HOME_PATH, SERVICE_TYPE, SERVICE_TYPE_LABELS, VISIT_OCCURRENCE_LABELS, VISIT_STATUS, VISIT_STATUS_LABELS } from '../../lib/constants'
+import { SERVICE_TYPE, SERVICE_TYPE_LABELS, VISIT_OCCURRENCE_LABELS, VISIT_STATUS, VISIT_STATUS_LABELS } from '../../lib/constants'
+import { getVisitPath } from '../../lib/visitAccess'
 import { formatDate } from '../../lib/dateUtils'
 import { sendVisitNotificationEmail } from '../../api/notifications'
 
@@ -15,7 +16,9 @@ const STATUS_TONE = {
   [VISIT_STATUS.REVISION_SOLICITADA]: 'warning',
 }
 
-export default function VisitSummaryModal({ routeSheet, onClose, onAssign = null, onEdit = null }) {
+// Sin onAssign, onEdit ni canNotify (calendario de solo lectura del tecnico)
+// queda solo "Cerrar" y el link a cada visita.
+export default function VisitSummaryModal({ routeSheet, onClose, onAssign = null, onEdit = null, canNotify = true }) {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const visits = routeSheet?.visits ?? []
@@ -60,7 +63,7 @@ export default function VisitSummaryModal({ routeSheet, onClose, onAssign = null
 
   const actions = [
     { label: 'Cerrar', variant: 'secondary-outline', onClick: onClose },
-    ...(routeSheet?.scheduled_date
+    ...(canNotify && routeSheet?.scheduled_date
       ? [
           {
             label: sendingEmail ? 'Enviando…' : `Enviar Notificación${sentCount > 0 ? ` (${sentCount})` : ''}`,
@@ -135,7 +138,7 @@ export default function VisitSummaryModal({ routeSheet, onClose, onAssign = null
                     type="button"
                     onClick={() => {
                       onClose()
-                      navigate(`${ROLE_HOME_PATH[profile.role]}/visita/${visit.id}`)
+                      navigate(getVisitPath(profile, visit.id, routeSheet))
                     }}
                     className="w-full py-sm flex items-center justify-between gap-sm text-left hover:brightness-95 transition-all"
                   >

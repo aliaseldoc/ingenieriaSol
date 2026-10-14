@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { listVehicles, listAllVehicles } from '../api/vehicles'
 
-export function useVehicles() {
+// enabled = false: no consulta (el calendario de solo lectura no asigna).
+export function useVehicles(enabled = true) {
   const [vehicles, setVehicles] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
 
   useEffect(() => {
+    if (!enabled) return undefined
     let isMounted = true
     listVehicles()
       .then((data) => {
@@ -17,7 +19,7 @@ export function useVehicles() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [enabled])
 
   return { vehicles, loading }
 }

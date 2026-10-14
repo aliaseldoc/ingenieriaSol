@@ -1,18 +1,24 @@
 import { SERVICE_TYPE_LABELS } from '../../lib/constants'
 import { getRouteSheetColor, getRouteSheetLabel, getRouteSheetSubtitle, VISIT_COLOR_CLASSES } from '../../lib/visitColor'
 
-export default function TaskCard({ routeSheet, onClick, onDragStart }) {
+// `draggable` en false para quien solo mira el calendario (el tecnico) y donde
+// no hay adonde soltarla (el detalle del dia tapa la grilla).
+export default function TaskCard({ routeSheet, onClick, onDragStart, draggable = true }) {
   const color = getRouteSheetColor(routeSheet)
 
   return (
     <div
-      draggable
-      onDragStart={(event) => {
-        event.dataTransfer.setData('text/plain', routeSheet.id)
-        onDragStart?.()
-      }}
+      draggable={draggable}
+      onDragStart={
+        draggable
+          ? (event) => {
+              event.dataTransfer.setData('text/plain', routeSheet.id)
+              onDragStart?.()
+            }
+          : undefined
+      }
       onClick={() => onClick(routeSheet)}
-      className={`w-full min-w-0 border-2 rounded p-sm cursor-grab hover:border-secondary transition-colors ${VISIT_COLOR_CLASSES[color]}`}
+      className={`w-full min-w-0 border-2 rounded p-sm ${draggable ? 'cursor-grab' : 'cursor-pointer'} hover:border-secondary transition-colors ${VISIT_COLOR_CLASSES[color]}`}
     >
       <span className="font-label-sm text-label-sm text-on-surface-variant">
         {SERVICE_TYPE_LABELS[routeSheet.service_type] ?? 'Sin tipo'}

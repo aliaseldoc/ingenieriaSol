@@ -2,6 +2,8 @@ import { toISODateString } from '../../lib/dateUtils'
 import { getRouteSheetColor, getRouteSheetLabel, VISIT_COLOR_CLASSES } from '../../lib/visitColor'
 
 const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+// En el celular el nombre entero no entra y los dias se pisan.
+const DAY_SHORT_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 const MAX_VISIBLE_ROUTE_SHEETS = 3
 
 export default function MonthCalendar({ monthAnchor, weeks, routeSheets, onSelectDay }) {
@@ -18,9 +20,13 @@ export default function MonthCalendar({ monthAnchor, weeks, routeSheets, onSelec
   return (
     <div className="min-h-full flex flex-col border border-outline-variant rounded-lg overflow-hidden">
       <div className="shrink-0 grid grid-cols-[repeat(5,minmax(0,1fr))_repeat(2,minmax(0,0.6fr))] bg-surface-container">
-        {DAY_LABELS.map((label) => (
+        {DAY_LABELS.map((label, index) => (
           <div key={label} className="py-xs text-center font-label-sm text-label-sm text-on-surface-variant uppercase">
-            {label}
+            <span className="hidden md:inline">{label}</span>
+            <span className="md:hidden" aria-hidden="true">
+              {DAY_SHORT_LABELS[index]}
+            </span>
+            <span className="sr-only md:hidden">{label}</span>
           </div>
         ))}
       </div>

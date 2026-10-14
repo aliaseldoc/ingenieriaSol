@@ -4,8 +4,11 @@ import TaskCard from './TaskCard'
 
 const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
-export default function WeekCalendar({ weekStart, routeSheets, onSelectRouteSheet, onDropRouteSheet, onSelectDay }) {
+// Sin onDropRouteSheet (calendario de solo lectura) las tarjetas no se
+// arrastran y los dias no aceptan que se suelte nada.
+export default function WeekCalendar({ weekStart, routeSheets, onSelectRouteSheet, onDropRouteSheet = null, onSelectDay }) {
   const [dragOverDate, setDragOverDate] = useState(null)
+  const canDrop = Boolean(onDropRouteSheet)
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))
   const todayIso = toISODateString(new Date())
 
@@ -27,12 +30,16 @@ export default function WeekCalendar({ weekStart, routeSheets, onSelectRouteShee
         return (
           <div
             key={dateStr}
-            onDragOver={(event) => {
-              event.preventDefault()
-              setDragOverDate(dateStr)
-            }}
-            onDragLeave={() => setDragOverDate((current) => (current === dateStr ? null : current))}
-            onDrop={(event) => handleDrop(event, dateStr)}
+            onDragOver={
+              canDrop
+                ? (event) => {
+                    event.preventDefault()
+                    setDragOverDate(dateStr)
+                  }
+                : undefined
+            }
+            onDragLeave={canDrop ? () => setDragOverDate((current) => (current === dateStr ? null : current)) : undefined}
+            onDrop={canDrop ? (event) => handleDrop(event, dateStr) : undefined}
             className={`min-h-[16rem] lg:h-full lg:min-h-0 min-w-0 overflow-hidden border border-outline-variant rounded p-xs flex flex-col gap-xs transition-colors ${
               dragOverDate === dateStr ? 'drop-target' : 'bg-surface-container-lowest'
             }`}
@@ -53,7 +60,7 @@ export default function WeekCalendar({ weekStart, routeSheets, onSelectRouteShee
                       {routeSheet.scheduled_time_start.slice(0, 5)}
                     </span>
                   )}
-                  <TaskCard routeSheet={routeSheet} onClick={onSelectRouteSheet} />
+                  <TaskCard routeSheet={routeSheet} onClick={onSelectRouteSheet} draggable={canDrop} />
                 </div>
               ))}
             </div>

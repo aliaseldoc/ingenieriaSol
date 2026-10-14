@@ -85,20 +85,29 @@ export function useVisitsThisMonth() {
   return useAsync(listVisitsThisMonth, [])
 }
 
-export function useVisitParameters(visitId) {
+// offlineCache = false: solo en linea y sin guardar nada en el telefono. Lo
+// usa el detalle de visita (VisitDetailPage), que el tecnico abre tambien
+// para visitas de otros: no tienen que quedar en su cache sin conexion.
+export function useVisitParameters(visitId, { offlineCache = true } = {}) {
   return useAsync(async () => {
     if (!visitId) return []
+    if (!offlineCache) return fetchVisitParameters(visitId)
     if (!isOnline()) return getCachedVisitParameters(visitId)
     try {
-      const { data, error } = await supabase.from('visit_parameters').select('*').eq('visit_id', visitId)
-      if (error) throw error
+      const data = await fetchVisitParameters(visitId)
       await saveVisitParametersToCache(visitId, data)
       return data
     } catch (error) {
       if (!isNetworkError(error)) throw error
       return getCachedVisitParameters(visitId)
     }
-  }, [visitId])
+  }, [visitId, offlineCache])
+}
+
+async function fetchVisitParameters(visitId) {
+  const { data, error } = await supabase.from('visit_parameters').select('*').eq('visit_id', visitId)
+  if (error) throw error
+  return data
 }
 
 // Solo lo usan administrativo y supervisor (columna "Ultimo valor registrado"
@@ -111,9 +120,12 @@ export function useVisitEvents(visitId) {
   return useAsync(() => (visitId ? listEventsForVisit(visitId) : Promise.resolve([])), [visitId])
 }
 
-export function useVisitDetail(visitId) {
+// offlineCache = false: solo en linea y sin guardar nada en el telefono (ver
+// useVisitParameters).
+export function useVisitDetail(visitId, { offlineCache = true } = {}) {
   return useAsync(async () => {
     if (!visitId) return null
+    if (!offlineCache) return getVisitById(visitId)
     if (!isOnline()) return getCachedVisit(visitId)
     try {
       const visit = await getVisitById(visitId)
@@ -123,5 +135,5 @@ export function useVisitDetail(visitId) {
       if (!isNetworkError(error)) throw error
       return getCachedVisit(visitId)
     }
-  }, [visitId])
+  }, [visitId, offlineCache])
 }

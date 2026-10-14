@@ -18,12 +18,12 @@ import {
   CONDITION_STATUS_LABELS,
   FUEL_TYPE,
   FUEL_TYPE_LABELS,
-  ROLE_HOME_PATH,
   ROLES,
   FUEL_LEVEL_UNIT,
   formatFuelLevel,
 } from '../../lib/constants'
 import { formatDate, computeNextDueDate } from '../../lib/dateUtils'
+import { getVisitPath } from '../../lib/visitAccess'
 
 const STATUS_TONE = {
   [VISIT_STATUS.APROBADA]: 'success',
@@ -359,7 +359,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
                 type="button"
                 onClick={() => {
                   handleClose()
-                  navigate(`${ROLE_HOME_PATH[profile.role]}/visita/${visit.id}`)
+                  navigate(getVisitPath(profile, visit.id, visit))
                 }}
                 className="w-full py-sm flex items-center justify-between gap-sm text-left hover:bg-surface-container-low transition-colors"
               >
