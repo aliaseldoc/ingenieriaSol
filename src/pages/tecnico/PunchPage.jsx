@@ -136,6 +136,11 @@ function MyDay({ day }) {
           ))}
         </ul>
       )}
+      {day.earlyStartMinutes > 0 && (
+        <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">
+          Fichaste antes de las 08:00: se cuenta desde las 08:00.
+        </p>
+      )}
       {day.issues.length > 0 && (
         <p className="font-body-sm text-body-sm text-error mt-xs">
           {day.issues.map((issue) => PUNCH_ISSUE_LABELS[issue.kind]).join(' · ')}. Avisá al supervisor para que lo corrija.

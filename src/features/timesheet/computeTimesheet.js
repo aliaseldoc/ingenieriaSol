@@ -147,6 +147,22 @@ export function pairPunches(punches, { now = Date.now(), rules = TIMESHEET_RULES
   return { segments, issues, notes, openEntry }
 }
 
+// Paso 5b: la jornada arranca a las 08:00. En un dia habil, un tramo que
+// empieza entre las 06 y las 08 cuenta recien desde las 08: el fichaje se
+// guarda y se muestra con su hora, pero esos minutos no suman. Antes de las 06
+// es una urgencia de madrugada y se paga entera (la noche va al 100%); el
+// sabado, el domingo y el feriado no tienen horario y cuentan desde que se
+// ficha. earlyMinutes son los minutos que no se cuentan, para mostrarlo.
+function clampEarlyStart(segment, holidays, rules) {
+  const dateKey = toDateKey(segment.start)
+  if (classifyDay(dateKey, holidays) !== DAY_TYPE.HABIL) return segment
+  const earlyWindowStart = zonedToInstant(dateKey, rules.nightEndTime)
+  const workdayStart = zonedToInstant(dateKey, rules.workdayStartTime)
+  if (segment.start < earlyWindowStart || segment.start >= workdayStart) return segment
+  const start = Math.min(workdayStart, segment.end)
+  return { ...segment, start, earlyMinutes: minutesBetween(segment.start, start) }
+}
+
 // Paso 6: un tramo que cruza la medianoche se parte y cada parte se computa
 // en su propio dia.
 function splitAtMidnight(segment) {
@@ -271,13 +287,22 @@ export function lunchOverridesByDay(rows = []) {
 // `lunchOverrides` es lo que marco el supervisor: Map dia -> almorzo.
 //
 // Cada dia: { dateKey, dayType, status, issues, punches, lunchTaken,
-// lunchSource, ...horas, totalMinutes } donde `punches` son los fichajes de
+// lunchSource, earlyStartMinutes, ...horas, totalMinutes } donde `punches` son los fichajes de
 // ese dia (tambien los anulados) con `resolvedType` y `ignored` agregados para
 // mostrarlos.
 export function computeEmployeeDays({ punches, dayKeys, holidayKeys = [], lunchOverrides = new Map(), now = Date.now(), rules = TIMESHEET_RULES }) {
   const holidays = holidayKeys instanceof Set ? holidayKeys : new Set(holidayKeys)
-  const { segments, issues, notes, openEntry } = pairPunches(punches, { now, rules })
+  const paired = pairPunches(punches, { now, rules })
+  const { issues, notes, openEntry } = paired
+  const segments = paired.segments.map((segment) => clampEarlyStart(segment, holidays, rules))
   const declaredLunch = declaredLunchByDay(segments)
+
+  const earlyMinutesByDay = new Map()
+  for (const segment of segments) {
+    if (!segment.earlyMinutes) continue
+    const dateKey = toDateKey(segment.start)
+    earlyMinutesByDay.set(dateKey, (earlyMinutesByDay.get(dateKey) ?? 0) + segment.earlyMinutes)
+  }
 
   const piecesByDay = new Map()
   for (const piece of segments.flatMap(splitAtMidnight)) {
@@ -332,6 +357,9 @@ export function computeEmployeeDays({ punches, dayKeys, holidayKeys = [], lunchO
       issues: dayIssues,
       punches: dayPunches,
       ...lunch,
+      // Minutos fichados antes de las 08:00 que no se cuentan (ver
+      // clampEarlyStart). Solo para mostrarlo.
+      earlyStartMinutes: earlyMinutesByDay.get(dateKey) ?? 0,
       ...counted,
       // El feriado pago suma su jornada aparte de lo trabajado (que ese dia
       // ya se clasifico todo al 100%), y no depende de los fichajes.

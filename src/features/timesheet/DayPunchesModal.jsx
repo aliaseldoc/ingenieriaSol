@@ -43,6 +43,11 @@ function HoursSummary({ day }) {
           no. Lo trabajado ese día se paga aparte, al 100%.
         </p>
       )}
+      {day.earlyStartMinutes > 0 && (
+        <p className="font-body-sm text-body-sm text-on-surface-variant">
+          Entró antes de las 08:00: {formatMinutes(day.earlyStartMinutes)} no se cuentan, porque la jornada arranca a las 08:00.
+        </p>
+      )}
       <p className="font-body-sm text-body-sm text-on-surface-variant">
         Normales y al 50% salen de la semana: lo que pasa de 44 h va al 50%, en el día en que se superan.
       </p>

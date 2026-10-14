@@ -198,7 +198,8 @@ Configuración **igual para todos**. Las reglas viven como constantes en `src/li
 | Regla | Valor |
 |---|---|
 | Jornada | Lunes a jueves de 8 a 18 h (9 h netas) y viernes de 8 a 17 h (8 h netas): **44 h por semana**. El sábado no es laborable. |
-| Pago por tiempo trabajado | Se paga desde el fichaje de entrada hasta el de salida. Llegar tarde está permitido y se cobra desde ese momento (ej.: entra 08:20, cobra desde las 08:20). No hay tolerancias, penalizaciones ni horario obligatorio. |
+| Pago por tiempo trabajado | Se paga desde el fichaje de entrada hasta el de salida. Llegar tarde está permitido y se cobra desde ese momento (ej.: entra 08:20, cobra desde las 08:20). No hay tolerancias ni penalizaciones. |
+| Entrada antes de las 08:00 | En un día hábil (lunes a viernes que no sea feriado), una entrada entre las 06:00 y las 08:00 **se guarda pero cuenta desde las 08:00** (ej.: entra 07:40, cobra desde las 08:00). Antes de las 06:00 es una urgencia de madrugada y se paga entera, la madrugada al 100%. El sábado, el domingo y el feriado no tienen horario: cuentan desde que se ficha. |
 | Horas al 50% | **Por semana**: lo que pasa de **44 h** en la semana. Para las 44 h cuentan las horas diurnas de lunes a viernes (06 a 22), las del sábado de 06 a 13 y las horas que paga un feriado. |
 | Horas al 100% | Siempre, sin importar las 44 h: la **noche (22 a 06)** de cualquier día, el **sábado desde las 13**, el **domingo** y lo trabajado en un **feriado**. |
 | Feriado de lunes a viernes | Se paga **siempre la jornada de ese día**: 9 h de lunes a jueves y 8 h el viernes, se trabaje o no. Esas horas son normales y **cuentan para las 44 h**, así que una semana con un feriado que nadie trabajó se cobra como cualquier semana normal. Si además se trabaja, esas horas se pagan aparte, al **100%** y sin descuento de almuerzo. |
@@ -264,6 +265,10 @@ Semana del lunes 12/10 al domingo 18/10/2026. "Con almuerzo" es lo que pasa si n
 | 15 | Mar 08:00 a 12:30 y 13:00 a 18:00 (pausa fichada de 30 min) | Con almuerzo se descuentan 30 min más: **9:00**. Sin almuerzo: **9:30** |
 | 16 | El supervisor corrige la hora de una salida "sin almuerzo" | El fichaje que la reemplaza conserva "sin almuerzo" |
 | 17 | Lunes incompleto y el resto de la semana 08:00 a 20:00 | El lunes no suma ni ocupa lugar en las 44 h: **44:00 normales**, sin extras |
+| 17b | Mar 07:40 a 18:00 | Cuenta desde las 08:00: **9:00 normales**. Los 20 min se ven en el detalle del día como no contados |
+| 17c | Mar 05:30 a 14:00 (urgencia de madrugada) | 05:30 a 06:00 **0:30 al 100%** + 06:00 a 14:00 menos el almuerzo **7:00 normales** |
+| 17d | Sáb 07:00 a 12:00 / feriado 07:00 a 12:00 | Cuentan desde las 07:00: **5:00** para las 44 h / **5:00 al 100%** |
+| 17e | Mar 06:30 a 07:45 (se fue antes de las 08) | **0:00**: el tramo entero cae antes de la jornada |
 | 18 | Lun: entrada reloj 08:00, sin salida | **Día incompleto, 0:00**, con alerta. Si el supervisor agrega la salida de las 18:00 con motivo, pasa a **9:00 normales** |
 | 19 | Reloj 08:00:05 y 08:00:40 | El segundo se ignora por rebote |
 | 20 | Salida app 18:00 sin señal, sube a las 20:15 | Hora 18:00, marcado **"registrado sin conexión"** |
