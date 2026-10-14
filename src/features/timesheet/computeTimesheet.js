@@ -226,6 +226,25 @@ function overlapMinutes(piece, from, to) {
   return Math.max(0, minutesBetween(Math.max(piece.start, from), Math.min(piece.end, to)))
 }
 
+// La pausa del almuerzo fichada: los cortes entre dos tramos que caen enteros
+// dentro de la jornada (de 08 a 18, el viernes hasta las 17). Si alguien
+// termina a las 18 y vuelve a las 20 por una urgencia, ese corte no es el
+// almuerzo: la jornada lleva su descuento y la vuelta suma aparte. Tampoco lo
+// es el hueco entre un turno de noche que termino a las 06 y la jornada.
+function lunchPauseMinutes(dateKey, dayType, ordered, rules) {
+  const endTime = rules.workdayEndTime[weekdayOfKey(dateKey)]
+  if (dayType !== DAY_TYPE.HABIL || !endTime) return 0
+  const workdayStart = zonedToInstant(dateKey, rules.workdayStartTime)
+  const workdayEnd = zonedToInstant(dateKey, endTime)
+  let pauseMinutes = 0
+  for (let index = 1; index < ordered.length; index += 1) {
+    const from = ordered[index - 1].end
+    const to = ordered[index].start
+    if (from >= workdayStart && to <= workdayEnd) pauseMinutes += Math.max(0, minutesBetween(from, to))
+  }
+  return pauseMinutes
+}
+
 // Paso 7: las horas de un dia, antes de mirar la semana. Las diurnas (de 06 a
 // 22 entre semana, de 06 a 13 el sabado) cuentan para las 44 h semanales; el
 // resto del dia (la noche, el sabado desde las 13) va siempre al 100%. El
@@ -233,11 +252,8 @@ function overlapMinutes(piece, from, to) {
 function computeDayHours(dateKey, dayType, pieces, lunchTaken, rules) {
   const ordered = [...pieces].sort((a, b) => a.start - b.start)
   let workedMinutes = 0
-  let pauseMinutes = 0
-  for (const [index, piece] of ordered.entries()) {
-    workedMinutes += minutesBetween(piece.start, piece.end)
-    if (index > 0) pauseMinutes += Math.max(0, minutesBetween(ordered[index - 1].end, piece.start))
-  }
+  for (const piece of ordered) workedMinutes += minutesBetween(piece.start, piece.end)
+  const pauseMinutes = lunchPauseMinutes(dateKey, dayType, ordered, rules)
 
   let daytimeMinutes = 0
   if (dayType === DAY_TYPE.HABIL || dayType === DAY_TYPE.SABADO) {
@@ -249,7 +265,7 @@ function computeDayHours(dateKey, dayType, pieces, lunchTaken, rules) {
   // El almuerzo se descuenta solo los dias habiles en que se almorzo, y solo
   // de las horas diurnas: nunca de las que van al 100% (asi un turno que
   // cruza la medianoche no pierde dos almuerzos). Lo que ya se ficho como
-  // pausa no se vuelve a descontar.
+  // pausa del almuerzo no se vuelve a descontar.
   const lunchDiscountMinutes =
     dayType === DAY_TYPE.HABIL && lunchTaken
       ? Math.min(daytimeMinutes, Math.max(0, rules.lunchDiscountMinutes - pauseMinutes))

@@ -205,7 +205,7 @@ Configuración **igual para todos**. Las reglas viven como constantes en `src/li
 | Feriado de lunes a viernes | Se paga **siempre la jornada de ese día**: 9 h de lunes a jueves y 8 h el viernes, se trabaje o no. Esas horas son normales y **cuentan para las 44 h**, así que una semana con un feriado que nadie trabajó se cobra como cualquier semana normal. Si además se trabaja, esas horas se pagan aparte, al **100%** y sin descuento de almuerzo. |
 | Feriado en sábado o domingo | Sin trabajar no suma horas. Si se trabaja, todo al **100%**. |
 | Almuerzo | **60 min** en cada día hábil (lunes a viernes que no sea feriado) con horas trabajadas, **salvo que ese día no se haya almorzado** (ver "Almuerzo" abajo). Se descuenta solo de las horas diurnas, nunca de las que van al 100%, así un turno que pasa la medianoche no pierde dos almuerzos. Nunca deja un día en negativo. |
-| Pausa fichada | Si en el día hay pausas fichadas (salida y nueva entrada), el descuento es `máx(0, 60 − minutos de pausa fichada)`. **Nunca se descuenta dos veces.** |
+| Pausa fichada | Si el almuerzo se fichó (una salida y una nueva entrada **dentro de la jornada**: de 08 a 18, el viernes hasta las 17), el descuento es `máx(0, 60 − minutos de pausa fichada)`. **Nunca se descuenta dos veces.** Un corte que termina después del fin de la jornada o que empieza antes de las 08 no es el almuerzo: si alguien termina a las 18 y vuelve a las 20 por una urgencia, la jornada lleva su descuento (si almorzó) y lo de la vuelta suma aparte (decidido el 14/10/2026). |
 | Redondeo | **Ninguno**: minutos exactos. |
 | Semana | **Lunes a domingo.** Reutilizar `startOfWeek` de `src/lib/dateUtils.js`, que ya arranca el lunes. |
 | Zona horaria | `America/Argentina/Buenos_Aires`, vía `Intl.DateTimeFormat` (nativo). Días, horas y los cortes de las 06:00, 13:00 y 22:00 se calculan en esa zona, nunca en la zona del navegador. |
@@ -233,7 +233,7 @@ Si nadie dice nada, **se almorzó** y se descuenta (el 95% de los días). Se ape
     - dos entradas explícitas seguidas;
     - un tramo de más de 16 h.
 6. **Cruce de medianoche:** el tramo se parte a las 00:00 y cada parte se clasifica según su propio día.
-7. **Por cada día:** calcular los minutos trabajados y la pausa fichada, aplicar el almuerzo si corresponde y separar las horas que cuentan para las 44 h (diurnas) de las que van directo al 100%.
+7. **Por cada día:** calcular los minutos trabajados y la pausa del almuerzo fichada (solo los cortes que caen enteros dentro de la jornada), aplicar el almuerzo si corresponde y separar las horas que cuentan para las 44 h (diurnas) de las que van directo al 100%.
 8. **Por semana:** las horas que paga un feriado ocupan su lugar en el cupo de 44 h. Las diurnas trabajadas lo van llenando de lunes a domingo, y lo que lo pasa va al 50%. Por eso el 50% aparece en el día en que la semana supera las 44 h, aunque el día largo haya sido otro.
 9. **Totales:** sumar por empleado las horas normales, al 50%, al 100%, el total y la cantidad de días incompletos.
 
@@ -263,6 +263,8 @@ Semana del lunes 12/10 al domingo 18/10/2026. "Con almuerzo" es lo que pasa si n
 | 13 | Mar 08:00 a 18:00, salida con "sin almuerzo" | **10:00** sin descuento. Si una segunda salida de esa jornada dice otra cosa, vale la primera |
 | 14 | Mar 08:00 a 18:00 por reloj, el supervisor marca "no almorzó" | **10:00**. Si el empleado dijo "sin almuerzo" y el supervisor "almorzó": **9:00** (gana el supervisor) |
 | 15 | Mar 08:00 a 12:30 y 13:00 a 18:00 (pausa fichada de 30 min) | Con almuerzo se descuentan 30 min más: **9:00**. Sin almuerzo: **9:30** |
+| 15b | Mar 08:00 a 18:00 y vuelve de 20:00 a 23:00 por una urgencia | El corte de 18 a 20 no es el almuerzo: se descuenta 1 h. **11:00** para las 44 h y **1:00 al 100%** |
+| 15c | Lun 22:00 a Mar 06:00 y Mar 08:00 a 18:00 | Martes: **6:00 al 100%** y **9:00** para las 44 h (el hueco de 06 a 08 no es el almuerzo) |
 | 16 | El supervisor corrige la hora de una salida "sin almuerzo" | El fichaje que la reemplaza conserva "sin almuerzo" |
 | 17 | Lunes incompleto y el resto de la semana 08:00 a 20:00 | El lunes no suma ni ocupa lugar en las 44 h: **44:00 normales**, sin extras |
 | 17b | Mar 07:40 a 18:00 | Cuenta desde las 08:00: **9:00 normales**. Los 20 min se ven en el detalle del día como no contados |
@@ -526,7 +528,6 @@ src/offline/punchQueue.js
 
 Estos detalles no se definieron explícitamente. Se tomó la opción más razonable:
 
-- **Pausas largas:** cualquier hueco entre tramos del mismo día cuenta como pausa fichada. Ej.: quien trabaja de 8 a 18 y vuelve a una guardia de 22 a 24 no tiene descuento, porque la pausa fichada supera los 60 min.
 - **Límites técnicos:**
     - rebote del reloj: 2 min;
     - tramo máximo: 16 h;

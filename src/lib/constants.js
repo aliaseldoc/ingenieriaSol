@@ -426,6 +426,10 @@ export const VISIT_CHANGE_TO_EQUIPMENT_TRACKING = [
 export const TIMESHEET_RULES = {
   timeZone: 'America/Argentina/Buenos_Aires',
   workdayStartTime: '08:00',
+  // Fin de la jornada de cada dia habil (1 = lunes ... 5 = viernes). Un corte
+  // entre dos fichajes cuenta como pausa del almuerzo solo si cae entero
+  // dentro de la jornada.
+  workdayEndTime: { 1: '18:00', 2: '18:00', 3: '18:00', 4: '18:00', 5: '17:00' },
   // Jornada de cada dia (0 = domingo ... 6 = sabado): es lo que paga un
   // feriado aunque no se trabaje. El fin de semana no es laborable.
   weekdayNormalMinutes: { 1: 9 * 60, 2: 9 * 60, 3: 9 * 60, 4: 9 * 60, 5: 8 * 60 },
