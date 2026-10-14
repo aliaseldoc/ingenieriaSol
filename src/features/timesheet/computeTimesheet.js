@@ -5,7 +5,7 @@
 // Con extension explicita: la Edge Function de cierre semanal corre este mismo
 // motor en Deno, que no adivina el ".js" como Vite.
 import { PUNCH_SOURCE, PUNCH_TYPE, TIMESHEET_RULES } from '../../lib/constants.js'
-import { addDaysToKey, minutesBetween, toDateKey, weekDayKeys, weekdayOfKey, weekStartOfKey, zonedToInstant } from './workTime.js'
+import { addDaysToKey, minutesBetween, toDateKey, toTimeString, weekDayKeys, weekdayOfKey, weekStartOfKey, zonedToInstant } from './workTime.js'
 
 const MINUTE_MS = 60 * 1000
 
@@ -80,8 +80,9 @@ function classifyDay(dateKey, holidayKeys) {
 // el tipo de cada fichaje y arma los tramos entrada -> salida.
 //
 // Devuelve:
-//   segments: tramos cerrados { start, end, lunchTaken } (instantes truncados
-//     al minuto; lunchTaken es lo que declaro la salida que lo cierra, o null)
+//   segments: tramos cerrados { start, end, lunchTaken, entryId, exitId }
+//     (instantes truncados al minuto; lunchTaken es lo que declaro la salida
+//     que lo cierra, o null; los ids son los de los dos fichajes)
 //   issues: inconsistencias { kind, punchId, instant }
 //   notes: Map punchId -> { type, inferred } o { ignored: true } (rebote)
 //   openEntry: entrada todavia abierta y dentro del tramo maximo (en curso)
@@ -130,7 +131,13 @@ export function pairPunches(punches, { now = Date.now(), rules = TIMESHEET_RULES
     } else if (!open) {
       issues.push({ kind: PUNCH_ISSUE.SALIDA_SIN_ENTRADA, punchId: punch.id, instant })
     } else {
-      segments.push({ start: truncateToMinute(open.instant), end: truncateToMinute(instant), lunchTaken: punch.lunch_taken ?? null })
+      segments.push({
+        start: truncateToMinute(open.instant),
+        end: truncateToMinute(instant),
+        lunchTaken: punch.lunch_taken ?? null,
+        entryId: open.punch.id,
+        exitId: punch.id,
+      })
       open = null
     }
   }
@@ -161,6 +168,42 @@ function clampEarlyStart(segment, holidays, rules) {
   if (segment.start < earlyWindowStart || segment.start >= workdayStart) return segment
   const start = Math.min(workdayStart, segment.end)
   return { ...segment, start, earlyMinutes: minutesBetween(segment.start, start) }
+}
+
+// Entradas y salidas de cada dia, para el reporte y el Excel. Un tramo va en
+// el dia de su entrada con la hora fichada de verdad (aunque haya empezado a
+// contar a las 08), y si la salida cae al dia siguiente queda marcado. Los
+// fichajes sin pareja (dia incompleto o jornada en curso) van solos en su dia.
+function tramosByDay(punches, segments, notes, openEntry) {
+  const byDay = new Map()
+  const add = (instant, tramo) => {
+    const dateKey = toDateKey(instant)
+    if (!byDay.has(dateKey)) byDay.set(dateKey, [])
+    byDay.get(dateKey).push({ instant, tramo })
+  }
+
+  const paired = new Set()
+  for (const segment of segments) {
+    paired.add(segment.entryId)
+    paired.add(segment.exitId)
+    const tramo = { entrada: toTimeString(segment.start), salida: toTimeString(segment.end) }
+    if (toDateKey(segment.end) !== toDateKey(segment.start)) tramo.salidaDiaSiguiente = true
+    add(segment.start, tramo)
+  }
+
+  for (const punch of punches) {
+    const note = notes.get(punch.id)
+    if (punch.voided_at || !note || note.ignored || paired.has(punch.id)) continue
+    const instant = punchInstant(punch)
+    const tramo = note.type === PUNCH_TYPE.ENTRADA ? { entrada: toTimeString(instant), salida: null } : { entrada: null, salida: toTimeString(instant) }
+    if (openEntry?.punch.id === punch.id) tramo.enCurso = true
+    add(instant, tramo)
+  }
+
+  for (const [dateKey, list] of byDay) {
+    byDay.set(dateKey, list.sort((a, b) => a.instant - b.instant).map((item) => item.tramo))
+  }
+  return byDay
 }
 
 // Paso 6: un tramo que cruza la medianoche se parte y cada parte se computa
@@ -286,7 +329,7 @@ export function lunchOverridesByDay(rows = []) {
 // para que los tramos que cruzan la medianoche en los bordes se armen bien.
 // `lunchOverrides` es lo que marco el supervisor: Map dia -> almorzo.
 //
-// Cada dia: { dateKey, dayType, status, issues, punches, lunchTaken,
+// Cada dia: { dateKey, dayType, status, issues, punches, tramos, lunchTaken,
 // lunchSource, earlyStartMinutes, ...horas, totalMinutes } donde `punches` son los fichajes de
 // ese dia (tambien los anulados) con `resolvedType` y `ignored` agregados para
 // mostrarlos.
@@ -296,6 +339,8 @@ export function computeEmployeeDays({ punches, dayKeys, holidayKeys = [], lunchO
   const { issues, notes, openEntry } = paired
   const segments = paired.segments.map((segment) => clampEarlyStart(segment, holidays, rules))
   const declaredLunch = declaredLunchByDay(segments)
+  // Con los tramos sin recortar: se muestra la hora fichada, no la de las 08.
+  const tramos = tramosByDay(punches, paired.segments, notes, openEntry)
 
   const earlyMinutesByDay = new Map()
   for (const segment of segments) {
@@ -356,6 +401,7 @@ export function computeEmployeeDays({ punches, dayKeys, holidayKeys = [], lunchO
       status,
       issues: dayIssues,
       punches: dayPunches,
+      tramos: tramos.get(dateKey) ?? [],
       ...lunch,
       // Minutos fichados antes de las 08:00 que no se cuentan (ver
       // clampEarlyStart). Solo para mostrarlo.
@@ -453,6 +499,8 @@ export function toWeekSnapshot(rows, weekStartKey) {
         dateKey: day.dateKey,
         dayType: day.dayType,
         status: day.status,
+        // Entradas y salidas: el Excel del mail las muestra desde la foto.
+        tramos: day.tramos ?? [],
         workedMinutes: day.workedMinutes,
         lunchDiscountMinutes: day.lunchDiscountMinutes,
         paidHolidayMinutes: day.paidHolidayMinutes,

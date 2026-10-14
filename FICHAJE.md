@@ -319,8 +319,8 @@ Nuevo ítem **"Fichajes"** en la navegación del supervisor (`/supervisor/fichaj
 
 ### 2. Reporte semanal
 - Una fila por empleado: legajo, nombre, **horas normales, al 50%, al 100%, total** y días incompletos. Formato `hh:mm`.
-- Detalle por día desplegable.
-- **Exportar Excel** (`.xlsx`): hoja **Resumen** (una fila por persona) y hoja **Detalle por día**. Las horas van como duración de Excel (`[h]:mm`): se ven como en la app pero el contador las puede sumar. Es el mismo archivo que viaja adjunto en el mail (`weeklyReportXlsx.js`).
+- Detalle por día desplegable, con los **horarios de entrada y salida** de cada día (en lugar del estado, desde el 14/10/2026). Se ve la hora fichada, aunque haya empezado a contar a las 08:00; si la salida es del día siguiente lleva "(+1)", y en un día incompleto lo que falta dice "falta".
+- **Exportar Excel** (`.xlsx`): hoja **Resumen** (una fila por persona) y hoja **Detalle por día**, con las mismas columnas de horarios. Las horas van como duración de Excel (`[h]:mm`): se ven como en la app pero el contador las puede sumar. Es el mismo archivo que viaja adjunto en el mail (`weeklyReportXlsx.js`).
 - **Cerrar semana (a mano):**
     - no se puede cerrar si hay días incompletos (se explica cuáles);
     - al cerrar se guarda una **foto** del reporte (`snapshot` jsonb) y la semana queda bloqueada;
