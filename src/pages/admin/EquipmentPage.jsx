@@ -10,7 +10,7 @@ import Field from '../../components/ui/Field'
 import Spinner from '../../components/ui/Spinner'
 import ClientGroupRow from '../../features/equipmentInventory/ClientGroupRow'
 import EquipmentHistoryPanel from '../../features/equipmentInventory/EquipmentHistoryPanel'
-import { CONDITION_STATUS, CONDITION_STATUS_LABELS, FUEL_TYPE, FUEL_TYPE_LABELS } from '../../lib/constants'
+import { CONDITION_STATUS, CONDITION_STATUS_LABELS, FUEL_TYPE, FUEL_TYPE_LABELS, isActiveClient } from '../../lib/constants'
 import { buildEquipmentReportSheets, equipmentReportFileName } from '../../features/equipmentInventory/equipmentReportXlsx'
 
 const EMPTY_EQUIPMENT_FORM = {
@@ -33,6 +33,57 @@ const EMPTY_EQUIPMENT_FORM = {
   battery_quantity: '',
   battery_size: '',
   condition_status: CONDITION_STATUS.OPTIMO,
+}
+
+// Una seccion por estado del cliente, igual que en Clientes: cada una con su
+// tabla y su boton de contraer/expandir todo, que solo actua sobre ella.
+function ClientEquipmentSection({ title, clientGroups, emptyMessage, collapsedClientIds, onToggleClient, onSetCollapsed, onOpenHistory }) {
+  const allCollapsed = clientGroups.length > 0 && clientGroups.every((group) => collapsedClientIds.has(group.client.id))
+
+  return (
+    <section className="space-y-sm">
+      <h2 className="font-headline-md text-headline-md text-on-surface">
+        {title} ({clientGroups.length})
+      </h2>
+      {clientGroups.length === 0 ? (
+        <p className="font-body-sm text-body-sm text-on-surface-variant">{emptyMessage}</p>
+      ) : (
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
+          <div className="flex md:grid md:grid-cols-12 gap-sm px-sm py-xs bg-surface-container border-b border-outline-variant">
+            <div className="md:col-span-4 flex items-center gap-xs font-label-sm text-label-sm text-on-surface-variant uppercase">
+              <button
+                type="button"
+                onClick={() => onSetCollapsed(clientGroups, !allCollapsed)}
+                aria-label={allCollapsed ? 'Expandir todos los clientes' : 'Contraer todos los clientes'}
+                className="text-on-surface-variant hover:text-secondary transition-colors"
+              >
+                <span className="material-symbols-outlined text-[1.8rem] block">
+                  {allCollapsed ? 'unfold_more' : 'unfold_less'}
+                </span>
+              </button>
+              <span>Cliente / Equipo</span>
+            </div>
+            {/* Por debajo de md, EquipmentRow.jsx pasa a mini-card apilada con
+                sus propias etiquetas — estas 4 columnas dejan de aplicar. */}
+            <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Combustible</span>
+            <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Horas de Uso</span>
+            <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Último Service</span>
+            <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Condición</span>
+          </div>
+          {clientGroups.map((group) => (
+            <ClientGroupRow
+              key={group.client.id}
+              client={group.client}
+              equipmentList={group.equipmentList}
+              expanded={!collapsedClientIds.has(group.client.id)}
+              onToggleExpanded={() => onToggleClient(group.client.id)}
+              onOpenHistory={onOpenHistory}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  )
 }
 
 export default function EquipmentPage() {
@@ -73,8 +124,9 @@ export default function EquipmentPage() {
     return Array.from(groups.values()).sort((a, b) => a.client.name.localeCompare(b.client.name))
   }, [filteredEquipment])
 
-  const allClientsCollapsed =
-    clientGroups.length > 0 && clientGroups.every((group) => collapsedClientIds.has(group.client.id))
+  const activeGroups = clientGroups.filter(({ client }) => isActiveClient(client))
+  const inactiveGroups = clientGroups.filter(({ client }) => !isActiveClient(client))
+  const isSearching = Boolean(searchTerm.trim())
 
   function toggleClientExpanded(clientId) {
     setCollapsedClientIds((prev) => {
@@ -85,10 +137,15 @@ export default function EquipmentPage() {
     })
   }
 
-  function toggleAllClientsCollapsed() {
-    setCollapsedClientIds(
-      allClientsCollapsed ? new Set() : new Set(clientGroups.map((group) => group.client.id))
-    )
+  function setGroupsCollapsed(groups, collapsed) {
+    setCollapsedClientIds((prev) => {
+      const next = new Set(prev)
+      for (const group of groups) {
+        if (collapsed) next.add(group.client.id)
+        else next.delete(group.client.id)
+      }
+      return next
+    })
   }
 
   async function handleCreateEquipment(event) {
@@ -166,47 +223,32 @@ export default function EquipmentPage() {
         className="max-w-[36rem] mb-md"
       />
 
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
-        <div className="flex md:grid md:grid-cols-12 gap-sm px-sm py-xs bg-surface-container border-b border-outline-variant">
-          <div className="md:col-span-4 flex items-center gap-xs font-label-sm text-label-sm text-on-surface-variant uppercase">
-            {clientGroups.length > 0 && (
-              <button
-                type="button"
-                onClick={toggleAllClientsCollapsed}
-                aria-label={allClientsCollapsed ? 'Expandir todos los clientes' : 'Contraer todos los clientes'}
-                className="text-on-surface-variant hover:text-secondary transition-colors"
-              >
-                <span className="material-symbols-outlined text-[1.8rem] block">
-                  {allClientsCollapsed ? 'unfold_more' : 'unfold_less'}
-                </span>
-              </button>
-            )}
-            <span>Cliente / Equipo</span>
-          </div>
-          {/* Por debajo de md, EquipmentRow.jsx pasa a mini-card apilada con
-              sus propias etiquetas — estas 4 columnas dejan de aplicar. */}
-          <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Combustible</span>
-          <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Horas de Uso</span>
-          <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Último Service</span>
-          <span className="hidden md:block md:col-span-2 font-label-sm text-label-sm text-on-surface-variant uppercase">Condición</span>
+      {clientGroups.length === 0 ? (
+        <p className="font-body-sm text-body-sm text-on-surface-variant">
+          {isSearching ? 'No se encontraron equipos para tu búsqueda.' : 'Todavía no hay clientes ni equipos cargados.'}
+        </p>
+      ) : (
+        <div className="space-y-xl">
+          <ClientEquipmentSection
+            title="Clientes Activos"
+            clientGroups={activeGroups}
+            emptyMessage={isSearching ? 'Ningún equipo de un cliente activo coincide con la búsqueda.' : 'No hay equipos de clientes activos.'}
+            collapsedClientIds={collapsedClientIds}
+            onToggleClient={toggleClientExpanded}
+            onSetCollapsed={setGroupsCollapsed}
+            onOpenHistory={setHistoryEquipment}
+          />
+          <ClientEquipmentSection
+            title="Clientes Inactivos"
+            clientGroups={inactiveGroups}
+            emptyMessage={isSearching ? 'Ningún equipo de un cliente inactivo coincide con la búsqueda.' : 'No hay equipos de clientes inactivos.'}
+            collapsedClientIds={collapsedClientIds}
+            onToggleClient={toggleClientExpanded}
+            onSetCollapsed={setGroupsCollapsed}
+            onOpenHistory={setHistoryEquipment}
+          />
         </div>
-        {clientGroups.length === 0 ? (
-          <p className="p-md font-body-sm text-body-sm text-on-surface-variant">
-            {searchTerm.trim() ? 'No se encontraron equipos para tu búsqueda.' : 'Todavía no hay clientes ni equipos cargados.'}
-          </p>
-        ) : (
-          clientGroups.map((group) => (
-            <ClientGroupRow
-              key={group.client.id}
-              client={group.client}
-              equipmentList={group.equipmentList}
-              expanded={!collapsedClientIds.has(group.client.id)}
-              onToggleExpanded={() => toggleClientExpanded(group.client.id)}
-              onOpenHistory={setHistoryEquipment}
-            />
-          ))
-        )}
-      </div>
+      )}
 
       <EquipmentHistoryPanel
         equipment={historyEquipment}

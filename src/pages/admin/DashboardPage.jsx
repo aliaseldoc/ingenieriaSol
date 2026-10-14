@@ -26,10 +26,12 @@ import Spinner from '../../components/ui/Spinner'
 
 // Cada tarjeta ocupa el alto de la fila y desplaza solo su contenido, con el
 // encabezado siempre visible. min-h-0 es lo que le permite achicarse por
-// debajo de su contenido, condicion para que aparezca el scroll interno.
+// debajo de su contenido, condicion para que aparezca el scroll interno; en
+// escritorio, contain:size hace que su lista no le sume alto a la fila (si no,
+// la fila creceria hasta mostrar todo y no habria scroll interno).
 function DashboardPanel({ title, children }) {
   return (
-    <div className="lg:col-span-3 flex flex-col min-h-0 bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
+    <div className="lg:col-span-3 flex flex-col min-h-0 lg:[contain:size] bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
       <h2 className="list-title-bar font-label-md text-label-md uppercase tracking-wide p-md shrink-0">
         {title}
       </h2>
@@ -96,13 +98,15 @@ export default function DashboardPage() {
     (alert) => !alert.muted && (alert.alertLevel === 'vencido' || alert.alertLevel === 'proximo')
   ).length
 
-  // En escritorio el panel ocupa exactamente el alto de la ventana menos la
+  // En escritorio el panel ocupa como minimo el alto de la ventana menos la
   // barra superior fija (6.4rem) y el padding vertical del contenido (3.2rem
-  // arriba y abajo, ver RoleLayoutShell): asi no hay scroll de pagina y cada
-  // tarjeta desplaza su propio contenido. En mobile las tarjetas se apilan y
-  // la pagina scrollea como siempre.
+  // arriba y abajo, ver RoleLayoutShell), y cada tarjeta desplaza su propio
+  // contenido. Las tarjetas nunca bajan de 36rem: si lo de arriba (indicadores
+  // y franja de fichajes) no les deja ese alto, scrollea la pagina en vez de
+  // aplastarlas. En mobile las tarjetas se apilan y la pagina scrollea como
+  // siempre.
   return (
-    <div className="lg:h-[calc(100vh_-_12.8rem)] lg:flex lg:flex-col lg:overflow-hidden">
+    <div className="lg:min-h-[calc(100vh_-_12.8rem)] lg:flex lg:flex-col">
       <h1 className="font-headline-lg text-headline-lg text-on-surface mb-xs shrink-0">Resumen de Operaciones</h1>
       <p className="font-body-md text-body-md text-on-surface-variant mb-lg shrink-0">
         Estado general de los equipos y las visitas planificadas para este mes.
@@ -131,7 +135,7 @@ export default function DashboardPage() {
       {/* El fichaje es solo del supervisor: el administrativo no lo ve (ni tiene acceso por RLS). */}
       {FICHAJE_HABILITADO && profile?.role === ROLES.SUPERVISOR && <TimesheetAlerts />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-md lg:flex-1 lg:min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-md lg:flex-1 lg:min-h-[36rem]">
         <DashboardPanel title="Actividad Reciente">
           <RecentActivityFeed events={recentEvents} onSelectEvent={(visitId) => navigate(`${ROLE_HOME_PATH[profile.role]}/visita/${visitId}`)} />
         </DashboardPanel>
