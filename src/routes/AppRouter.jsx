@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { FICHAJE_HABILITADO, ROLE_HOME_PATH } from '../lib/constants'
+import { ROLE_HOME_PATH } from '../lib/constants'
+import { FICHAJE_HABILITADO } from '../lib/featureFlags'
 import ProtectedRoute from './ProtectedRoute'
 import RoleRoute from './RoleRoute'
 import Spinner from '../components/ui/Spinner'
@@ -23,6 +24,7 @@ import MonthlyPlanPage from '../pages/tecnico/MonthlyPlanPage'
 import HistoryPage from '../pages/tecnico/HistoryPage'
 import VisitFormPage from '../pages/tecnico/VisitFormPage'
 import PunchPage from '../pages/tecnico/PunchPage'
+import OnlineOnly from '../offline/OnlineOnly'
 
 import SupervisorLayout from '../components/layout/SupervisorLayout'
 import ValidationPage from '../pages/supervisor/ValidationPage'
@@ -60,6 +62,8 @@ export default function AppRouter() {
             <Route path="reparaciones" element={<RepairsPage />} />
             <Route path="resumen" element={<SummaryPage />} />
             <Route path="visita/:visitId" element={<VisitDetailPage />} />
+            {/* El administrativo ficha igual que el tecnico: misma pantalla. */}
+            {FICHAJE_HABILITADO && <Route path="fichaje" element={<PunchPage />} />}
             <Route path="perfil" element={<ProfilePage />} />
           </Route>
         </Route>
@@ -67,6 +71,24 @@ export default function AppRouter() {
         <Route element={<RoleRoute allow={['tecnico']} />}>
           <Route path="/tecnico" element={<TecnicoLayout />}>
             <Route index element={<MonthlyPlanPage />} />
+            {/* El calendario de todos, para mirar: solo con conexion. Las visitas
+                de otros tecnicos se abren en el detalle de solo lectura. */}
+            <Route
+              path="calendario"
+              element={
+                <OnlineOnly title="Planificación de Rutas">
+                  <CalendarPage readOnly />
+                </OnlineOnly>
+              }
+            />
+            <Route
+              path="calendario/visita/:visitId"
+              element={
+                <OnlineOnly title="Detalle de Visita">
+                  <VisitDetailPage readOnly />
+                </OnlineOnly>
+              }
+            />
             <Route path="historial" element={<HistoryPage />} />
             {FICHAJE_HABILITADO && <Route path="fichaje" element={<PunchPage />} />}
             <Route path="visita/:visitId" element={<VisitFormPage />} />

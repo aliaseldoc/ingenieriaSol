@@ -417,9 +417,25 @@ export const VISIT_CHANGE_TO_EQUIPMENT_TRACKING = [
 // Modulo de fichaje (ver FICHAJE.md). Las reglas son iguales para todo el
 // personal: cambiar un valor aca cambia el calculo del reporte del
 // supervisor, la vista del tecnico y la foto que se guarda al cerrar.
+//
+// Jornada: lunes a jueves de 8 a 18 (9 h netas) y viernes de 8 a 17 (8 h
+// netas), 44 h por semana. Lo que pasa de 44 h en la semana va al 50%; la
+// noche (22 a 06), el sabado desde las 13, el domingo y el feriado trabajado
+// van siempre al 100%. En un dia habil, entrar antes de las 08 no suma: se
+// cuenta desde las 08 (la madrugada, antes de las 06, si se paga).
 export const TIMESHEET_RULES = {
   timeZone: 'America/Argentina/Buenos_Aires',
-  dailyNormalMinutes: 9 * 60,
+  workdayStartTime: '08:00',
+  // Fin de la jornada de cada dia habil (1 = lunes ... 5 = viernes). Un corte
+  // entre dos fichajes cuenta como pausa del almuerzo solo si cae entero
+  // dentro de la jornada.
+  workdayEndTime: { 1: '18:00', 2: '18:00', 3: '18:00', 4: '18:00', 5: '17:00' },
+  // Jornada de cada dia (0 = domingo ... 6 = sabado): es lo que paga un
+  // feriado aunque no se trabaje. El fin de semana no es laborable.
+  weekdayNormalMinutes: { 1: 9 * 60, 2: 9 * 60, 3: 9 * 60, 4: 9 * 60, 5: 8 * 60 },
+  weeklyNormalMinutes: 44 * 60,
+  nightStartTime: '22:00',
+  nightEndTime: '06:00',
   lunchDiscountMinutes: 60,
   saturdayCutoffTime: '13:00',
   clockReboundMinutes: 2,
@@ -467,22 +483,6 @@ export const TIMESHEET_WEEK_STATUS = {
   ABIERTA: 'abierta',
   CERRADA: 'cerrada',
 }
-
-// El modulo de fichaje esta en marcha blanca: el reloj ya recibe fichajes
-// pero la norma todavia no rige en la fabrica, asi que en produccion no se
-// muestra para no confundir a nadie. Mientras este apagado desaparecen las
-// dos pantallas, sus items de menu, las alertas del panel y la solapa de
-// empleados de fabrica.
-//
-// Es una bandera de compilacion: lo que no se habilita no queda accesible ni
-// escribiendo la direccion a mano. Se prende poniendo
-// VITE_FICHAJE_HABILITADO=true (ya esta en .env para desarrollo); en
-// produccion se prende agregando la variable al workflow de GitHub Pages.
-//
-// Importante: NO apaga la toma de fichajes. El endpoint /iclock corre en el
-// servidor (api/iclock.js) y no mira esta bandera, asi que el reloj sigue
-// registrando todo mientras la pantalla esta oculta.
-export const FICHAJE_HABILITADO = import.meta.env.VITE_FICHAJE_HABILITADO === 'true'
 
 // Reloj biometrico que manda los fichajes solo por WiFi (protocolo push de
 // ZKTeco). El equipo no acepta una ruta: se le carga solo el dominio y el

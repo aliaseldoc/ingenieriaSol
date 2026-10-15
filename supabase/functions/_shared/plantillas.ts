@@ -238,3 +238,127 @@ export function resultadosHtml(p) {
   </tr>
 </table>`
 }
+
+// ============================================================
+// Reporte semanal de horas (cierre del fichaje)
+// ============================================================
+// Mismo armado que la visita programada (membrete, caja de datos, pie): lo
+// pidio asi el cliente. Va al dueño y al contador; el detalle por dia viaja
+// en el Excel adjunto.
+//
+// Datos planos (los escapa esta plantilla): semana, cerrada, personas.
+// Ya armados en cierre-semanal/index.ts: tabla_html, aviso_html.
+
+export function reporteSemanalSubject(p) {
+  return `Reporte semanal de horas — ${p.semana}${p.corregido ? ' (corregido)' : ''}`
+}
+
+export function reporteSemanalHtml(p) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f2f2ef;margin:0;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;">
+  <tr>
+    <td align="center">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #d8dad5;border-radius:8px;overflow:hidden;">
+
+        <!-- Membrete -->
+        <tr>
+          <td align="center" style="padding:28px 24px 20px 24px;">
+            <img src="https://aliaseldoc.github.io/ingenieriaSol/logo-email.png"
+                 alt="Ingeniería Sol — Ing. Carlos Raúl Guiñazú"
+                 width="280" style="display:block;width:280px;max-width:80%;height:auto;border:0;" />
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 24px;">
+            <div style="border-top:2px solid #1f4a3d;font-size:0;line-height:0;">&nbsp;</div>
+          </td>
+        </tr>
+
+        <!-- Titulo -->
+        <tr>
+          <td style="padding:20px 24px 4px 24px;">
+            <h1 style="margin:0;font-size:19px;line-height:26px;color:#1f4a3d;font-weight:bold;">
+              Reporte semanal de horas${p.corregido ? ' (corregido)' : ''}
+            </h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 24px 18px 24px;">
+            <p style="margin:0;font-size:14px;line-height:21px;color:#5c6360;">
+              ${p.corregido
+                ? 'Esta semana se reabrió para corregirla. Este reporte reemplaza al enviado antes.'
+                : 'Resumen de las horas fichadas por el personal en la semana cerrada.'}
+            </p>
+          </td>
+        </tr>
+
+        <!-- Datos de la semana -->
+        <tr>
+          <td style="padding:0 24px 20px 24px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f2f2ef;border:1px solid #d8dad5;border-radius:6px;">
+              <tr>
+                <td style="padding:14px 16px 0 16px;">
+                  <p style="margin:0 0 2px 0;font-size:11px;line-height:16px;color:#5c6360;text-transform:uppercase;letter-spacing:.6px;">Semana</p>
+                  <p style="margin:0;font-size:15px;line-height:22px;color:#12181a;font-weight:bold;">${escapeHtml(p.semana)}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px 0 16px;">
+                  <p style="margin:0 0 2px 0;font-size:11px;line-height:16px;color:#5c6360;text-transform:uppercase;letter-spacing:.6px;">Cerrada</p>
+                  <p style="margin:0;font-size:15px;line-height:22px;color:#12181a;">${escapeHtml(p.cerrada)}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px 14px 16px;">
+                  <p style="margin:0 0 2px 0;font-size:11px;line-height:16px;color:#5c6360;text-transform:uppercase;letter-spacing:.6px;">Personas</p>
+                  <p style="margin:0;font-size:15px;line-height:22px;color:#12181a;">${escapeHtml(p.personas)}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Horas por persona -->
+        <tr>
+          <td style="padding:0 24px 4px 24px;">
+            <p style="margin:0 0 6px 0;font-size:11px;line-height:16px;color:#5c6360;text-transform:uppercase;letter-spacing:.6px;">
+              Horas por persona
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 24px 8px 24px;font-size:14px;line-height:21px;color:#12181a;">
+            ${p.tabla_html ?? ''}
+            ${p.aviso_html ?? ''}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:8px 24px 24px 24px;">
+            <p style="margin:0;font-size:13px;line-height:20px;color:#5c6360;">
+              Se adjunta el detalle por día en Excel. Ante cualquier consulta puede responder este correo.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Pie: datos de la hoja membretada -->
+        <tr>
+          <td style="background-color:#1f4a3d;padding:18px 24px;">
+            <p style="margin:0 0 4px 0;font-size:13px;line-height:19px;color:#ffffff;font-weight:bold;">
+              Ing. Carlos R. Guiñazú
+            </p>
+            <p style="margin:0;font-size:12px;line-height:18px;color:#c3ddd3;">
+              Av. Juan Manuel de Rosas 9.999 — 1757 Gregorio de Laferrere, Pcia. de Bs. As.<br />
+              TE 011 4457 1715 &nbsp;·&nbsp; CUIT 20.10887608.6<br />
+              <a href="mailto:carlos.guinazu@ingenieriasol.com.ar" style="color:#c3ddd3;text-decoration:underline;">carlos.guinazu@ingenieriasol.com.ar</a>
+            </p>
+            <p style="margin:10px 0 0 0;font-size:11px;line-height:17px;color:#8fb5a6;">
+              S.I.P.R.O. Nº 168.679 &nbsp;·&nbsp; Proveedor de la Pcia. de Bs. As. Nº 103.084
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>`
+}

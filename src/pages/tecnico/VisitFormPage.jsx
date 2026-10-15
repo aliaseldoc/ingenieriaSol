@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useVisitDetail, useVisitParameters, useVisitEvents } from '../../hooks/useVisits'
 import { saveVisitOrQueue, getPendingWriteForVisit, removePendingWrite } from '../../offline/syncQueue'
@@ -8,6 +8,7 @@ import { useConnectivityStatus } from '../../offline/useOfflineSync'
 import { getEquipmentById } from '../../api/equipment'
 import { deleteUnplannedVisit } from '../../api/visits'
 import { markVisitNotesRead } from '../../api/visitEvents'
+import { getVisitPath, isAssignedTo } from '../../lib/visitAccess'
 import {
   CHECKLIST_CATEGORY,
   CHECKLIST_ITEM_STATUS,
@@ -233,7 +234,7 @@ function VisitForm() {
   // ese snapshot como ya guardado (viene del servidor o de una escritura
   // pendiente), para no autoguardar apenas se abre la visita sin cambios.
   useEffect(() => {
-    if (!initialized || !visit || !TECHNICIAN_EDITABLE_STATUSES.includes(visit.status)) return
+    if (!initialized || !visit || !TECHNICIAN_EDITABLE_STATUSES.includes(visit.status) || !isAssignedTo(visit, profile.id)) return
     if (lastSavedKeyRef.current === null) {
       lastSavedKeyRef.current = snapshotKey
       return
@@ -274,6 +275,8 @@ function VisitForm() {
   // historial no llega y queda para la proxima vez que se abra.
   useEffect(() => {
     if (!events || newNoteIds !== null) return
+    // Las notas de la visita de otro tecnico no son para el: no se marcan.
+    if (!visit || !isAssignedTo(visit, profile.id)) return
     const unreadIds = events
       .filter((event) => event.event_type === VISIT_EVENT_NOTA_SUPERVISOR)
       .filter((event) => !(event.visit_event_reads ?? []).some((read) => read.profile_id === profile.id))
@@ -283,7 +286,7 @@ function VisitForm() {
     markVisitNotesRead(visitId)
       .then(reloadSupervisorNotes)
       .catch((error) => console.error('No se pudieron marcar las notas como leídas', error))
-  }, [events, newNoteIds, visitId, profile.id, reloadSupervisorNotes])
+  }, [events, newNoteIds, visit, visitId, profile.id, reloadSupervisorNotes])
 
   if (visitLoading || pendingWrite === undefined) return <Spinner label="Cargando visita…" />
 
@@ -303,7 +306,7 @@ function VisitForm() {
           <EmptyState
             icon="search_off"
             title="No se encontró la visita"
-            description="Puede que se haya eliminado o que ya no esté asignada a vos."
+            description="Puede que se haya eliminado."
           />
         ) : (
           <EmptyState
@@ -315,6 +318,13 @@ function VisitForm() {
       </div>
     )
   }
+
+  // Hasta la 0030 la base ocultaba las visitas de otros y esta pantalla decidia
+  // si se edita solo por el estado. Ahora el tecnico puede llegar a una visita
+  // ajena (historial de la ficha tecnica, un link viejo, una visita que le
+  // reasignaron a otro): se ve en el detalle de solo lectura del calendario.
+  // La base igual rechazaria cualquier cambio.
+  if (!isAssignedTo(visit, profile.id)) return <Navigate to={getVisitPath(profile, visitId, visit)} replace />
 
   const supervisorNotes = (events ?? []).filter((event) => event.event_type === VISIT_EVENT_NOTA_SUPERVISOR).reverse()
   const supervisorNotesCard =

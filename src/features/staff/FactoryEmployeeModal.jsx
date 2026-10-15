@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import Modal from '../../components/ui/Modal'
+import Button from '../../components/ui/Button'
 import Field from '../../components/ui/Field'
 import FormSection from '../../components/ui/FormSection'
-import { createEmployee, describeEmployeeError, updateEmployee } from '../../api/employees'
+import Spinner from '../../components/ui/Spinner'
+import { countEmployeePunches, createEmployee, deleteFactoryEmployee, describeEmployeeError, updateEmployee } from '../../api/employees'
 import { normalizeClockPin } from '../timesheet/clockFileParser'
 
 const FORM_ID = 'factory-employee-form'
@@ -19,10 +21,35 @@ function toFormValues(employee) {
 // Alta y edicion de un empleado de fabrica: legajo sin usuario en la app,
 // existe solo para el reloj y el reporte de horas (ver FICHAJE.md).
 // Se monta al abrirse, asi el formulario arranca con los datos del empleado.
-export default function FactoryEmployeeModal({ employee = null, onClose, onSaved }) {
+export default function FactoryEmployeeModal({ employee = null, onClose, onSaved, onDeleted }) {
   const [form, setForm] = useState(() => toFormValues(employee))
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  // null mientras no se pidio eliminar; despues { punchCount, deleting }.
+  const [deletion, setDeletion] = useState(null)
+
+  async function startDeleting() {
+    setErrorMessage('')
+    setDeletion({ punchCount: null, deleting: false })
+    try {
+      const punchCount = await countEmployeePunches(employee.id)
+      setDeletion((current) => current && { ...current, punchCount })
+    } catch (error) {
+      setErrorMessage(error?.message || 'No se pudo preparar la eliminación.')
+    }
+  }
+
+  async function confirmDelete() {
+    setDeletion((current) => ({ ...current, deleting: true }))
+    setErrorMessage('')
+    try {
+      await deleteFactoryEmployee(employee.id)
+      await onDeleted()
+    } catch (error) {
+      setErrorMessage(error?.message || 'No se pudo eliminar el empleado.')
+      setDeletion((current) => ({ ...current, deleting: false }))
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -51,6 +78,48 @@ export default function FactoryEmployeeModal({ employee = null, onClose, onSaved
     return (value) => setForm((current) => ({ ...current, [field]: value }))
   }
 
+  if (deletion) {
+    const { punchCount, deleting } = deletion
+    return (
+      <Modal
+        open
+        title={`Eliminar a ${employee.full_name}`}
+        onClose={deleting ? () => {} : () => setDeletion(null)}
+        actions={[
+          { label: 'Cancelar', variant: 'secondary-outline', onClick: () => setDeletion(null), disabled: deleting },
+          // Corto y sin icono, como el borrado de vehiculos: este modal mide
+          // 28rem (280 px) y con el icono "Cancelar" ya quedaba cortado.
+          {
+            label: deleting ? 'Eliminando…' : 'Eliminar',
+            variant: 'destructive-outline',
+            onClick: confirmDelete,
+            disabled: deleting || punchCount === null,
+          },
+        ]}
+      >
+        <div className="space-y-sm font-body-md text-body-md text-on-surface">
+          {punchCount === null && !errorMessage ? (
+            <Spinner label="Revisando qué se borra…" />
+          ) : (
+            <>
+              <p className="text-error font-label-md text-label-md">Esta acción no se puede deshacer.</p>
+              <p>
+                {punchCount > 0
+                  ? `Se borra el legajo junto con sus ${punchCount === 1 ? 'fichaje' : `${punchCount} fichajes`}: esas horas se pierden. Las semanas ya cerradas conservan su reporte.`
+                  : 'Se borra el legajo. No tiene fichajes cargados.'}
+              </p>
+            </>
+          )}
+          {errorMessage && (
+            <p role="alert" className="font-body-sm text-body-sm text-error">
+              {errorMessage}
+            </p>
+          )}
+        </div>
+      </Modal>
+    )
+  }
+
   return (
     <Modal
       open
@@ -77,6 +146,15 @@ export default function FactoryEmployeeModal({ employee = null, onClose, onSaved
           <p role="alert" className="font-body-sm text-body-sm text-error">
             {errorMessage}
           </p>
+        )}
+        {/* Fuera del pie: en 28rem no entran tres botones, y asi la accion
+            destructiva queda lejos de "Guardar". */}
+        {employee && (
+          <div className="pt-md border-t border-outline-variant">
+            <Button variant="destructive-outline" icon="delete" onClick={startDeleting} disabled={saving}>
+              Eliminar empleado
+            </Button>
+          </div>
         )}
       </form>
     </Modal>

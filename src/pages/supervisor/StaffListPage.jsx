@@ -4,7 +4,8 @@ import { listStaff, setProfileActive } from '../../api/profiles'
 import { createVehicle, setVehicleActive, deleteVehicle } from '../../api/vehicles'
 import { listEmployees, setEmployeeActive } from '../../api/employees'
 import { useAllVehicles } from '../../hooks/useVehicles'
-import { FICHAJE_HABILITADO, ROLE_LABELS } from '../../lib/constants'
+import { ROLE_LABELS } from '../../lib/constants'
+import { FICHAJE_HABILITADO } from '../../lib/featureFlags'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import ConfirmModal from '../../components/ui/ConfirmModal'
@@ -292,6 +293,10 @@ export default function StaffListPage() {
           setDetailStaff(updated)
           loadStaff()
         }}
+        onDeleted={() => {
+          setDetailStaff(null)
+          loadStaff()
+        }}
       />
 
       <VehicleDetailPanel
@@ -308,6 +313,10 @@ export default function StaffListPage() {
           employee={employeeModal.employee}
           onClose={() => setEmployeeModal(null)}
           onSaved={async () => {
+            setEmployeeModal(null)
+            await loadFactoryEmployees()
+          }}
+          onDeleted={async () => {
             setEmployeeModal(null)
             await loadFactoryEmployees()
           }}

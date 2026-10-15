@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient'
-import { PUNCH_SOURCE } from '../lib/constants'
+import { PUNCH_SOURCE, PUNCH_TYPE } from '../lib/constants'
 
 // Supabase corta cada consulta en 1000 filas: una semana con mucho personal
 // puede superarlas, asi que se pide de a paginas hasta traer todo.
@@ -46,7 +46,8 @@ export async function insertAppPunch(punch) {
   if (error) throw error
 }
 
-export async function addManualPunch({ employeeId, punchType, punchedAt, reason, actorId, replacesPunchId = null }) {
+// lunchTaken: solo para una salida que reemplaza a otra (ver correctPunchTime).
+export async function addManualPunch({ employeeId, punchType, punchedAt, reason, actorId, replacesPunchId = null, lunchTaken = null }) {
   const { data, error } = await supabase
     .from('time_punches')
     .insert({
@@ -57,6 +58,7 @@ export async function addManualPunch({ employeeId, punchType, punchedAt, reason,
       reason,
       created_by: actorId,
       replaces_punch_id: replacesPunchId,
+      lunch_taken: lunchTaken,
     })
     .select()
     .single()
@@ -77,8 +79,10 @@ export async function voidPunch({ punchId, reason, actorId }) {
 // Corregir la hora = crear el manual que lo reemplaza y anular el original.
 // Primero el alta: si fallara la anulacion, queda un fichaje de mas a la
 // vista (y el dia marcado para revisar), nunca un fichaje perdido.
+// Si sigue siendo una salida, conserva lo que el empleado declaro del almuerzo.
 export async function correctPunchTime({ punch, punchType, punchedAt, reason, actorId }) {
-  await addManualPunch({ employeeId: punch.employee_id, punchType, punchedAt, reason, actorId, replacesPunchId: punch.id })
+  const lunchTaken = punchType === PUNCH_TYPE.SALIDA ? punch.lunch_taken ?? null : null
+  await addManualPunch({ employeeId: punch.employee_id, punchType, punchedAt, reason, actorId, replacesPunchId: punch.id, lunchTaken })
   await voidPunch({ punchId: punch.id, reason, actorId })
 }
 

@@ -10,12 +10,17 @@ import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import EmptyState from '../../components/ui/EmptyState'
 
-export default function VisitDetailPage() {
+// Detalle de una visita tal como lo ve el supervisor. Con readOnly es el que
+// abre el tecnico desde su calendario para visitas de otros: sin mandar
+// resultados y sin "Leida por" (el tecnico solo puede ver sus propias
+// lecturas, el resto saldria "Sin leer"). Es una pantalla en linea: no guarda
+// nada en el cache sin conexion del tecnico.
+export default function VisitDetailPage({ readOnly = false }) {
   const { visitId } = useParams()
   const navigate = useNavigate()
   const { profile } = useAuth()
-  const { data: visit, loading } = useVisitDetail(visitId)
-  const { data: parameters } = useVisitParameters(visitId)
+  const { data: visit, loading } = useVisitDetail(visitId, { offlineCache: false })
+  const { data: parameters } = useVisitParameters(visitId, { offlineCache: false })
   const { data: previousParameters } = usePreviousVisitParameters(visit)
   const { data: events, reload: reloadEvents } = useVisitEvents(visitId)
   const [sendingEmail, setSendingEmail] = useState(false)
@@ -62,9 +67,9 @@ export default function VisitDetailPage() {
           previousParameters={previousParameters ?? []}
           events={events ?? []}
           showEquipmentSheet
-          showNoteReads
+          showNoteReads={!readOnly}
           actions={
-            visit.status === VISIT_STATUS.APROBADA ? (
+            !readOnly && visit.status === VISIT_STATUS.APROBADA ? (
               <Button variant="secondary-outline" icon="mail" disabled={sendingEmail} onClick={handleSendResults}>
                 {sendingEmail ? 'Enviando…' : `Enviar Resultados por Mail${resultsSentCount > 0 ? ` (${resultsSentCount})` : ''}`}
               </Button>

@@ -17,8 +17,11 @@ export async function listTechnicians() {
   return data
 }
 
+// Activos e inactivos (para poder reactivar), pero no los eliminados: esos
+// quedan en la base solo para que las visitas que hicieron sigan mostrando su
+// nombre.
 export async function listStaff() {
-  const { data, error } = await supabase.from('profiles').select('*').order('full_name')
+  const { data, error } = await supabase.from('profiles').select('*').is('deleted_at', null).order('full_name')
   if (error) throw error
   return data
 }

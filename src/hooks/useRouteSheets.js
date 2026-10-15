@@ -5,6 +5,8 @@ export function useRouteSheetsInRange(startDate, endDate) {
   return useAsync(() => listRouteSheetsInRange(startDate, endDate), [startDate, endDate])
 }
 
-export function useUnassignedRouteSheets() {
-  return useAsync(listUnassignedRouteSheets, [])
+// enabled = false: no consulta (el calendario de solo lectura no muestra las
+// hojas sin asignar).
+export function useUnassignedRouteSheets(enabled = true) {
+  return useAsync(() => (enabled ? listUnassignedRouteSheets() : Promise.resolve([])), [enabled])
 }

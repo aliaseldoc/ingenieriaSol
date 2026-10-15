@@ -18,12 +18,12 @@ import {
   CONDITION_STATUS_LABELS,
   FUEL_TYPE,
   FUEL_TYPE_LABELS,
-  ROLE_HOME_PATH,
   ROLES,
   FUEL_LEVEL_UNIT,
   formatFuelLevel,
 } from '../../lib/constants'
 import { formatDate, computeNextDueDate } from '../../lib/dateUtils'
+import { getVisitPath } from '../../lib/visitAccess'
 
 const STATUS_TONE = {
   [VISIT_STATUS.APROBADA]: 'success',
@@ -58,6 +58,7 @@ function toFormValues(equipment) {
     service_start_date: equipment.service_start_date ?? '',
     service_end_date: equipment.service_end_date ?? '',
     purchase_order: equipment.purchase_order ?? '',
+    monthly_visits: equipment.monthly_visits ?? '',
     motor: equipment.motor ?? '',
     generador: equipment.generador ?? '',
     serial_number: equipment.serial_number ?? '',
@@ -139,6 +140,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
       ...form,
       service_start_date: form.service_start_date || null,
       service_end_date: form.service_end_date || null,
+      monthly_visits: form.monthly_visits !== '' ? Number(form.monthly_visits) : null,
       power_kva: form.power_kva !== '' ? Number(form.power_kva) : null,
       fuel_capacity: form.fuel_capacity !== '' ? Number(form.fuel_capacity) : null,
       fuel_liters: liters,
@@ -201,6 +203,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
               <Field label="Inicio del Servicio" type="date" value={form.service_start_date} onChange={(v) => setForm((f) => ({ ...f, service_start_date: v }))} />
               <Field label="Fin del Servicio" type="date" value={form.service_end_date} onChange={(v) => setForm((f) => ({ ...f, service_end_date: v }))} />
               <Field label="Orden de Compra" value={form.purchase_order} onChange={(v) => setForm((f) => ({ ...f, purchase_order: v }))} />
+              <Field label="Cantidad de Visitas Mensuales" type="number" min="1" max="31" step="1" value={form.monthly_visits} onChange={(v) => setForm((f) => ({ ...f, monthly_visits: v }))} />
             </div>
           </FormSection>
 
@@ -286,6 +289,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
             <DetailField label="Inicio del Servicio" value={equipment.service_start_date ? formatDate(equipment.service_start_date) : null} />
             <DetailField label="Fin del Servicio" value={equipment.service_end_date ? formatDate(equipment.service_end_date) : null} />
             <DetailField label="Orden de Compra" value={equipment.purchase_order || null} />
+            <DetailField label="Cantidad de Visitas Mensuales" value={equipment.monthly_visits} />
           </div>
         </section>
       )}
@@ -355,7 +359,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
                 type="button"
                 onClick={() => {
                   handleClose()
-                  navigate(`${ROLE_HOME_PATH[profile.role]}/visita/${visit.id}`)
+                  navigate(getVisitPath(profile, visit.id, visit))
                 }}
                 className="w-full py-sm flex items-center justify-between gap-sm text-left hover:bg-surface-container-low transition-colors"
               >

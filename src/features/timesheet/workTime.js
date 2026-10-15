@@ -5,7 +5,9 @@
 //
 // Convenciones: un "instante" es un numero de milisegundos (Date.getTime());
 // una "clave de dia" es un string 'AAAA-MM-DD' en la zona de la empresa.
-import { TIMESHEET_RULES } from '../../lib/constants'
+// Con extension explicita: este modulo tambien lo importa la Edge Function de
+// cierre semanal, y Deno (a diferencia de Vite) no adivina el ".js".
+import { TIMESHEET_RULES } from '../../lib/constants.js'
 
 const WEEKDAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']

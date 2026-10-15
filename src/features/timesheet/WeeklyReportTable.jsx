@@ -2,19 +2,7 @@ import { useState } from 'react'
 import EmptyState from '../../components/ui/EmptyState'
 import { DAY_STATUS, DAY_TYPE_LABELS } from './computeTimesheet'
 import { formatMinutes, formatShortDayLabel } from './workTime'
-
-const STATUS_LABELS = {
-  [DAY_STATUS.SIN_FICHAJES]: 'Sin fichajes',
-  [DAY_STATUS.OK]: 'Completo',
-  [DAY_STATUS.INCOMPLETO]: 'Incompleto',
-  [DAY_STATUS.EN_CURSO]: 'En curso',
-}
-
-function dayStatusLabel(day) {
-  if (day.paidHolidayMinutes > 0 && day.status === DAY_STATUS.SIN_FICHAJES) return 'Feriado pago'
-  if (day.paidHolidayMinutes > 0 && day.status === DAY_STATUS.OK) return 'Feriado pago + trabajado'
-  return STATUS_LABELS[day.status]
-}
+import { formatDayTimes } from './weeklyReportXlsx'
 
 const HEADER_CLASS ='font-label-md text-label-md text-on-surface-variant uppercase py-sm px-sm'
 const CELL_CLASS = 'font-body-md text-body-md text-on-surface py-sm px-sm'
@@ -26,7 +14,8 @@ function DayDetail({ days }) {
         <tr className="border-b border-outline-variant">
           <th className={HEADER_CLASS}>Día</th>
           <th className={HEADER_CLASS}>Tipo</th>
-          <th className={HEADER_CLASS}>Estado</th>
+          <th className={HEADER_CLASS}>Entrada</th>
+          <th className={HEADER_CLASS}>Salida</th>
           <th className={HEADER_CLASS}>Normales</th>
           <th className={HEADER_CLASS}>Al 50%</th>
           <th className={HEADER_CLASS}>Al 100%</th>
@@ -34,17 +23,23 @@ function DayDetail({ days }) {
         </tr>
       </thead>
       <tbody>
-        {days.map((day) => (
-          <tr key={day.dateKey} className="border-b border-outline-variant/50">
-            <td className={CELL_CLASS}>{formatShortDayLabel(day.dateKey)}</td>
-            <td className={CELL_CLASS}>{DAY_TYPE_LABELS[day.dayType]}</td>
-            <td className={`${CELL_CLASS} ${day.status === DAY_STATUS.INCOMPLETO ? 'text-error' : ''}`}>{dayStatusLabel(day)}</td>
-            <td className={CELL_CLASS}>{formatMinutes(day.normalMinutes)}</td>
-            <td className={CELL_CLASS}>{formatMinutes(day.extra50Minutes)}</td>
-            <td className={CELL_CLASS}>{formatMinutes(day.extra100Minutes)}</td>
-            <td className={CELL_CLASS}>{formatMinutes(day.totalMinutes)}</td>
-          </tr>
-        ))}
+        {days.map((day) => {
+          const { entradas, salidas } = formatDayTimes(day)
+          // El dia incompleto no suma: sus horarios quedan en rojo.
+          const timesClass = `${CELL_CLASS} ${day.status === DAY_STATUS.INCOMPLETO ? 'text-error' : ''}`
+          return (
+            <tr key={day.dateKey} className="border-b border-outline-variant/50">
+              <td className={CELL_CLASS}>{formatShortDayLabel(day.dateKey)}</td>
+              <td className={CELL_CLASS}>{DAY_TYPE_LABELS[day.dayType]}</td>
+              <td className={timesClass}>{entradas || '—'}</td>
+              <td className={timesClass}>{salidas || '—'}</td>
+              <td className={CELL_CLASS}>{formatMinutes(day.normalMinutes)}</td>
+              <td className={CELL_CLASS}>{formatMinutes(day.extra50Minutes)}</td>
+              <td className={CELL_CLASS}>{formatMinutes(day.extra100Minutes)}</td>
+              <td className={CELL_CLASS}>{formatMinutes(day.totalMinutes)}</td>
+            </tr>
+          )
+        })}
       </tbody>
     </table>
   )

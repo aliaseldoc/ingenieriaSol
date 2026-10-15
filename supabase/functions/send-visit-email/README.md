@@ -1,15 +1,19 @@
 # Mails de la app (`send-visit-email`)
 
-La app manda dos mails, los dos al cliente y siempre disparados por una persona
-(administrativo o supervisor), nunca solos:
+Esta función manda dos mails, los dos al cliente y siempre disparados por una
+persona (administrativo o supervisor), nunca solos:
 
 | Mail | Lo dispara | Lo arma |
 |---|---|---|
 | Aviso de visita programada | Botón en la hoja de ruta | `sendNotificationEmails()` |
 | Resultados de la visita | Botón en una visita aprobada | `sendResultsEmail()` |
 
-El HTML de los dos vive en `plantillas.ts`, en este mismo directorio. **Es el
-único lugar**: no hay copia en el panel de ningún proveedor.
+Hay un tercer mail, el **reporte semanal de horas**, que manda otra función
+(`cierre-semanal`) al dueño y al contador; ver `FICHAJE.md`.
+
+El HTML de los tres vive en `../_shared/plantillas.ts`, y el envío por Brevo en
+`../_shared/brevo.ts`: las dos funciones los comparten. **Es el único lugar**:
+no hay copia en el panel de ningún proveedor.
 
 ## Por qué Brevo y no EmailJS
 
@@ -85,5 +89,6 @@ se ve feo (`MERCEDES &amp; BENZ`); no escapar es un agujero de seguridad.
 ## Si hay que cambiar de proveedor
 
 Todo el contacto con Brevo está en una sola función, `sendEmail()` en
-`index.ts`: arma el pedido con destinatario, asunto y HTML. Cambiar de proveedor
-es reescribir esa función y los secrets; las plantillas y la lógica no se tocan.
+`../_shared/brevo.ts`: arma el pedido con destinatarios, asunto, HTML y
+adjuntos, y la usan las dos funciones que mandan mail. Cambiar de proveedor es
+reescribir esa función y los secrets; las plantillas y la lógica no se tocan.

@@ -140,8 +140,10 @@ export async function flushPendingWrites({ onProgress } = {}) {
     try {
       fresh = await getVisitById(entry.visitId)
     } catch {
-      // La visita ya no es visible para este tecnico (ej. reasignada): se
-      // trata igual que un conflicto, no como exito silencioso.
+      // No se pudo releer (ej. la visita se elimino): se trata igual que un
+      // conflicto, no como exito silencioso. Una visita que reasignaron a
+      // otro tecnico se sigue pudiendo leer (0030), pero su guardado no se
+      // aplico y la comparacion de estado y fecha de abajo lo marca igual.
       fresh = null
     }
 

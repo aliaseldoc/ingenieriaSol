@@ -2,11 +2,12 @@ import { useState } from 'react'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import StatusChip from '../../components/ui/StatusChip'
-import { LOCATION_ERROR_LABELS, PUNCH_SOURCE_LABELS, PUNCH_TYPE_LABELS } from '../../lib/constants'
+import { LOCATION_ERROR_LABELS, LOCATION_STATUS, PUNCH_SOURCE, PUNCH_SOURCE_LABELS, PUNCH_TYPE_LABELS } from '../../lib/constants'
 import { addManualPunch, correctPunchTime, voidPunch } from '../../api/timePunches'
-import { DAY_STATUS, DAY_TYPE_LABELS, PUNCH_ISSUE_LABELS } from './computeTimesheet'
+import { setLunchOverride } from '../../api/lunchOverrides'
+import { DAY_STATUS, DAY_TYPE, DAY_TYPE_LABELS, LUNCH_SOURCE, PUNCH_ISSUE_LABELS } from './computeTimesheet'
 import { getPunchFlags } from './punchFlags'
-import { formatDistance, mapsUrl } from './geo'
+import { formatDistance } from './geo'
 import { formatMinutes, formatShortDayLabel, toTimeString, zonedToInstant } from './workTime'
 import PunchCorrectionForm, { CORRECTION_MODE } from './PunchCorrectionForm'
 
@@ -38,8 +39,55 @@ function HoursSummary({ day }) {
       </dl>
       {day.paidHolidayMinutes > 0 && (
         <p className="font-body-sm text-body-sm text-secondary">
-          Feriado pago: las horas normales incluyen {formatMinutes(day.paidHolidayMinutes)} por el feriado, se trabaje o no. Lo
-          trabajado ese día se paga aparte, al 100%.
+          Feriado pago: las horas normales incluyen {formatMinutes(day.paidHolidayMinutes)}, la jornada de ese día, se trabaje o
+          no. Lo trabajado ese día se paga aparte, al 100%.
+        </p>
+      )}
+      {day.earlyStartMinutes > 0 && (
+        <p className="font-body-sm text-body-sm text-on-surface-variant">
+          Entró antes de las 08:00: {formatMinutes(day.earlyStartMinutes)} no se cuentan, porque la jornada arranca a las 08:00.
+        </p>
+      )}
+      <p className="font-body-sm text-body-sm text-on-surface-variant">
+        Normales y al 50% salen de la semana: lo que pasa de 44 h va al 50%, en el día en que se superan.
+      </p>
+    </div>
+  )
+}
+
+const LUNCH_SOURCE_TEXT = {
+  [LUNCH_SOURCE.SUPERVISOR]: 'Lo marcó el supervisor.',
+  [LUNCH_SOURCE.EMPLEADO]: 'Lo declaró el empleado al registrar la salida.',
+  [LUNCH_SOURCE.DEFAULT]: 'Nadie lo marcó: se toma que almorzó.',
+}
+
+// Solo en los dias habiles con fichajes: el sabado, el domingo y el feriado
+// no llevan descuento de almuerzo. Lo que marca el supervisor gana a lo que
+// declaro el empleado, y sirve para los de fabrica, que fichan solo con el
+// reloj.
+function LunchToggle({ day, disabled, saving, errorMessage, onChange }) {
+  return (
+    <div className="space-y-xs border border-outline-variant rounded-lg p-sm">
+      <label
+        className={`inline-flex items-center gap-sm font-label-md text-label-md text-on-surface ${
+          disabled || saving ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={day.lunchTaken}
+          disabled={disabled || saving}
+          onChange={(event) => onChange(event.target.checked)}
+          className="w-[1.8rem] h-[1.8rem] accent-secondary"
+        />
+        Almorzó (se descuenta 1 h)
+      </label>
+      <p className="font-body-sm text-body-sm text-on-surface-variant">
+        {saving ? 'Guardando…' : LUNCH_SOURCE_TEXT[day.lunchSource]}
+      </p>
+      {errorMessage && (
+        <p role="alert" className="font-body-sm text-body-sm text-error">
+          {errorMessage}
         </p>
       )}
     </div>
@@ -66,12 +114,17 @@ function PunchItem({ punch, settings, canEdit, onCorrect, onVoid }) {
           {flags.afterClose && <StatusChip label="Llegó con la semana cerrada" tone="warning" variant="tag" />}
           {flags.outOfRange && <StatusChip label={`Fichado fuera de rango · ${formatDistance(flags.range.distanceMeters)}`} tone="error" variant="tag" />}
         </div>
-        {punch.latitude != null && punch.longitude != null && (
+        {/* Solo la distancia: la ubicacion de la persona no se guarda. Fuera
+            de rango ya la muestra la etiqueta roja de arriba. */}
+        {flags.range && !flags.outOfRange && (
           <p className="font-body-sm text-body-sm text-on-surface-variant">
-            <a href={mapsUrl(punch.latitude, punch.longitude)} target="_blank" rel="noopener noreferrer" className="text-secondary underline">
-              Ver en mapa
-            </a>
+            A {formatDistance(flags.range.distanceMeters)} de la fábrica
             {punch.accuracy_m != null && ` · precisión ±${Math.round(punch.accuracy_m)} m`}
+          </p>
+        )}
+        {punch.source === PUNCH_SOURCE.APP && punch.location_status === LOCATION_STATUS.OK && !flags.range && (
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
+            Ubicación registrada, sin distancia: la fábrica no tenía ubicación cargada al fichar.
           </p>
         )}
         {flags.withoutLocation && punch.location_error && (
@@ -101,11 +154,27 @@ export default function DayPunchesModal({ row, day, settings, weekClosed, actorI
   const [correction, setCorrection] = useState(null) // { mode, punch }
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [savingLunch, setSavingLunch] = useState(false)
+  const [lunchError, setLunchError] = useState('')
 
   function handleClose() {
     setCorrection(null)
     setErrorMessage('')
+    setLunchError('')
     onClose()
+  }
+
+  async function handleLunchChange(lunchTaken) {
+    setSavingLunch(true)
+    setLunchError('')
+    try {
+      await setLunchOverride({ employeeId: row.employeeId, workDate: day.dateKey, lunchTaken })
+      await onChanged()
+    } catch (error) {
+      setLunchError(error?.message || 'No se pudo guardar el almuerzo.')
+    } finally {
+      setSavingLunch(false)
+    }
   }
 
   function startCorrection(mode, punch = null) {
@@ -188,6 +257,10 @@ export default function DayPunchesModal({ row, day, settings, weekClosed, actorI
           )}
 
           <HoursSummary day={day} />
+
+          {day.dayType === DAY_TYPE.HABIL && day.punches.length > 0 && (
+            <LunchToggle day={day} disabled={!canEdit} saving={savingLunch} errorMessage={lunchError} onChange={handleLunchChange} />
+          )}
 
           <section>
             <div className="list-title-bar flex items-center justify-between gap-sm mb-sm px-md py-sm rounded">

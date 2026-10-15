@@ -2,6 +2,7 @@
 // y el perfil del usuario, para que el tecnico pueda seguir viendo sus datos
 // sin conexion. La cola de escrituras pendientes vive en syncQueue.js.
 import { STORES, getAll, getByKey, putValue, putMany, clearStore, deleteByKey } from './db'
+import { isAssignedTo } from '../lib/visitAccess'
 import {
   VISIT_STATUS,
   TECHNICIAN_EDITABLE_STATUSES,
@@ -115,12 +116,15 @@ export async function recordRouteSheetDownload(technicianId, count) {
 }
 
 // Si el cache pertenece a otro tecnico (tablet compartida entre turnos), se
-// trata como vacio en vez de mostrar datos ajenos.
+// trata como vacio en vez de mostrar datos ajenos. Y de lo guardado se
+// devuelven solo sus visitas: desde la 0030 puede abrir las de otros, y una
+// que haya quedado guardada no tiene que aparecer en su Mi Plan sin conexion.
 export async function getCachedVisits(technicianId) {
   if (!technicianId) return []
   const cachedTechnicianId = await getMeta('cachedTechnicianId')
   if (cachedTechnicianId !== technicianId) return []
-  return getAll(STORES.VISITS)
+  const visits = await getAll(STORES.VISITS)
+  return visits.filter((visit) => isAssignedTo(visit, technicianId))
 }
 
 export async function getCachedVisit(visitId) {

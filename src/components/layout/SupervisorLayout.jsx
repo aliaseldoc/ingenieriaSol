@@ -1,5 +1,5 @@
 import RoleLayoutShell from './RoleLayoutShell'
-import { FICHAJE_HABILITADO } from '../../lib/constants'
+import { FICHAJE_HABILITADO } from '../../lib/featureFlags'
 
 const NAV_ITEMS = [
   { to: '/supervisor', end: true, icon: 'dashboard', label: 'Panel de Control' },

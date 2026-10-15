@@ -18,6 +18,8 @@ import {
 import { VISIT_COLOR_CLASSES, VISIT_COLOR_LABELS, getRouteSheetColor } from '../../lib/visitColor'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
+import EmptyState from '../../components/ui/EmptyState'
+import { isNetworkError } from '../../offline/network'
 import WeekCalendar from '../../features/calendar/WeekCalendar'
 import MonthCalendar from '../../features/calendar/MonthCalendar'
 import DayDetailModal from '../../features/calendar/DayDetailModal'
@@ -29,7 +31,11 @@ import BulkAssignModal from '../../features/calendar/BulkAssignModal'
 import MonthYearPicker from '../../features/calendar/MonthYearPicker'
 import VisitSummaryModal from '../../features/calendar/VisitSummaryModal'
 
-export default function CalendarPage() {
+// Con readOnly es el calendario del tecnico: ve la planificacion de todos y
+// entra a hojas, visitas y fichas, pero no crea, asigna, replica ni arrastra.
+// Tampoco se muestran las hojas sin asignar ni se descargan las listas que
+// solo usan los modales de edicion.
+export default function CalendarPage({ readOnly = false }) {
   const { profile } = useAuth()
   const [viewMode, setViewMode] = useState('mes') // 'semana' | 'mes'
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
@@ -42,15 +48,18 @@ export default function CalendarPage() {
   const rangeStart = viewMode === 'mes' ? gridStart : weekStart
   const rangeEnd = viewMode === 'mes' ? gridEnd : weekEnd
 
-  const { data: unassignedRouteSheets, loading: unassignedLoading, reload: reloadUnassigned } = useUnassignedRouteSheets()
-  const { data: rangeRouteSheets, loading: rangeLoading, reload: reloadRange } = useRouteSheetsInRange(
-    toISODateString(rangeStart),
-    toISODateString(rangeEnd)
-  )
-  const { technicians } = useTechnicians()
-  const { vehicles } = useVehicles()
-  const { equipment } = useEquipment()
-  const { clients } = useClients()
+  const canEdit = !readOnly
+  const { data: unassignedRouteSheets, loading: unassignedLoading, reload: reloadUnassigned } = useUnassignedRouteSheets(canEdit)
+  const {
+    data: rangeRouteSheets,
+    loading: rangeLoading,
+    error: rangeError,
+    reload: reloadRange,
+  } = useRouteSheetsInRange(toISODateString(rangeStart), toISODateString(rangeEnd))
+  const { technicians } = useTechnicians(canEdit)
+  const { vehicles } = useVehicles(canEdit)
+  const { equipment } = useEquipment(canEdit)
+  const { clients } = useClients(canEdit)
 
   const [selectedRouteSheet, setSelectedRouteSheet] = useState(null)
   const [summaryRouteSheet, setSummaryRouteSheet] = useState(null)
@@ -117,18 +126,40 @@ export default function CalendarPage() {
 
   if (unassignedLoading || rangeLoading) return <Spinner label="Cargando calendario…" />
 
-  // Tanto Mes como Semana ajustan su alto al espacio real disponible: en
-  // meses de 5 semanas el calendario llena el 100% sin scroll, en meses de
-  // 6 semanas el calendario crece por encima de ese alto (sin recortarse ni
-  // scrollear internamente, ver MonthCalendar.jsx) y es la PAGINA la que
-  // scrollea para verlo completo — por eso aca NO hay overflow-hidden. Al
-  // ser ambas vistas de alto acotado, el aside de "Hojas de Ruta Sin
-  // Asignar" puede usar el "stretch" por defecto de flexbox para igualar
-  // siempre el alto del calendario, sin JS.
+  // Si la consulta falla (sin senal, 4G debil) el calendario no se muestra
+  // vacio como si no hubiera nada planificado.
+  if (rangeError) {
+    return (
+      <div>
+        <h1 className="font-headline-lg text-headline-lg text-on-surface mb-lg">Planificación de Rutas</h1>
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col items-center pb-lg">
+          <EmptyState
+            icon="cloud_off"
+            title="No se pudo cargar el calendario"
+            description={isNetworkError(rangeError) ? 'Revisá la conexión y volvé a intentar.' : 'Volvé a intentar en un momento.'}
+          />
+          <Button variant="secondary-outline" icon="refresh" onClick={reloadRange}>
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Semana ocupa justo el alto disponible y cada dia scrollea por dentro.
+  // Mes ocupa como minimo ese alto: si sus filas necesitan mas (meses de 6
+  // semanas, dias cargados o pantallas bajas) el calendario crece sin
+  // recortarse ni scrollear internamente (ver MonthCalendar.jsx) y es la
+  // PAGINA la que scrollea — por eso en Mes el alto es minimo y aca NO hay
+  // overflow-hidden.
+  // El aside de "Hojas de Ruta Sin Asignar" iguala siempre el alto del
+  // calendario, sin JS: con contain:size su lista no le suma alto a la fila,
+  // asi la fila mide lo que el calendario y el "stretch" por defecto de
+  // flexbox estira el aside a ese alto. La lista scrollea por dentro.
   // 12.8rem = 6.4rem del TopBar + 3.2rem+3.2rem del padding del <main> (ver
   // RoleLayoutShell.jsx), no un numero adivinado.
   return (
-    <div className="flex flex-col lg:h-[calc(100vh-12.8rem)]">
+    <div className={`flex flex-col ${viewMode === 'mes' ? 'lg:min-h-[calc(100vh-12.8rem)]' : 'lg:h-[calc(100vh-12.8rem)]'}`}>
       <div className="shrink-0 flex flex-col gap-sm mb-sm">
         <div>
           <h1 className="font-headline-lg text-headline-lg text-on-surface mb-xs">Planificación de Rutas</h1>
@@ -148,21 +179,23 @@ export default function CalendarPage() {
             </Button>
             <Button variant="secondary-outline" onClick={goToToday}>Hoy</Button>
           </div>
-          <div className="flex flex-wrap items-center gap-sm">
-            {viewMode === 'mes' && (
-              <Button
-                variant="secondary-outline"
-                icon="content_copy"
-                disabled={currentMonthRouteSheets.length === 0}
-                onClick={() => setReplicating(true)}
-              >
-                Replicar Planificación al Mes Siguiente
+          {canEdit && (
+            <div className="flex flex-wrap items-center gap-sm">
+              {viewMode === 'mes' && (
+                <Button
+                  variant="secondary-outline"
+                  icon="content_copy"
+                  disabled={currentMonthRouteSheets.length === 0}
+                  onClick={() => setReplicating(true)}
+                >
+                  Replicar Planificación al Mes Siguiente
+                </Button>
+              )}
+              <Button variant="primary" icon="add" onClick={() => setFormModal({ mode: 'create', initialDate: null })}>
+                Nueva Hoja de Ruta
               </Button>
-            )}
-            <Button variant="primary" icon="add" onClick={() => setFormModal({ mode: 'create', initialDate: null })}>
-              Nueva Hoja de Ruta
-            </Button>
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -176,13 +209,15 @@ export default function CalendarPage() {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-md flex-1 lg:min-h-0">
-        <aside className="order-2 lg:order-1 lg:w-[28rem] shrink-0 max-h-[24rem] lg:max-h-none min-h-0 overflow-hidden lg:pr-xs">
-          <UnassignedList
-            routeSheets={sidebarRouteSheets}
-            onSelectRouteSheet={setSelectedRouteSheet}
-            onOpenBulkAssign={() => setBulkAssigning(true)}
-          />
-        </aside>
+        {canEdit && (
+          <aside className="order-2 lg:order-1 lg:w-[28rem] shrink-0 max-h-[24rem] lg:max-h-none min-h-0 overflow-hidden lg:pr-xs lg:[contain:size] flex flex-col">
+            <UnassignedList
+              routeSheets={sidebarRouteSheets}
+              onSelectRouteSheet={setSelectedRouteSheet}
+              onOpenBulkAssign={() => setBulkAssigning(true)}
+            />
+          </aside>
+        )}
 
         <div className="order-1 lg:order-2 flex-1 min-w-0 flex flex-col lg:min-h-0">
           <div className="shrink-0 flex items-center justify-between mb-sm">
@@ -205,8 +240,8 @@ export default function CalendarPage() {
               <WeekCalendar
                 weekStart={weekStart}
                 routeSheets={rangeRouteSheets ?? []}
-                onSelectRouteSheet={setSelectedRouteSheet}
-                onDropRouteSheet={handleDropRouteSheet}
+                onSelectRouteSheet={canEdit ? setSelectedRouteSheet : setSummaryRouteSheet}
+                onDropRouteSheet={canEdit ? handleDropRouteSheet : null}
                 onSelectDay={setSelectedDate}
               />
             )}
@@ -222,77 +257,94 @@ export default function CalendarPage() {
           setSelectedDate(null)
           setSummaryRouteSheet(routeSheet)
         }}
-        onNewRouteSheet={(date) => {
-          setSelectedDate(null)
-          setFormModal({ mode: 'create', initialDate: toISODateString(date) })
-        }}
+        onNewRouteSheet={
+          canEdit
+            ? (date) => {
+                setSelectedDate(null)
+                setFormModal({ mode: 'create', initialDate: toISODateString(date) })
+              }
+            : null
+        }
       />
 
       <VisitSummaryModal
         routeSheet={summaryRouteSheet}
         onClose={() => setSummaryRouteSheet(null)}
-        onAssign={(routeSheet) => {
-          setSummaryRouteSheet(null)
-          setSelectedRouteSheet(routeSheet)
-        }}
-        onEdit={(routeSheet) => {
-          setSummaryRouteSheet(null)
-          setFormModal({ mode: 'edit', routeSheet })
-        }}
+        canNotify={canEdit}
+        onAssign={
+          canEdit
+            ? (routeSheet) => {
+                setSummaryRouteSheet(null)
+                setSelectedRouteSheet(routeSheet)
+              }
+            : null
+        }
+        onEdit={
+          canEdit
+            ? (routeSheet) => {
+                setSummaryRouteSheet(null)
+                setFormModal({ mode: 'edit', routeSheet })
+              }
+            : null
+        }
       />
 
-      <AssignmentPopover
-        routeSheet={selectedRouteSheet}
-        technicians={technicians}
-        vehicles={vehicles}
-        onClose={() => setSelectedRouteSheet(null)}
-        onSaved={() => {
-          setSelectedRouteSheet(null)
-          reloadAll()
-        }}
-      />
+      {canEdit && (
+        <>
+          <AssignmentPopover
+            routeSheet={selectedRouteSheet}
+            technicians={technicians}
+            vehicles={vehicles}
+            onClose={() => setSelectedRouteSheet(null)}
+            onSaved={() => {
+              setSelectedRouteSheet(null)
+              reloadAll()
+            }}
+          />
 
-      <RouteSheetFormModal
-        open={Boolean(formModal)}
-        mode={formModal?.mode ?? 'create'}
-        routeSheet={formModal?.mode === 'edit' ? formModal.routeSheet : null}
-        clients={clients}
-        equipment={equipment}
-        createdBy={profile.id}
-        initialDate={formModal?.mode === 'create' ? formModal.initialDate : null}
-        onClose={() => setFormModal(null)}
-        onSaved={() => {
-          setFormModal(null)
-          reloadAll()
-        }}
-        onDeleted={() => {
-          setFormModal(null)
-          reloadAll()
-        }}
-      />
+          <RouteSheetFormModal
+            open={Boolean(formModal)}
+            mode={formModal?.mode ?? 'create'}
+            routeSheet={formModal?.mode === 'edit' ? formModal.routeSheet : null}
+            clients={clients}
+            equipment={equipment}
+            createdBy={profile.id}
+            initialDate={formModal?.mode === 'create' ? formModal.initialDate : null}
+            onClose={() => setFormModal(null)}
+            onSaved={() => {
+              setFormModal(null)
+              reloadAll()
+            }}
+            onDeleted={() => {
+              setFormModal(null)
+              reloadAll()
+            }}
+          />
 
-      <ReplicatePlanModal
-        open={replicating}
-        routeSheets={currentMonthRouteSheets}
-        createdBy={profile.id}
-        onClose={() => setReplicating(false)}
-        onReplicated={() => {
-          setReplicating(false)
-          reloadAll()
-        }}
-      />
+          <ReplicatePlanModal
+            open={replicating}
+            routeSheets={currentMonthRouteSheets}
+            createdBy={profile.id}
+            onClose={() => setReplicating(false)}
+            onReplicated={() => {
+              setReplicating(false)
+              reloadAll()
+            }}
+          />
 
-      <BulkAssignModal
-        open={bulkAssigning}
-        routeSheets={sidebarRouteSheets}
-        technicians={technicians}
-        vehicles={vehicles}
-        onClose={() => setBulkAssigning(false)}
-        onSaved={() => {
-          setBulkAssigning(false)
-          reloadAll()
-        }}
-      />
+          <BulkAssignModal
+            open={bulkAssigning}
+            routeSheets={sidebarRouteSheets}
+            technicians={technicians}
+            vehicles={vehicles}
+            onClose={() => setBulkAssigning(false)}
+            onSaved={() => {
+              setBulkAssigning(false)
+              reloadAll()
+            }}
+          />
+        </>
+      )}
     </div>
   )
 }

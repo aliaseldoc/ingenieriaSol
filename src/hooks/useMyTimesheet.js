@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getEmployeeByProfileId } from '../api/employees'
 import { listPunchesInRange } from '../api/timePunches'
 import { listHolidaysInRange } from '../api/holidays'
-import { computeEmployeeDays, sumDays, weekPunchRange } from '../features/timesheet/computeTimesheet'
+import { listLunchOverridesInRange } from '../api/lunchOverrides'
+import { computeEmployeeDays, lunchOverridesByDay, sumDays, weekPunchRange } from '../features/timesheet/computeTimesheet'
 import { addDaysToKey, weekDayKeys } from '../features/timesheet/workTime'
 import { isNetworkError } from '../offline/network'
 import { usePendingPunches } from '../offline/useOfflineSync'
@@ -12,7 +13,7 @@ import { cacheMyEmployee, getCachedMyEmployee, cacheMyWeek, getCachedMyWeek } fr
 // usa lo ultimo descargado y se suman los fichajes que siguen en la cola.
 export function useMyTimesheet(profileId, weekStartKey) {
   const [employee, setEmployee] = useState(undefined) // undefined = cargando, null = sin legajo
-  const [weekData, setWeekData] = useState({ loading: true, punches: [], holidayKeys: [], fromCache: false, cachedAt: null })
+  const [weekData, setWeekData] = useState({ loading: true, punches: [], holidayKeys: [], lunchOverrides: [], fromCache: false, cachedAt: null })
   const pendingEntries = usePendingPunches()
   const latestRequest = useRef(0)
 
@@ -42,14 +43,15 @@ export function useMyTimesheet(profileId, weekStartKey) {
     latestRequest.current = requestId
     setWeekData((previous) => ({ ...previous, loading: true }))
     try {
-      const [punches, holidays] = await Promise.all([
+      const [punches, holidays, lunchOverrides] = await Promise.all([
         listPunchesInRange({ ...weekPunchRange(weekStartKey), employeeId }),
         listHolidaysInRange(addDaysToKey(weekStartKey, -1), addDaysToKey(weekStartKey, 7)),
+        listLunchOverridesInRange(weekStartKey, addDaysToKey(weekStartKey, 6), employeeId),
       ])
       const holidayKeys = holidays.map((holiday) => holiday.date)
-      await cacheMyWeek(employeeId, weekStartKey, punches, holidayKeys)
+      await cacheMyWeek(employeeId, weekStartKey, punches, holidayKeys, lunchOverrides)
       if (latestRequest.current !== requestId) return
-      setWeekData({ loading: false, punches, holidayKeys, fromCache: false, cachedAt: null })
+      setWeekData({ loading: false, punches, holidayKeys, lunchOverrides, fromCache: false, cachedAt: null })
     } catch (error) {
       const cached = isNetworkError(error) ? await getCachedMyWeek(employeeId, weekStartKey) : null
       if (latestRequest.current !== requestId) return
@@ -57,6 +59,7 @@ export function useMyTimesheet(profileId, weekStartKey) {
         loading: false,
         punches: cached?.punches ?? [],
         holidayKeys: cached?.holidayKeys ?? [],
+        lunchOverrides: cached?.lunchOverrides ?? [],
         fromCache: true,
         cachedAt: cached?.cachedAt ?? null,
       })
@@ -83,8 +86,14 @@ export function useMyTimesheet(profileId, weekStartKey) {
   }, [weekData.punches, pendingPunches])
 
   const days = useMemo(
-    () => computeEmployeeDays({ punches: allPunches, dayKeys: weekDayKeys(weekStartKey), holidayKeys: weekData.holidayKeys }),
-    [allPunches, weekStartKey, weekData.holidayKeys]
+    () =>
+      computeEmployeeDays({
+        punches: allPunches,
+        dayKeys: weekDayKeys(weekStartKey),
+        holidayKeys: weekData.holidayKeys,
+        lunchOverrides: lunchOverridesByDay(weekData.lunchOverrides),
+      }),
+    [allPunches, weekStartKey, weekData.holidayKeys, weekData.lunchOverrides]
   )
 
   return {
