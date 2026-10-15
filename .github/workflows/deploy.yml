@@ -29,6 +29,9 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_STAFF_EMAIL_DOMAIN: ${{ secrets.VITE_STAFF_EMAIL_DOMAIN }}
+          # Modulo de fichaje en funcionamiento desde el 15/10/2026 (ver
+          # src/lib/featureFlags.js). En false vuelve a ocultarse.
+          VITE_FICHAJE_HABILITADO: 'true'
       # GitHub Pages no soporta ruteo del lado del cliente: si alguien entra
       # directo a una sub-ruta (o refresca la pagina) devuelve 404. Servir el
       # mismo index.html como 404.html es el truco estandar para que React
