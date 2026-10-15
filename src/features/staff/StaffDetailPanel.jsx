@@ -9,7 +9,7 @@ import { ROLE_LABELS } from '../../lib/constants'
 import { FICHAJE_HABILITADO } from '../../lib/featureFlags'
 import { formatDate } from '../../lib/dateUtils'
 import { updateProfile } from '../../api/profiles'
-import { deleteStaffMember, getStaffDeletionPreview, renameStaffUsername } from '../../api/staff'
+import { deleteStaffMember, getStaffDeletionPreview, renameStaffUsername, usernameProblem } from '../../api/staff'
 import { describeEmployeeError, getEmployeeByProfileId, isClockPinTaken, setClockPinForProfile } from '../../api/employees'
 import { normalizeClockPin } from '../timesheet/clockFileParser'
 
@@ -158,12 +158,21 @@ export default function StaffDetailPanel({ staff, onClose, onUpdated, onDeleted 
     }
 
     const normalizedUsername = username.trim().toLowerCase()
-    if (normalizedUsername !== staff.username) {
-      await renameStaffUsername(staff.id, normalizedUsername)
+    try {
+      if (normalizedUsername !== staff.username) {
+        const usernameError = usernameProblem(normalizedUsername)
+        if (usernameError) {
+          setFormError(usernameError)
+          return
+        }
+        await renameStaffUsername(staff.id, normalizedUsername)
+      }
+      const updated = await updateProfile(staff.id, profileFields)
+      stopEditing()
+      onUpdated({ ...staff, ...updated })
+    } catch (error) {
+      setFormError(error.message || 'No se pudieron guardar los cambios.')
     }
-    const updated = await updateProfile(staff.id, profileFields)
-    stopEditing()
-    onUpdated({ ...staff, ...updated })
   }
 
   // Uno no se puede eliminar a si mismo (la base tambien lo impide).
