@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/tecnico', end: true, icon: 'calendar_month', label: 'Mi Plan' },
   // Otro icono que Mi Plan: en el celular la barra muestra solo iconos.
   { to: '/tecnico/calendario', icon: 'calendar_view_month', label: 'Calendario' },
+  { to: '/tecnico/clientes', icon: 'domain', label: 'Clientes' },
   { to: '/tecnico/historial', icon: 'history', label: 'Mi Historial' },
   ...(FICHAJE_HABILITADO ? [{ to: '/tecnico/fichaje', icon: 'fingerprint', label: 'Fichaje' }] : []),
 ]
