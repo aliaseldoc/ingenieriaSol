@@ -421,11 +421,15 @@ export const VISIT_CHANGE_TO_EQUIPMENT_TRACKING = [
 // Jornada: lunes a jueves de 8 a 18 (9 h netas) y viernes de 8 a 17 (8 h
 // netas), 44 h por semana. Lo que pasa de 44 h en la semana va al 50%; la
 // noche (22 a 06), el sabado desde las 13, el domingo y el feriado trabajado
-// van siempre al 100%. En un dia habil, entrar antes de las 08 no suma: se
-// cuenta desde las 08 (la madrugada, antes de las 06, si se paga).
+// van siempre al 100%. En un dia habil, entrar entre las 07:20 y las 08 no
+// suma: se cuenta desde las 08. Hasta las 07:19 se cuenta desde la hora real.
 export const TIMESHEET_RULES = {
   timeZone: 'America/Argentina/Buenos_Aires',
   workdayStartTime: '08:00',
+  // Una entrada de un dia habil desde esta hora y antes de workdayStartTime
+  // cuenta desde workdayStartTime; antes de esta hora, desde la hora real
+  // (pedido del 21/10/2026; hasta entonces la ventana empezaba a las 06:00).
+  earlyEntryFromTime: '07:20',
   // Fin de la jornada de cada dia habil (1 = lunes ... 5 = viernes). Un corte
   // entre dos fichajes cuenta como pausa del almuerzo solo si cae entero
   // dentro de la jornada.

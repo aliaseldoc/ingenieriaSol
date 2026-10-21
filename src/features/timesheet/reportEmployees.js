@@ -20,7 +20,8 @@ export function clocksIn(employee) {
 
 // Entra el personal activo que ficha y cualquiera (incluso inactivo) que
 // tenga fichajes esa semana: alguien dado de baja a mitad de semana igual
-// tiene que cobrar lo que trabajo.
+// tiene que cobrar lo que trabajo. Quien tiene horas fijas no ficha: entra
+// mientras su legajo este activo.
 export function selectReportEmployees({ employees, punches, weekStartKey }) {
   const dayKeys = new Set(weekDayKeys(weekStartKey))
   const employeesWithPunches = new Set(
@@ -28,7 +29,21 @@ export function selectReportEmployees({ employees, punches, weekStartKey }) {
       .filter((punch) => !punch.voided_at && dayKeys.has(toDateKey(new Date(punch.punched_at).getTime())))
       .map((punch) => punch.employee_id)
   )
-  return employees.filter((employee) => (employee.active && clocksIn(employee)) || employeesWithPunches.has(employee.id))
+  return employees.filter((employee) => {
+    if (employee.fixed_weekly_minutes) return employee.active
+    return (employee.active && clocksIn(employee)) || employeesWithPunches.has(employee.id)
+  })
+}
+
+// Orden del reporte (mail, Excel y pantalla): el de la liquidacion del
+// contador (employees.report_position). Quien no tiene lugar va al final, por
+// nombre; las fotos de semanas cerradas antes de que existiera el lugar salen
+// por nombre, como siempre.
+export function compareReportRows(a, b) {
+  const positionA = a.reportPosition ?? Number.MAX_SAFE_INTEGER
+  const positionB = b.reportPosition ?? Number.MAX_SAFE_INTEGER
+  if (positionA !== positionB) return positionA - positionB
+  return a.fullName.localeCompare(b.fullName, 'es')
 }
 
 // lunchOverrides: filas de timesheet_lunch_overrides (lo que marco el

@@ -155,15 +155,15 @@ export function pairPunches(punches, { now = Date.now(), rules = TIMESHEET_RULES
 }
 
 // Paso 5b: la jornada arranca a las 08:00. En un dia habil, un tramo que
-// empieza entre las 06 y las 08 cuenta recien desde las 08: el fichaje se
-// guarda y se muestra con su hora, pero esos minutos no suman. Antes de las 06
-// es una urgencia de madrugada y se paga entera (la noche va al 100%); el
+// empieza entre las 07:20 y las 08 cuenta recien desde las 08: el fichaje se
+// guarda y se muestra con su hora, pero esos minutos no suman. Hasta las 07:19
+// cuenta desde la hora real (antes de las 06 es madrugada y va al 100%); el
 // sabado, el domingo y el feriado no tienen horario y cuentan desde que se
 // ficha. earlyMinutes son los minutos que no se cuentan, para mostrarlo.
 function clampEarlyStart(segment, holidays, rules) {
   const dateKey = toDateKey(segment.start)
   if (classifyDay(dateKey, holidays) !== DAY_TYPE.HABIL) return segment
-  const earlyWindowStart = zonedToInstant(dateKey, rules.nightEndTime)
+  const earlyWindowStart = zonedToInstant(dateKey, rules.earlyEntryFromTime)
   const workdayStart = zonedToInstant(dateKey, rules.workdayStartTime)
   if (segment.start < earlyWindowStart || segment.start >= workdayStart) return segment
   const start = Math.min(workdayStart, segment.end)
@@ -481,20 +481,28 @@ export function computeWeekReport({ employees, punches, weekStartKey, holidayKey
   }
 
   return employees.map((employee) => {
+    // Horas fijas (employees.fixed_weekly_minutes): no ficha. La semana le
+    // paga siempre esas horas como normales, sin mirar fichajes, feriados ni
+    // almuerzos; sus dias van en cero para que la grilla arme la fila igual.
+    const fixedWeeklyMinutes = employee.fixed_weekly_minutes ?? null
     const days = computeEmployeeDays({
-      punches: punchesByEmployee.get(employee.id) ?? [],
+      punches: fixedWeeklyMinutes ? [] : (punchesByEmployee.get(employee.id) ?? []),
       dayKeys,
-      holidayKeys,
+      holidayKeys: fixedWeeklyMinutes ? [] : holidayKeys,
       lunchOverrides: lunchOverridesByDay(overridesByEmployee.get(employee.id)),
       now,
       rules,
     })
+    const totals = sumDays(days)
     return {
       employeeId: employee.id,
       fullName: employee.full_name,
       clockPin: employee.clock_pin,
+      // Lugar en la liquidacion del contador: orden del mail y del Excel.
+      reportPosition: employee.report_position ?? null,
+      fixedWeeklyMinutes,
       days,
-      totals: sumDays(days),
+      totals: fixedWeeklyMinutes ? { ...totals, normalMinutes: fixedWeeklyMinutes, totalMinutes: fixedWeeklyMinutes } : totals,
     }
   })
 }
@@ -510,6 +518,8 @@ export function toWeekSnapshot(rows, weekStartKey) {
       employeeId: row.employeeId,
       fullName: row.fullName,
       clockPin: row.clockPin,
+      reportPosition: row.reportPosition ?? null,
+      fixedWeeklyMinutes: row.fixedWeeklyMinutes ?? null,
       totals: row.totals,
       days: row.days.map((day) => ({
         dateKey: day.dateKey,
