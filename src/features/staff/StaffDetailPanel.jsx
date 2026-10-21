@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import Modal from '../../components/ui/Modal'
+import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import StatusChip from '../../components/ui/StatusChip'
 import FormSection from '../../components/ui/FormSection'
@@ -9,7 +10,7 @@ import { ROLE_LABELS } from '../../lib/constants'
 import { FICHAJE_HABILITADO } from '../../lib/featureFlags'
 import { formatDate } from '../../lib/dateUtils'
 import { updateProfile } from '../../api/profiles'
-import { deleteStaffMember, getStaffDeletionPreview, renameStaffUsername, usernameProblem } from '../../api/staff'
+import { RESET_PASSWORD, deleteStaffMember, getStaffDeletionPreview, renameStaffUsername, resetStaffPassword, usernameProblem } from '../../api/staff'
 import { describeEmployeeError, getEmployeeByProfileId, isClockPinTaken, setClockPinForProfile } from '../../api/employees'
 import { normalizeClockPin } from '../timesheet/clockFileParser'
 
@@ -33,6 +34,52 @@ function toFormValues(staff, employee) {
     address: staff.address ?? '',
     clock_pin: employee?.clock_pin ?? '',
   }
+}
+
+// Campo "Contraseña" de la edicion: no se ve ni se escribe, solo se puede
+// volver a la inicial, y con confirmacion. Se aplica en el momento, aparte de
+// "Guardar Cambios". `state`: null, o { step: 'confirmar' | 'restaurando' |
+// 'lista', error }.
+function PasswordResetField({ fullName, state, onStart, onCancel, onConfirm }) {
+  const step = state?.step ?? null
+  return (
+    <div className="space-y-xs md:col-span-2">
+      <p className="font-label-sm text-label-sm text-on-surface">Contraseña</p>
+      {(step === null || step === 'lista') && (
+        <div className="flex flex-wrap items-center gap-sm">
+          <span className="font-body-md text-body-md text-on-surface-variant">••••••</span>
+          <Button variant="secondary-outline" icon="lock_reset" onClick={onStart}>
+            Restaurar
+          </Button>
+        </div>
+      )}
+      {(step === 'confirmar' || step === 'restaurando') && (
+        <div className="space-y-sm p-sm rounded-lg border border-outline-variant bg-surface-container-low">
+          <p className="font-body-md text-body-md text-on-surface">
+            La contraseña de {fullName} va a volver a ser <strong>{RESET_PASSWORD}</strong>. La que usa ahora deja de servir.
+          </p>
+          <div className="flex flex-wrap gap-sm">
+            <Button variant="secondary-outline" onClick={onCancel} disabled={step === 'restaurando'}>
+              Cancelar
+            </Button>
+            <Button variant="primary" icon="lock_reset" onClick={onConfirm} disabled={step === 'restaurando'}>
+              {step === 'restaurando' ? 'Restaurando…' : 'Restaurar contraseña'}
+            </Button>
+          </div>
+        </div>
+      )}
+      {step === 'lista' && (
+        <p role="status" className="font-body-sm text-body-sm text-secondary">
+          Listo: la contraseña volvió a ser {RESET_PASSWORD}.
+        </p>
+      )}
+      {state?.error && (
+        <p role="alert" className="font-body-sm text-body-sm text-error">
+          {state.error}
+        </p>
+      )}
+    </div>
+  )
 }
 
 // Advertencia antes de eliminar, armada con lo que realmente se pierde o
@@ -78,6 +125,8 @@ export default function StaffDetailPanel({ staff, onClose, onUpdated, onDeleted 
   const [deletion, setDeletion] = useState(null)
   // Legajo de fichaje vinculado al perfil (lo crea la base con el perfil).
   const [employee, setEmployee] = useState(null)
+  // Restaurar contrasena (ver PasswordResetField).
+  const [passwordReset, setPasswordReset] = useState(null)
 
   const staffId = staff?.id ?? null
 
@@ -85,6 +134,7 @@ export default function StaffDetailPanel({ staff, onClose, onUpdated, onDeleted 
     let isMounted = true
     setEmployee(null)
     setDeletion(null)
+    setPasswordReset(null)
     if (staffId) {
       getEmployeeByProfileId(staffId)
         .then((loaded) => {
@@ -100,6 +150,7 @@ export default function StaffDetailPanel({ staff, onClose, onUpdated, onDeleted 
   function startEditing() {
     setForm(toFormValues(staff, employee))
     setFormError('')
+    setPasswordReset(null)
     setIsEditing(true)
   }
 
@@ -133,6 +184,27 @@ export default function StaffDetailPanel({ staff, onClose, onUpdated, onDeleted 
       onDeleted()
     } catch (error) {
       setDeletion((current) => ({ ...current, deleting: false, error: error?.message || 'No se pudo eliminar.' }))
+    }
+  }
+
+  function startPasswordReset(event) {
+    event.preventDefault()
+    setPasswordReset({ step: 'confirmar', error: '' })
+  }
+
+  function cancelPasswordReset(event) {
+    event.preventDefault()
+    setPasswordReset(null)
+  }
+
+  async function confirmPasswordReset(event) {
+    event.preventDefault()
+    setPasswordReset({ step: 'restaurando', error: '' })
+    try {
+      await resetStaffPassword(staff.id)
+      setPasswordReset({ step: 'lista', error: '' })
+    } catch (error) {
+      setPasswordReset({ step: 'confirmar', error: error?.message || 'No se pudo restaurar la contraseña.' })
     }
   }
 
@@ -241,6 +313,13 @@ export default function StaffDetailPanel({ staff, onClose, onUpdated, onDeleted 
               {FICHAJE_HABILITADO && (
                 <Field label="N° en el reloj" value={form.clock_pin} onChange={(v) => setForm((f) => ({ ...f, clock_pin: v }))} />
               )}
+              <PasswordResetField
+                fullName={staff.full_name}
+                state={passwordReset}
+                onStart={startPasswordReset}
+                onCancel={cancelPasswordReset}
+                onConfirm={confirmPasswordReset}
+              />
             </div>
           </FormSection>
           {formError && (

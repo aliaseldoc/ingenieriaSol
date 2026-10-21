@@ -50,6 +50,14 @@ export async function renameStaffUsername(profileId, newUsername) {
   }
 }
 
+// La contrasena a la que vuelve "Restaurar": la fija la Edge Function
+// reset-staff-password, aca solo se muestra.
+export const RESET_PASSWORD = '123456'
+
+export async function resetStaffPassword(profileId) {
+  return invokeEdgeFunction('reset-staff-password', { profileId })
+}
+
 // Lo que se pierde o cambia al eliminar a alguien (para la advertencia):
 // { fichajes, visitas_pendientes, visitas_sin_tecnico, visitas_realizadas }.
 export async function getStaffDeletionPreview(profileId) {
