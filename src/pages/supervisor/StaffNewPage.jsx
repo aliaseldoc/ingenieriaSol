@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createStaffMember } from '../../api/staff'
+import { MIN_PASSWORD_LENGTH, createStaffMember, usernameProblem } from '../../api/staff'
 import { describeEmployeeError, isClockPinTaken, setClockPinForUsername } from '../../api/employees'
 import { ROLES, ROLE_LABELS } from '../../lib/constants'
 import { FICHAJE_HABILITADO } from '../../lib/featureFlags'
@@ -32,6 +32,15 @@ export default function StaffNewPage() {
   async function handleSubmit(event) {
     event.preventDefault()
     setErrorMessage('')
+    const usernameError = usernameProblem(form.username)
+    if (usernameError) {
+      setErrorMessage(usernameError)
+      return
+    }
+    if (form.password.length < MIN_PASSWORD_LENGTH) {
+      setErrorMessage(`La contraseña tiene que tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`)
+      return
+    }
     setSubmitting(true)
     const clockPin = normalizeClockPin(form.clockPin)
     try {

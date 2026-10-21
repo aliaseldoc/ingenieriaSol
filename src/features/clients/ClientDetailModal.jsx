@@ -15,10 +15,11 @@ function DetailField({ label, value }) {
   )
 }
 
-// Solo administrativo y supervisor llegan a la vista Clientes, y los dos
-// pueden hacer lo mismo con el cliente: cambiar su estado, modificarlo o
-// eliminarlo.
-export default function ClientDetailModal({ client, equipmentList, onClose, onEdit, onDeleted, onUpdated, onOpenEquipment }) {
+// Administrativo y supervisor pueden hacer lo mismo con el cliente: cambiar
+// su estado, modificarlo o eliminarlo. El tecnico (vista de solo lectura) lo
+// abre sin onEdit: ve el estado como texto y solo puede cerrar.
+export default function ClientDetailModal({ client, equipmentList, onClose, onEdit = null, onDeleted, onUpdated, onOpenEquipment }) {
+  const canEdit = Boolean(onEdit)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [savingActive, setSavingActive] = useState(false)
@@ -60,8 +61,12 @@ export default function ClientDetailModal({ client, equipmentList, onClose, onEd
 
   const actions = [
     { label: 'Cerrar', variant: 'secondary-outline', onClick: handleClose },
-    { label: 'Eliminar', variant: 'destructive-outline', icon: 'delete', onClick: () => setConfirmingDelete(true) },
-    { label: 'Modificar', variant: 'primary', icon: 'edit', onClick: () => onEdit(client) },
+    ...(canEdit
+      ? [
+          { label: 'Eliminar', variant: 'destructive-outline', icon: 'delete', onClick: () => setConfirmingDelete(true) },
+          { label: 'Modificar', variant: 'primary', icon: 'edit', onClick: () => onEdit(client) },
+        ]
+      : []),
   ]
 
   return (
@@ -69,21 +74,25 @@ export default function ClientDetailModal({ client, equipmentList, onClose, onEd
       <Modal open={Boolean(client)} title="Detalle del Cliente" onClose={handleClose} size="lg" actions={actions}>
         {client && (
           <div className="space-y-md">
-            <div>
-              <p className="font-label-sm text-label-sm text-on-surface-variant uppercase mb-xs">Estado</p>
-              <Switch
-                id="client-active"
-                checked={isActiveClient(client)}
-                disabled={savingActive}
-                onChange={handleChangeActive}
-                label={isActiveClient(client) ? 'Activo' : 'Inactivo'}
-              />
-              {activeError && (
-                <p role="alert" className="font-body-sm text-body-sm text-error mt-xs">
-                  {activeError}
-                </p>
-              )}
-            </div>
+            {canEdit ? (
+              <div>
+                <p className="font-label-sm text-label-sm text-on-surface-variant uppercase mb-xs">Estado</p>
+                <Switch
+                  id="client-active"
+                  checked={isActiveClient(client)}
+                  disabled={savingActive}
+                  onChange={handleChangeActive}
+                  label={isActiveClient(client) ? 'Activo' : 'Inactivo'}
+                />
+                {activeError && (
+                  <p role="alert" className="font-body-sm text-body-sm text-error mt-xs">
+                    {activeError}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <DetailField label="Estado" value={isActiveClient(client) ? 'Activo' : 'Inactivo'} />
+            )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-md">
               <DetailField label="CUIT" value={client.tax_id} />

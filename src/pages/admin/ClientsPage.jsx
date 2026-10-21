@@ -28,7 +28,10 @@ function ClientSection({ title, clientGroups, emptyMessage, onOpenDetail }) {
   )
 }
 
-export default function ClientsPage() {
+// Con readOnly es la vista del tecnico: ve los clientes, sus datos y sus
+// equipos (y la ficha tecnica de cada uno), sin crear, modificar, activar ni
+// eliminar nada.
+export default function ClientsPage({ readOnly = false }) {
   const { profile } = useAuth()
   const { equipment, loading: equipmentLoading, reload: reloadEquipment } = useEquipment()
   const { clients, loading: clientsLoading, reload: reloadClients } = useClients()
@@ -65,9 +68,11 @@ export default function ClientsPage() {
     <div>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-sm mb-xs">
         <h1 className="font-headline-lg text-headline-lg text-on-surface">Clientes</h1>
-        <Button variant="primary" icon="person_add" onClick={() => setFormModal({ mode: 'create' })}>
-          Nuevo Cliente
-        </Button>
+        {!readOnly && (
+          <Button variant="primary" icon="person_add" onClick={() => setFormModal({ mode: 'create' })}>
+            Nuevo Cliente
+          </Button>
+        )}
       </div>
       <p className="font-body-md text-body-md text-on-surface-variant mb-lg">Ficha y equipos instalados por cliente.</p>
 
@@ -100,10 +105,14 @@ export default function ClientsPage() {
         client={detailClient}
         equipmentList={detailEquipment}
         onClose={() => setDetailClient(null)}
-        onEdit={(client) => {
-          setDetailClient(null)
-          setFormModal({ mode: 'edit', client })
-        }}
+        onEdit={
+          readOnly
+            ? null
+            : (client) => {
+                setDetailClient(null)
+                setFormModal({ mode: 'edit', client })
+              }
+        }
         onDeleted={() => {
           setDetailClient(null)
           reloadClients()
@@ -125,17 +134,19 @@ export default function ClientsPage() {
         onDeleted={reloadEquipment}
       />
 
-      <ClientFormModal
-        open={Boolean(formModal)}
-        mode={formModal?.mode}
-        client={formModal?.client}
-        createdBy={profile.id}
-        onClose={() => setFormModal(null)}
-        onSaved={() => {
-          setFormModal(null)
-          reloadClients()
-        }}
-      />
+      {!readOnly && (
+        <ClientFormModal
+          open={Boolean(formModal)}
+          mode={formModal?.mode}
+          client={formModal?.client}
+          createdBy={profile.id}
+          onClose={() => setFormModal(null)}
+          onSaved={() => {
+            setFormModal(null)
+            reloadClients()
+          }}
+        />
+      )}
     </div>
   )
 }

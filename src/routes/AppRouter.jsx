@@ -89,6 +89,15 @@ export default function AppRouter() {
                 </OnlineOnly>
               }
             />
+            {/* Clientes y sus equipos, para mirar: solo con conexion. */}
+            <Route
+              path="clientes"
+              element={
+                <OnlineOnly title="Clientes">
+                  <ClientsPage readOnly />
+                </OnlineOnly>
+              }
+            />
             <Route path="historial" element={<HistoryPage />} />
             {FICHAJE_HABILITADO && <Route path="fichaje" element={<PunchPage />} />}
             <Route path="visita/:visitId" element={<VisitFormPage />} />
