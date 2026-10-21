@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import EmptyState from '../../components/ui/EmptyState'
 import { DAY_STATUS, DAY_TYPE_LABELS } from './computeTimesheet'
+import { compareReportRows } from './reportEmployees'
 import { formatMinutes, formatShortDayLabel } from './workTime'
 import { formatDayTimes } from './weeklyReportXlsx'
 
@@ -47,6 +48,7 @@ function DayDetail({ days }) {
 
 // Recibe filas calculadas en vivo o las de la foto guardada al cerrar:
 // ambas tienen la misma forma (ver toWeekSnapshot en computeTimesheet.js).
+// Van en el orden de la liquidacion, igual que el mail y el Excel.
 export default function WeeklyReportTable({ rows }) {
   const [expandedIds, setExpandedIds] = useState(() => new Set())
 
@@ -82,7 +84,7 @@ export default function WeeklyReportTable({ rows }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => {
+          {[...rows].sort(compareReportRows).map((row) => {
             const expanded = expandedIds.has(row.employeeId)
             return [
               <tr key={row.employeeId} className="border-b border-outline-variant/50">

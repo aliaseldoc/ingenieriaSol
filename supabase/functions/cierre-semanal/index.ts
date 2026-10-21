@@ -23,7 +23,7 @@ import writeXlsxFile from 'npm:write-excel-file@4.1.1/universal'
 import { sendEmail } from '../_shared/brevo.ts'
 import { escapeHtml, reporteSemanalHtml, reporteSemanalSubject } from '../_shared/plantillas.ts'
 import { toWeekSnapshot, weekPunchRange } from '../../../src/features/timesheet/computeTimesheet.js'
-import { buildWeekReport } from '../../../src/features/timesheet/reportEmployees.js'
+import { buildWeekReport, compareReportRows } from '../../../src/features/timesheet/reportEmployees.js'
 import { addDaysToKey, currentWeekStartKey, formatMinutes, formatWeekRange, isValidWeekStartKey } from '../../../src/features/timesheet/workTime.js'
 import { buildWeeklyReportSheets, weeklyReportFileName } from '../../../src/features/timesheet/weeklyReportXlsx.js'
 
@@ -157,8 +157,9 @@ function formatearCierre(closedAt, closedByName) {
 const TH = 'padding:8px 6px;border-bottom:2px solid #1f4a3d;font-size:12px;line-height:16px;color:#1f4a3d;text-align:right;'
 const TD = 'padding:8px 6px;border-bottom:1px solid #e3e5e0;font-size:13px;line-height:18px;color:#12181a;text-align:right;'
 
+// En el orden de la liquidacion del contador, igual que el Excel adjunto.
 function tablaHtml(rows) {
-  const ordenadas = [...rows].sort((a, b) => a.fullName.localeCompare(b.fullName, 'es'))
+  const ordenadas = [...rows].sort(compareReportRows)
   const total = (key) => rows.reduce((sum, row) => sum + (row.totals[key] ?? 0), 0)
   const fila = (row) => `<tr>
     <td style="${TD}text-align:left;">${escapeHtml(row.fullName)}${row.clockPin ? `<br /><span style="font-size:11px;color:#5c6360;">Legajo ${escapeHtml(row.clockPin)}</span>` : ''}</td>

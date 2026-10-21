@@ -38,9 +38,20 @@ Complementa a CLAUDE.md: todas sus reglas de estilo, código y stack siguen vige
 **Alcance del reporte:** todo el personal que fiche. Incluye técnicos, administrativos, empleados de fábrica y también supervisores si fichan en el reloj. Concretamente entran:
 - los legajos activos con N° en el reloj;
 - los técnicos y los administrativos (fichan por la app);
-- cualquiera que tenga fichajes en la semana.
+- cualquiera que tenga fichajes en la semana;
+- los legajos activos con horas fijas, aunque no fichen.
 
 Así, un supervisor que no ficha no aparece con el feriado pago como única hora. La regla vive en `src/features/timesheet/reportEmployees.js`, que comparten la pantalla y el cierre automático: el mail y la app no pueden dar números distintos.
+
+**Orden (pedido del 21/10/2026).** El mail, el Excel (las dos hojas) y la pantalla "Reporte" siguen el orden de liquidación del contador (`Desing/ordenLiquidacion.jpeg`), guardado en `employees.report_position`.
+- Quien no tiene lugar va al final, por nombre.
+- La grilla "Semana" sigue por nombre.
+- El lugar se carga por base de datos: no hay pantalla para cambiarlo.
+
+**Horas fijas (pedido del 21/10/2026).** Lautaro Dellolio no ficha y cobra 25 h por semana; está cargado en su legajo de técnico (`employees.fixed_weekly_minutes`).
+- En el reporte sale en su lugar, con esas horas como normales y nada al 50% ni al 100%.
+- No cuentan sus fichajes, los feriados ni el almuerzo.
+- En "Detalle por día" lleva un solo renglón con sus horas.
 
 ---
 
@@ -199,7 +210,7 @@ Configuración **igual para todos**. Las reglas viven como constantes en `src/li
 |---|---|
 | Jornada | Lunes a jueves de 8 a 18 h (9 h netas) y viernes de 8 a 17 h (8 h netas): **44 h por semana**. El sábado no es laborable. |
 | Pago por tiempo trabajado | Se paga desde el fichaje de entrada hasta el de salida. Llegar tarde está permitido y se cobra desde ese momento (ej.: entra 08:20, cobra desde las 08:20). No hay tolerancias ni penalizaciones. |
-| Entrada antes de las 08:00 | En un día hábil (lunes a viernes que no sea feriado), una entrada entre las 06:00 y las 08:00 **se guarda pero cuenta desde las 08:00** (ej.: entra 07:40, cobra desde las 08:00). Antes de las 06:00 es una urgencia de madrugada y se paga entera, la madrugada al 100%. El sábado, el domingo y el feriado no tienen horario: cuentan desde que se ficha. |
+| Entrada antes de las 08:00 | Siempre se guarda la hora real del fichaje. En un día hábil (lunes a viernes que no sea feriado), una entrada **entre las 07:20 y las 08:00 cuenta desde las 08:00** (ej.: entra 07:40, cobra desde las 08:00). Una entrada **hasta las 07:19 cuenta desde la hora real**; antes de las 06:00 es una urgencia de madrugada y esos minutos van al 100%. El sábado, el domingo y el feriado no tienen horario: cuentan desde que se ficha. (Cambiado el 21/10/2026: antes la ventana arrancaba a las 06:00.) |
 | Horas al 50% | **Por semana**: lo que pasa de **44 h** en la semana. Para las 44 h cuentan las horas diurnas de lunes a viernes (06 a 22), las del sábado de 06 a 13 y las horas que paga un feriado. |
 | Horas al 100% | Siempre, sin importar las 44 h: la **noche (22 a 06)** de cualquier día, el **sábado desde las 13**, el **domingo** y lo trabajado en un **feriado**. |
 | Feriado de lunes a viernes | Se paga **siempre la jornada de ese día**: 9 h de lunes a jueves y 8 h el viernes, se trabaje o no. Esas horas son normales y **cuentan para las 44 h**, así que una semana con un feriado que nadie trabajó se cobra como cualquier semana normal. Si además se trabaja, esas horas se pagan aparte, al **100%** y sin descuento de almuerzo. |
@@ -270,7 +281,9 @@ Semana del lunes 12/10 al domingo 18/10/2026. "Con almuerzo" es lo que pasa si n
 | 17b | Mar 07:40 a 18:00 | Cuenta desde las 08:00: **9:00 normales**. Los 20 min se ven en el detalle del día como no contados |
 | 17c | Mar 05:30 a 14:00 (urgencia de madrugada) | 05:30 a 06:00 **0:30 al 100%** + 06:00 a 14:00 menos el almuerzo **7:00 normales** |
 | 17d | Sáb 07:00 a 12:00 / feriado 07:00 a 12:00 | Cuentan desde las 07:00: **5:00** para las 44 h / **5:00 al 100%** |
-| 17e | Mar 06:30 a 07:45 (se fue antes de las 08) | **0:00**: el tramo entero cae antes de la jornada |
+| 17e | Mar 07:30 a 07:50 (se fue antes de las 08) | **0:00**: el tramo entero cae en la ventana de 07:20 a 08:00 |
+| 17f | Mar 07:00 a 18:00 | Cuenta desde las 07:00: 11:00 menos el almuerzo, **10:00** para las 44 h |
+| 17g | Mar 07:19 a 18:00 / Mar 07:20 a 18:00 | Desde las 07:19: **9:41** / desde las 08:00: **9:00** |
 | 18 | Lun: entrada reloj 08:00, sin salida | **Día incompleto, 0:00**, con alerta. Si el supervisor agrega la salida de las 18:00 con motivo, pasa a **9:00 normales** |
 | 19 | Reloj 08:00:05 y 08:00:40 | El segundo se ignora por rebote |
 | 20 | Salida app 18:00 sin señal, sube a las 20:15 | Hora 18:00, marcado **"registrado sin conexión"** |
@@ -427,6 +440,8 @@ Nombres de tablas en inglés y valores en español, igual que el resto del esque
 - **`clock_device_events`** (0025): diario del equipo. `device_id`, `serial_number`, `kind` (`contacto` | `fichajes` | `rechazo`), `detail` jsonb. Se borra solo a los 30 días.
 - **`time_punches.device_id`** (0025): qué reloj mandó el fichaje.
 - **`time_punches.lunch_taken`** (0029): en una salida, si ese día el empleado frenó a almorzar. Null si no lo declaró. Solo puede ir en una salida.
+- **`employees.report_position`** (0031): lugar en la liquidación del contador. Null = al final, por nombre.
+- **`employees.fixed_weekly_minutes`** (0031): horas fijas por semana, en minutos. Con valor, no ficha y el reporte le paga esas horas como normales. Null = ficha.
 - **`timesheet_lunch_overrides`** (0029): el almuerzo de un día marcado por el supervisor. `employee_id` (borrado en cascada con el legajo), `work_date`, `lunch_taken`, `updated_by`, `updated_at`. Clave `(employee_id, work_date)`.
 
 ### Seguridad (RLS)

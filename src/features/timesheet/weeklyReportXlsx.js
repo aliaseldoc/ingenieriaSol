@@ -4,11 +4,13 @@
 // el reporte por mail los lunes, asi el archivo es el mismo en los dos casos.
 //
 // Recibe filas con la forma del snapshot de cierre (o del calculo en vivo, que
-// es la misma): { clockPin, fullName, totals, days[] }.
+// es la misma): { clockPin, fullName, reportPosition, fixedWeeklyMinutes,
+// totals, days[] }. Van en el orden de la liquidacion (compareReportRows).
 //
 // Con extension explicita en los imports: Deno no adivina el ".js".
 import { dateCell, durationCell, headerCell, numberCell, textCell } from '../../lib/xlsxCells.js'
 import { DAY_STATUS, DAY_TYPE_LABELS } from './computeTimesheet.js'
+import { compareReportRows } from './reportEmployees.js'
 
 // Horarios de un dia para el detalle (Excel y pantalla de Reporte): un tramo
 // por posicion, "07:50 / 13:00" con "12:00 / 18:00". La salida del dia
@@ -34,13 +36,9 @@ function weekdayName(dateKey) {
   return WEEKDAY_NAMES[new Date(Date.UTC(year, month - 1, day)).getUTCDay()]
 }
 
-function byName(a, b) {
-  return a.fullName.localeCompare(b.fullName, 'es')
-}
-
 function summarySheet(rows) {
   const header = ['Legajo', 'Empleado', 'Horas normales', 'Horas al 50%', 'Horas al 100%', 'Total', 'Días incompletos'].map(headerCell)
-  const data = [...rows].sort(byName).map((row) => [
+  const data = [...rows].sort(compareReportRows).map((row) => [
     textCell(row.clockPin),
     textCell(row.fullName),
     durationCell(row.totals.normalMinutes),
@@ -57,31 +55,53 @@ function summarySheet(rows) {
   }
 }
 
-// Una fila por persona y dia, para que el contador vea de donde sale cada
-// total, con los horarios de entrada y salida. Los dias sin fichajes se
-// omiten: solo agregarian ruido.
+// Una fila por dia, con los horarios de entrada y salida. Los dias sin
+// fichajes se omiten: solo agregarian ruido.
+function dayDetailRows(row) {
+  return row.days
+    .filter((day) => day.status !== DAY_STATUS.SIN_FICHAJES || day.paidHolidayMinutes > 0)
+    .map((day) => {
+      const { entradas, salidas } = formatDayTimes(day)
+      return [
+        textCell(row.clockPin),
+        textCell(row.fullName),
+        dateCell(day.dateKey),
+        textCell(weekdayName(day.dateKey)),
+        textCell(DAY_TYPE_LABELS[day.dayType] ?? day.dayType),
+        textCell(entradas),
+        textCell(salidas),
+        durationCell(day.normalMinutes),
+        durationCell(day.extra50Minutes),
+        durationCell(day.extra100Minutes),
+        durationCell(day.totalMinutes),
+      ]
+    })
+}
+
+// Quien tiene horas fijas no ficha ni tiene dias: un solo renglon con sus
+// horas de la semana.
+function fixedHoursDetailRow(row) {
+  return [
+    textCell(row.clockPin),
+    textCell(row.fullName),
+    null,
+    null,
+    null,
+    null,
+    null,
+    durationCell(row.totals.normalMinutes),
+    durationCell(row.totals.extra50Minutes),
+    durationCell(row.totals.extra100Minutes),
+    durationCell(row.totals.totalMinutes),
+  ]
+}
+
+// Todo el personal, para que el contador vea de donde sale cada total.
 function detailSheet(rows) {
   const header = ['Legajo', 'Empleado', 'Fecha', 'Día', 'Tipo de día', 'Entrada', 'Salida', 'Normales', 'Al 50%', 'Al 100%', 'Total'].map(headerCell)
-  const data = [...rows].sort(byName).flatMap((row) =>
-    row.days
-      .filter((day) => day.status !== DAY_STATUS.SIN_FICHAJES || day.paidHolidayMinutes > 0)
-      .map((day) => {
-        const { entradas, salidas } = formatDayTimes(day)
-        return [
-          textCell(row.clockPin),
-          textCell(row.fullName),
-          dateCell(day.dateKey),
-          textCell(weekdayName(day.dateKey)),
-          textCell(DAY_TYPE_LABELS[day.dayType] ?? day.dayType),
-          textCell(entradas),
-          textCell(salidas),
-          durationCell(day.normalMinutes),
-          durationCell(day.extra50Minutes),
-          durationCell(day.extra100Minutes),
-          durationCell(day.totalMinutes),
-        ]
-      })
-  )
+  const data = [...rows]
+    .sort(compareReportRows)
+    .flatMap((row) => (row.fixedWeeklyMinutes ? [fixedHoursDetailRow(row)] : dayDetailRows(row)))
   return {
     sheet: 'Detalle por día',
     data: [header, ...data],
