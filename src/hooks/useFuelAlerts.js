@@ -1,12 +1,14 @@
 import { useMemo } from 'react'
-import { FUEL_ALERT_THRESHOLD_PERCENTAGE, isFuelAlertMuted } from '../lib/constants'
+import { FUEL_ALERT_THRESHOLD_PERCENTAGE, isFuelAlertMuted, isGasEquipment } from '../lib/constants'
 
 // Deriva, de la lista de equipo ya cargada, cuales tienen combustible bajo.
 // Devuelve las activas y las silenciadas por separado: el panel muestra las
 // primeras como alerta y deja las segundas a mano para poder reactivarlas.
+// Un equipo a gas no tiene tanque: un nivel viejo que le haya quedado no avisa.
 export function useFuelAlerts(equipmentList) {
   return useMemo(() => {
     const belowThreshold = equipmentList
+      .filter((item) => !isGasEquipment(item))
       .filter((item) => item.fuel_percentage != null && item.fuel_percentage <= FUEL_ALERT_THRESHOLD_PERCENTAGE)
       .sort((a, b) => a.fuel_percentage - b.fuel_percentage)
 

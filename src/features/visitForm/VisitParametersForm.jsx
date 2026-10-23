@@ -1,4 +1,4 @@
-import { VISIT_PARAMETER_DEFINITIONS, resolveSpec, isValueOutOfSpec, getLastRecordedValue } from '../../lib/constants'
+import { VISIT_PARAMETER_DEFINITIONS, resolveSpec, isValueOutOfSpec, getLastRecordedValue, isGasEquipment } from '../../lib/constants'
 import FuelParameterField from './FuelParameterField'
 import PressureParameterField from './PressureParameterField'
 
@@ -31,6 +31,8 @@ export default function VisitParametersForm({
             {VISIT_PARAMETER_DEFINITIONS.map((definition) => {
               if (definition.key === 'nivel_combustible') return null
               if (definition.key === 'combustible_litros') {
+                // Un equipo a gas no tiene tanque: no se pide el combustible.
+                if (isGasEquipment(equipment)) return null
                 return (
                   <FuelParameterField
                     key="combustible"

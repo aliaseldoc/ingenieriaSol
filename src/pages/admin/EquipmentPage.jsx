@@ -10,8 +10,13 @@ import Field from '../../components/ui/Field'
 import Spinner from '../../components/ui/Spinner'
 import ClientGroupRow from '../../features/equipmentInventory/ClientGroupRow'
 import EquipmentHistoryPanel from '../../features/equipmentInventory/EquipmentHistoryPanel'
-import { CONDITION_STATUS, CONDITION_STATUS_LABELS, FUEL_TYPE, FUEL_TYPE_LABELS, isActiveClient } from '../../lib/constants'
+import { CONDITION_STATUS, CONDITION_STATUS_LABELS, FUEL_TYPE, FUEL_TYPE_LABELS, isActiveClient, isGasEquipment } from '../../lib/constants'
 import { buildEquipmentReportSheets, equipmentReportFileName } from '../../features/equipmentInventory/equipmentReportXlsx'
+import {
+  buildOverdueServiceRows,
+  buildOverdueServicesSheets,
+  overdueServicesFileName,
+} from '../../features/equipmentInventory/overdueServicesXlsx'
 
 const EMPTY_EQUIPMENT_FORM = {
   client_id: '',
@@ -97,7 +102,8 @@ export default function EquipmentPage() {
   const [savingEquipment, setSavingEquipment] = useState(false)
   const [equipmentError, setEquipmentError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [downloading, setDownloading] = useState(false)
+  // El Excel que se esta generando: 'reporte' | 'vencidos' | null.
+  const [downloading, setDownloading] = useState(null)
   const [downloadError, setDownloadError] = useState('')
   const [collapsedClientIds, setCollapsedClientIds] = useState(() => new Set())
 
@@ -159,7 +165,8 @@ export default function EquipmentPage() {
         service_end_date: equipmentForm.service_end_date || null,
         monthly_visits: equipmentForm.monthly_visits ? Number(equipmentForm.monthly_visits) : null,
         power_kva: equipmentForm.power_kva ? Number(equipmentForm.power_kva) : null,
-        fuel_capacity: equipmentForm.fuel_capacity ? Number(equipmentForm.fuel_capacity) : null,
+        // A gas el campo no se muestra: no se guarda lo que haya quedado escrito.
+        fuel_capacity: equipmentForm.fuel_capacity && !isGasEquipment(equipmentForm) ? Number(equipmentForm.fuel_capacity) : null,
         created_by: profile.id,
       })
       setEquipmentForm(EMPTY_EQUIPMENT_FORM)
@@ -178,19 +185,32 @@ export default function EquipmentPage() {
     setEquipmentError('')
   }
 
-  // Excel con todo el inventario (sin el filtro del buscador). La libreria se
-  // carga recien aca: no hace falta en el resto de la app.
-  async function handleDownloadReport() {
-    setDownloading(true)
+  // Los Excel salen de todo el inventario (sin el filtro del buscador). La
+  // libreria se carga recien aca: no hace falta en el resto de la app.
+  async function downloadXlsx(kind, buildSheets, fileName) {
+    setDownloading(kind)
     setDownloadError('')
     try {
       const { default: writeXlsxFile } = await import('write-excel-file/browser')
-      await writeXlsxFile(buildEquipmentReportSheets(equipment)).toFile(equipmentReportFileName())
+      await writeXlsxFile(buildSheets()).toFile(fileName)
     } catch (error) {
       setDownloadError(error?.message || 'No se pudo generar el reporte.')
     } finally {
-      setDownloading(false)
+      setDownloading(null)
     }
+  }
+
+  function handleDownloadReport() {
+    downloadXlsx('reporte', () => buildEquipmentReportSheets(equipment), equipmentReportFileName())
+  }
+
+  // Services de aceite y baterias vencidos o por vencer, por cliente.
+  function handleDownloadOverdue() {
+    downloadXlsx(
+      'vencidos',
+      () => buildOverdueServicesSheets(buildOverdueServiceRows(equipment, clients)),
+      overdueServicesFileName(),
+    )
   }
 
   if (loading || clientsLoading) return <Spinner label="Cargando inventario…" />
@@ -206,9 +226,12 @@ export default function EquipmentPage() {
             </p>
           )}
         </div>
-        <div className="flex gap-sm">
-          <Button variant="secondary-outline" icon="download" onClick={handleDownloadReport} disabled={downloading}>
-            {downloading ? 'Generando…' : 'Descargar Reporte'}
+        <div className="flex flex-wrap gap-sm">
+          <Button variant="secondary-outline" icon="download" onClick={handleDownloadReport} disabled={downloading !== null}>
+            {downloading === 'reporte' ? 'Generando…' : 'Descargar Reporte'}
+          </Button>
+          <Button variant="secondary-outline" icon="event_busy" onClick={handleDownloadOverdue} disabled={downloading !== null}>
+            {downloading === 'vencidos' ? 'Generando…' : 'Descargar Vencidos'}
           </Button>
           <Button variant="primary" icon="add" onClick={() => setShowNewEquipment(true)}>
             Nuevo Equipo
@@ -334,7 +357,9 @@ export default function EquipmentPage() {
               <Field label="Filtro de Aceite" value={equipmentForm.oil_filter_spec} onChange={(v) => setEquipmentForm((f) => ({ ...f, oil_filter_spec: v }))} />
               <Field label="Filtro de Aire" value={equipmentForm.air_filter_spec} onChange={(v) => setEquipmentForm((f) => ({ ...f, air_filter_spec: v }))} />
               <Field label="Cantidad de Agua" value={equipmentForm.coolant_capacity} onChange={(v) => setEquipmentForm((f) => ({ ...f, coolant_capacity: v }))} />
-              <Field label="Tamaño de Tanque (Litros)" type="number" value={equipmentForm.fuel_capacity} onChange={(v) => setEquipmentForm((f) => ({ ...f, fuel_capacity: v }))} />
+              {!isGasEquipment(equipmentForm) && (
+                <Field label="Tamaño de Tanque (Litros)" type="number" value={equipmentForm.fuel_capacity} onChange={(v) => setEquipmentForm((f) => ({ ...f, fuel_capacity: v }))} />
+              )}
               <Field label="Cantidad de Aceite" value={equipmentForm.oil_capacity} onChange={(v) => setEquipmentForm((f) => ({ ...f, oil_capacity: v }))} />
               <Field label="Cantidad de Baterías" value={equipmentForm.battery_quantity} onChange={(v) => setEquipmentForm((f) => ({ ...f, battery_quantity: v }))} />
               <Field label="Medida de Batería" value={equipmentForm.battery_size} onChange={(v) => setEquipmentForm((f) => ({ ...f, battery_size: v }))} />

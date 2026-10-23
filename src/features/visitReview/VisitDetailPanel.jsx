@@ -7,7 +7,7 @@ import {
   VISIT_STATUS_LABELS,
   VISIT_EVENT_EXTRA_LABELS,
   VISIT_EVENT_NOTA_SUPERVISOR,
-  VISIT_CHANGES_FIELDS,
+  visitChangesFieldsFor,
   VISIT_CHANGE_FIELD_TYPE,
   SI_NO_LABELS,
   resolveSpec,
@@ -17,6 +17,8 @@ import { formatDate, formatDateTime } from '../../lib/dateUtils'
 import StatusChip from '../../components/ui/StatusChip'
 import Timeline from '../../components/ui/Timeline'
 import EquipmentSheetButton from '../equipmentInventory/EquipmentSheetButton'
+import SupervisorNotesCard from '../supervisorNotes/SupervisorNotesCard'
+import { collectedDataRows } from '../missingData/missingData'
 import ParametersTable from './ParametersTable'
 
 const CHECKLIST_STATUS_ICON = {
@@ -58,6 +60,8 @@ function describeNoteReads(reads, technicians) {
 // revisan administrativo y supervisor; la vista del tecnico no los pasa (ya
 // tiene su propio boton de ficha tecnica en VisitFormPage.jsx). historyFooter
 // se muestra dentro de la tarjeta "Historial", debajo de los eventos.
+// previousNotes: las notas de la visita anterior al equipo que pasan a esta
+// (ver previousNotes.js); solo las pasa el supervisor.
 export default function VisitDetailPanel({
   visit,
   parameters,
@@ -68,6 +72,7 @@ export default function VisitDetailPanel({
   showEquipmentSheet = false,
   showNoteReads = false,
   historyFooter = null,
+  previousNotes = [],
 }) {
   const timelineEvents = events.map((event) => ({
     id: event.id,
@@ -80,6 +85,9 @@ export default function VisitDetailPanel({
         ? describeNoteReads(event.visit_event_reads, visit.technicians)
         : null,
   }))
+  // Lo que el tecnico relevo a pedido del administrativo (ver 0032): se copia
+  // a la ficha y al cliente al recibir la visita.
+  const collectedRows = collectedDataRows(visit.collected_data)
 
   return (
     <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
@@ -103,6 +111,12 @@ export default function VisitDetailPanel({
       )}
 
       <div className="p-md grid grid-cols-1 md:grid-cols-2 gap-md">
+        {previousNotes.length > 0 && (
+          <div className="md:col-span-2">
+            <SupervisorNotesCard notes={previousNotes} title="Notas de la visita anterior" />
+          </div>
+        )}
+
         <div className="border border-outline-variant rounded p-md md:col-span-2">
           <h3 className="list-title-bar -mx-md -mt-md mb-sm font-body-lg text-body-lg uppercase px-md py-sm rounded-t">Detalles del Equipo</h3>
           <dl className="grid grid-cols-2 gap-y-xs font-body-md text-body-md">
@@ -177,7 +191,7 @@ export default function VisitDetailPanel({
                 </tr>
               </thead>
               <tbody>
-                {VISIT_CHANGES_FIELDS.map((field) => {
+                {visitChangesFieldsFor(visit.equipment).map((field) => {
                   const value = visit.changes_data?.[field.key]
                   const display =
                     field.type === VISIT_CHANGE_FIELD_TYPE.SI_NO
@@ -196,6 +210,18 @@ export default function VisitDetailPanel({
             </table>
           </div>
         </div>
+
+        {collectedRows.length > 0 && (
+          <div className="border border-outline-variant rounded p-md md:col-span-2">
+            <h3 className="list-title-bar -mx-md -mt-md mb-sm font-body-lg text-body-lg uppercase px-md py-sm rounded-t">Datos Relevados</h3>
+            <dl className="grid grid-cols-2 gap-y-xs font-body-md text-body-md">
+              {collectedRows.map((row) => [
+                <dt key={`${row.key}-label`} className="text-on-surface-variant">{row.label}</dt>,
+                <dd key={`${row.key}-value`} className="text-on-surface break-words">{row.value}</dd>,
+              ])}
+            </dl>
+          </div>
+        )}
 
         {visit.fault_reported && (
           <div className="border border-error rounded p-md md:col-span-2 bg-error-container/30">

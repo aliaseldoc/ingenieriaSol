@@ -125,6 +125,7 @@ export default function ValidationPage() {
               events={events ?? []}
               showEquipmentSheet
               showNoteReads
+              previousNotes={selectedVisit.previous_supervisor_notes}
               historyFooter={<SupervisorNoteForm key={selectedVisit.id} onSend={handleSendNote} />}
               actions={
                 <>

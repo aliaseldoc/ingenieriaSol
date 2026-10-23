@@ -51,6 +51,7 @@ export default function ReceptionPage() {
       isAnnualService: selectedVisit.is_annual_service,
       checklistData: selectedVisit.checklist_data,
       scheduledDate: selectedVisit.scheduled_date,
+      collectedData: selectedVisit.collected_data,
     })
     setSelectedId(null)
     reload()

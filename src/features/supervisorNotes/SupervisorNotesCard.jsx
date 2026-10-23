@@ -1,17 +1,20 @@
-import { formatDateTime } from '../../lib/dateUtils'
+import { formatDate, formatDateTime } from '../../lib/dateUtils'
 import StatusChip from '../../components/ui/StatusChip'
+
+const EMPTY_IDS = new Set()
 
 // Notas del supervisor sobre esta visita, destacadas arriba de lo que ve el
 // tecnico, de la mas nueva a la mas vieja. Las que no habia leido al abrir la
-// visita llevan la etiqueta "Nueva".
-export default function SupervisorNotesCard({ notes, newNoteIds }) {
+// visita llevan la etiqueta "Nueva". Tambien muestra las de la visita
+// anterior al equipo (ver previousNotes.js): esas traen la fecha de su visita.
+export default function SupervisorNotesCard({ notes, newNoteIds = EMPTY_IDS, title = 'Notas del Supervisor' }) {
   if (notes.length === 0) return null
 
   return (
     <section className="border border-secondary rounded-lg bg-secondary-fixed p-md">
       <h2 className="font-body-lg text-body-lg text-on-secondary-fixed uppercase mb-sm flex items-center gap-xs">
         <span className="material-symbols-outlined text-[2rem]">chat</span>
-        Notas del Supervisor
+        {title}
       </h2>
       <ul className="space-y-sm">
         {notes.map((note) => (
@@ -19,6 +22,7 @@ export default function SupervisorNotesCard({ notes, newNoteIds }) {
             <div className="flex items-center justify-between gap-sm mb-xs">
               <p className="font-label-sm text-label-sm text-on-surface-variant">
                 {note.profiles?.full_name ?? 'Supervisor'} · {formatDateTime(note.created_at)}
+                {note.visit_scheduled_date && ` · visita del ${formatDate(note.visit_scheduled_date)}`}
               </p>
               {newNoteIds.has(note.id) && <StatusChip label="Nueva" tone="error" variant="tag" />}
             </div>

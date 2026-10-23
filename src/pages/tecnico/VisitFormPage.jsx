@@ -31,6 +31,7 @@ import VisitChecklistSection from '../../features/visitForm/VisitChecklistSectio
 import VisitParametersForm from '../../features/visitForm/VisitParametersForm'
 import VisitChangesSection from '../../features/visitForm/VisitChangesSection'
 import VisitObservationsSection from '../../features/visitForm/VisitObservationsSection'
+import VisitRequestedDataSection from '../../features/visitForm/VisitRequestedDataSection'
 import EquipmentHistoryPanel from '../../features/equipmentInventory/EquipmentHistoryPanel'
 import SupervisorNotesCard from '../../features/supervisorNotes/SupervisorNotesCard'
 import { useSupervisorNotes } from '../../features/supervisorNotes/SupervisorNotesContext'
@@ -69,6 +70,8 @@ function VisitForm() {
   const [clientSignature, setClientSignature] = useState(null)
   const [clientSignatureAt, setClientSignatureAt] = useState(null)
   const [clientSignatureName, setClientSignatureName] = useState('')
+  // Datos que el administrativo pidio relevar (ver VisitRequestedDataSection).
+  const [collectedData, setCollectedData] = useState({})
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState(null)
   const [saveError, setSaveError] = useState(null)
@@ -101,6 +104,7 @@ function VisitForm() {
     clientSignature,
     clientSignatureAt,
     clientSignatureName,
+    collectedData,
   }
   const snapshotKey = `${JSON.stringify(formSnapshot)}|${JSON.stringify(parameterValues)}`
   // Unidad elegida para cada parametro de presion, leida de checklistData con
@@ -147,6 +151,7 @@ function VisitForm() {
     clientSignature: nextClientSignature,
     clientSignatureAt: nextClientSignatureAt,
     clientSignatureName: nextClientSignatureName,
+    collectedData: nextCollectedData,
   }) {
     setServiceType(nextServiceType ?? SERVICE_TYPE.PREVENTIVO)
     const defaultChecklistData = Object.fromEntries(
@@ -164,6 +169,7 @@ function VisitForm() {
     setClientSignature(nextClientSignature ?? null)
     setClientSignatureAt(nextClientSignatureAt ?? null)
     setClientSignatureName(nextClientSignatureName ?? '')
+    setCollectedData(nextCollectedData ?? {})
   }
 
   // Si hay una escritura encolada para esta visita, es mas nueva que
@@ -191,6 +197,7 @@ function VisitForm() {
       clientSignature: visit.client_signature,
       clientSignatureAt: visit.client_signature_at,
       clientSignatureName: visit.client_signature_name,
+      collectedData: visit.collected_data,
     })
     setInitialized(true)
   }, [visit, pendingWrite, initialized])
@@ -329,6 +336,11 @@ function VisitForm() {
   const supervisorNotes = (events ?? []).filter((event) => event.event_type === VISIT_EVENT_NOTA_SUPERVISOR).reverse()
   const supervisorNotesCard =
     supervisorNotes.length > 0 ? <SupervisorNotesCard notes={supervisorNotes} newNoteIds={newNoteIds ?? new Set()} /> : null
+  // Lo que el supervisor dejo en la visita anterior a este equipo, sea quien
+  // sea el tecnico (ver previousNotes.js). Sin aviso ni "Leida por".
+  const previousNotes = visit.previous_supervisor_notes ?? []
+  const previousNotesCard =
+    previousNotes.length > 0 ? <SupervisorNotesCard notes={previousNotes} title="Notas de la visita anterior" /> : null
 
   if (!TECHNICIAN_EDITABLE_STATUSES.includes(visit.status)) {
     return (
@@ -340,6 +352,7 @@ function VisitForm() {
           </Button>
         </div>
         {supervisorNotesCard && <div className="mb-lg">{supervisorNotesCard}</div>}
+        {previousNotesCard && <div className="mb-lg">{previousNotesCard}</div>}
         <VisitDetailPanel
           visit={visit}
           parameters={existingParameters ?? []}
@@ -432,6 +445,7 @@ function VisitForm() {
         </div>
 
         {supervisorNotesCard}
+        {previousNotesCard}
 
         <VisitMetadataCard
           visit={visit}
@@ -474,6 +488,13 @@ function VisitForm() {
         <VisitChangesSection
           changesData={changesData}
           onChangeField={(key, value) => setChangesData((data) => ({ ...data, [key]: value }))}
+          equipment={visit.equipment}
+        />
+
+        <VisitRequestedDataSection
+          requestedKeys={visit.equipment?.requested_data_fields}
+          collectedData={collectedData}
+          onChangeField={(key, value) => setCollectedData((data) => ({ ...data, [key]: value }))}
         />
 
         <VisitObservationsSection

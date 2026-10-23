@@ -8,13 +8,16 @@ import {
   getPressureUnit,
 } from '../lib/constants'
 import { computeNextDueDate } from '../lib/dateUtils'
-import { logVisitEvent } from './visitEvents'
+import { collectedDataChanges } from '../features/missingData/missingData'
+import { logVisitEvent, withPreviousSupervisorNotes } from './visitEvents'
 
 // Columnas del equipo que necesita el formulario del tecnico: ademas de la
-// identificacion, las que alimentan la ficha (power_kva) y los placeholders
-// del ultimo dato registrado (hours_of_use, starts_count).
+// identificacion, las que alimentan la ficha (power_kva), los placeholders
+// del ultimo dato registrado (hours_of_use, starts_count), los datos que el
+// administrativo pidio relevar (requested_data_fields, ver 0032) y el
+// combustible (a gas no se pide el nivel).
 const EQUIPMENT_EMBED =
-  'equipment(internal_code, motor, generador, client_id, power_kva, fuel_capacity, battery_quantity, hours_of_use, starts_count, clients(name))'
+  'equipment(internal_code, motor, generador, client_id, power_kva, fuel_type, fuel_capacity, battery_quantity, hours_of_use, starts_count, requested_data_fields, clients(name))'
 const ROUTE_SHEET_EMBED =
   'route_sheets(id, vehicle_id, scheduled_time_start, visit_occurrence, vehicles(plate), route_sheet_technicians(profiles(id, full_name)))'
 const VISIT_SELECT = `*, ${EQUIPMENT_EMBED}, ${ROUTE_SHEET_EMBED}`
@@ -38,7 +41,8 @@ export function normalizeVisit(row) {
 export async function getVisitById(visitId) {
   const { data, error } = await supabase.from('visits').select(VISIT_SELECT).eq('id', visitId).single()
   if (error) throw error
-  return normalizeVisit(data)
+  const [visit] = await withPreviousSupervisorNotes([normalizeVisit(data)])
+  return visit
 }
 
 export async function listVisitsForTechnician(technicianId) {
@@ -50,7 +54,9 @@ export async function listVisitsForTechnician(technicianId) {
     .eq('route_sheets.route_sheet_technicians.technician_id', technicianId)
     .order('scheduled_date', { ascending: true })
   if (error) throw error
-  return data.map(normalizeVisit)
+  // Mi Plan y la descarga de la hoja de ruta reemplazan el cache sin conexion
+  // con esta lista: sin las notas, el tecnico no las veria sin senal.
+  return withPreviousSupervisorNotes(data.map(normalizeVisit))
 }
 
 export async function listVisitsInRange(startDate, endDate) {
@@ -81,7 +87,7 @@ export async function listVisitsPendingReview() {
     .eq('status', VISIT_STATUS.ENVIADA)
     .order('submitted_at', { ascending: true })
   if (error) throw error
-  return data.map(normalizeVisit)
+  return withPreviousSupervisorNotes(data.map(normalizeVisit))
 }
 
 export async function listAllSubmittedVisits() {
@@ -175,6 +181,12 @@ function signatureColumns({
   }
 }
 
+// Lo relevado a pedido del administrativo. Un snapshot encolado antes de que
+// existiera el campo no lo trae: entonces no se toca lo guardado.
+function collectedDataColumn({ collectedData }) {
+  return collectedData === undefined ? {} : { collected_data: collectedData }
+}
+
 export async function saveVisitDraft(visitId, formSnapshot) {
   const { serviceType, checklistData, changesData, notes, faultReported, faultDescription } = formSnapshot
   const { error } = await supabase
@@ -187,6 +199,7 @@ export async function saveVisitDraft(visitId, formSnapshot) {
       fault_reported: faultReported,
       fault_description: faultDescription,
       ...signatureColumns(formSnapshot),
+      ...collectedDataColumn(formSnapshot),
       status: VISIT_STATUS.BORRADOR,
       draft_saved_at: new Date().toISOString(),
     })
@@ -206,6 +219,7 @@ export async function submitVisitForReview(visitId, formSnapshot, actorId) {
       fault_reported: faultReported,
       fault_description: faultDescription,
       ...signatureColumns(formSnapshot),
+      ...collectedDataColumn(formSnapshot),
       status: VISIT_STATUS.ENVIADA,
       submitted_at: new Date().toISOString(),
     })
@@ -226,6 +240,10 @@ export async function submitVisitForReview(visitId, formSnapshot, actorId) {
 // fecha de cambio (hoy) y se recalcula el proximo vencimiento; los campos no
 // marcados "si" no se tocan.
 //
+// Tambien se copia lo que el tecnico relevo a pedido del administrativo
+// (collected_data, ver 0032): a la ficha del equipo y, el contacto, al
+// cliente. Esos datos salen del pedido; lo que no consiguio sigue pedido.
+//
 // Como la recepcion no depende de la validacion, se pueden recibir visitas
 // viejas. Si el equipo ya tiene una visita posterior recibida, la ficha no se
 // toca: lo que tiene es mas nuevo, y copiar esta visita bajaria las horas de
@@ -236,7 +254,7 @@ export async function markVisitReceived(
   equipmentId,
   parameters,
   changesData,
-  { isAnnualService, checklistData, scheduledDate } = {}
+  { isAnnualService, checklistData, scheduledDate, collectedData } = {}
 ) {
   const nowIso = new Date().toISOString()
   // La bandeja de recepcion es compartida: si otro administrativo la recibio
@@ -276,6 +294,23 @@ export async function markVisitReceived(
     if (changesData?.[tracking.changeKey] !== 'si') continue
     equipmentChanges[tracking.changedAtField] = today
     equipmentChanges[tracking.nextDueField] = computeNextDueDate(today, tracking.yearsAhead)
+  }
+
+  const collected = collectedDataChanges(collectedData)
+  if (collected.keys.length > 0) {
+    // El pedido se lee recien ahora: pudo cambiar desde que se abrio la visita.
+    const { data: current, error: currentError } = await supabase
+      .from('equipment')
+      .select('client_id, requested_data_fields')
+      .eq('id', equipmentId)
+      .single()
+    if (currentError) throw currentError
+    Object.assign(equipmentChanges, collected.equipment)
+    equipmentChanges.requested_data_fields = (current.requested_data_fields ?? []).filter((key) => !collected.keys.includes(key))
+    if (Object.keys(collected.client).length > 0) {
+      const { error: clientError } = await supabase.from('clients').update(collected.client).eq('id', current.client_id)
+      if (clientError) throw clientError
+    }
   }
 
   const { error: equipmentError } = await supabase.from('equipment').update(equipmentChanges).eq('id', equipmentId)

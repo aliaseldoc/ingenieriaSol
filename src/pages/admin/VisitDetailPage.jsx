@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useVisitDetail, useVisitParameters, usePreviousVisitParameters, useVisitEvents } from '../../hooks/useVisits'
 import { sendVisitResultsEmail } from '../../api/notifications'
 import { logVisitEvent } from '../../api/visitEvents'
-import { VISIT_STATUS, VISIT_EVENT_RESULTADOS_ENVIADOS } from '../../lib/constants'
+import { ROLES, VISIT_STATUS, VISIT_EVENT_RESULTADOS_ENVIADOS } from '../../lib/constants'
 import VisitDetailPanel from '../../features/visitReview/VisitDetailPanel'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
@@ -68,6 +68,7 @@ export default function VisitDetailPage({ readOnly = false }) {
           events={events ?? []}
           showEquipmentSheet
           showNoteReads={!readOnly}
+          previousNotes={!readOnly && profile.role === ROLES.SUPERVISOR ? visit.previous_supervisor_notes : undefined}
           actions={
             !readOnly && visit.status === VISIT_STATUS.APROBADA ? (
               <Button variant="secondary-outline" icon="mail" disabled={sendingEmail} onClick={handleSendResults}>
