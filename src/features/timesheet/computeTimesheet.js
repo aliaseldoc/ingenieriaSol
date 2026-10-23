@@ -246,7 +246,7 @@ function lunchPauseMinutes(dateKey, dayType, ordered, rules) {
 }
 
 // Paso 7: las horas de un dia, antes de mirar la semana. Las diurnas (de 06 a
-// 22 entre semana, de 06 a 13 el sabado) cuentan para las 44 h semanales; el
+// 20 entre semana, de 06 a 13 el sabado) cuentan para las 44 h semanales; el
 // resto del dia (la noche, el sabado desde las 13) va siempre al 100%. El
 // domingo y el feriado van enteros al 100%.
 function computeDayHours(dateKey, dayType, pieces, lunchTaken, rules) {

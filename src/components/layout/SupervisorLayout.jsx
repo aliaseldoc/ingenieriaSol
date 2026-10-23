@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: '/supervisor/reparaciones', icon: 'build', label: 'Reparaciones' },
   { to: '/supervisor/equipos', icon: 'precision_manufacturing', label: 'Equipos' },
   { to: '/supervisor/clientes', icon: 'domain', label: 'Clientes' },
+  { to: '/supervisor/datos-incompletos', icon: 'assignment_late', label: 'Datos Incompletos' },
   { to: '/supervisor/calendario', icon: 'calendar_month', label: 'Calendario' },
   { to: '/supervisor/personal', icon: 'group', label: 'Personal' },
   ...(FICHAJE_HABILITADO ? [{ to: '/supervisor/fichajes', icon: 'fingerprint', label: 'Fichajes' }] : []),

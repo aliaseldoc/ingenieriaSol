@@ -1,6 +1,6 @@
-import { VISIT_CHANGES_FIELDS, VISIT_CHANGE_FIELD_TYPE, SI_NO_LABELS } from '../../lib/constants'
+import { visitChangesFieldsFor, VISIT_CHANGE_FIELD_TYPE, SI_NO_LABELS } from '../../lib/constants'
 
-export default function VisitChangesSection({ changesData, onChangeField }) {
+export default function VisitChangesSection({ changesData, onChangeField, equipment }) {
   return (
     <section className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
       <div className="list-title-bar p-md flex items-center gap-sm">
@@ -17,7 +17,7 @@ export default function VisitChangesSection({ changesData, onChangeField }) {
             </tr>
           </thead>
           <tbody className="font-body-lg text-body-lg text-on-surface divide-y divide-outline-variant/50">
-            {VISIT_CHANGES_FIELDS.map((field) => (
+            {visitChangesFieldsFor(equipment).map((field) => (
               <tr key={field.key}>
                 <td className="p-md font-medium">{field.label}</td>
                 <td className="p-md">

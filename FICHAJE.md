@@ -211,15 +211,15 @@ Configuración **igual para todos**. Las reglas viven como constantes en `src/li
 | Jornada | Lunes a jueves de 8 a 18 h (9 h netas) y viernes de 8 a 17 h (8 h netas): **44 h por semana**. El sábado no es laborable. |
 | Pago por tiempo trabajado | Se paga desde el fichaje de entrada hasta el de salida. Llegar tarde está permitido y se cobra desde ese momento (ej.: entra 08:20, cobra desde las 08:20). No hay tolerancias ni penalizaciones. |
 | Entrada antes de las 08:00 | Siempre se guarda la hora real del fichaje. En un día hábil (lunes a viernes que no sea feriado), una entrada **entre las 07:20 y las 08:00 cuenta desde las 08:00** (ej.: entra 07:40, cobra desde las 08:00). Una entrada **hasta las 07:19 cuenta desde la hora real**; antes de las 06:00 es una urgencia de madrugada y esos minutos van al 100%. El sábado, el domingo y el feriado no tienen horario: cuentan desde que se ficha. (Cambiado el 21/10/2026: antes la ventana arrancaba a las 06:00.) |
-| Horas al 50% | **Por semana**: lo que pasa de **44 h** en la semana. Para las 44 h cuentan las horas diurnas de lunes a viernes (06 a 22), las del sábado de 06 a 13 y las horas que paga un feriado. |
-| Horas al 100% | Siempre, sin importar las 44 h: la **noche (22 a 06)** de cualquier día, el **sábado desde las 13**, el **domingo** y lo trabajado en un **feriado**. |
+| Horas al 50% | **Por semana**: lo que pasa de **44 h** en la semana. Para las 44 h cuentan las horas diurnas de lunes a viernes (06 a 20), las del sábado de 06 a 13 y las horas que paga un feriado. |
+| Horas al 100% | Siempre, sin importar las 44 h: la **noche (20 a 06)** de cualquier día, el **sábado desde las 13**, el **domingo** y lo trabajado en un **feriado**. (Cambiado el 23/10/2026: antes la noche empezaba a las 22.) |
 | Feriado de lunes a viernes | Se paga **siempre la jornada de ese día**: 9 h de lunes a jueves y 8 h el viernes, se trabaje o no. Esas horas son normales y **cuentan para las 44 h**, así que una semana con un feriado que nadie trabajó se cobra como cualquier semana normal. Si además se trabaja, esas horas se pagan aparte, al **100%** y sin descuento de almuerzo. |
 | Feriado en sábado o domingo | Sin trabajar no suma horas. Si se trabaja, todo al **100%**. |
 | Almuerzo | **60 min** en cada día hábil (lunes a viernes que no sea feriado) con horas trabajadas, **salvo que ese día no se haya almorzado** (ver "Almuerzo" abajo). Se descuenta solo de las horas diurnas, nunca de las que van al 100%, así un turno que pasa la medianoche no pierde dos almuerzos. Nunca deja un día en negativo. |
 | Pausa fichada | Si el almuerzo se fichó (una salida y una nueva entrada **dentro de la jornada**: de 08 a 18, el viernes hasta las 17), el descuento es `máx(0, 60 − minutos de pausa fichada)`. **Nunca se descuenta dos veces.** Un corte que termina después del fin de la jornada o que empieza antes de las 08 no es el almuerzo: si alguien termina a las 18 y vuelve a las 20 por una urgencia, la jornada lleva su descuento (si almorzó) y lo de la vuelta suma aparte (decidido el 14/10/2026). |
 | Redondeo | **Ninguno**: minutos exactos. |
 | Semana | **Lunes a domingo.** Reutilizar `startOfWeek` de `src/lib/dateUtils.js`, que ya arranca el lunes. |
-| Zona horaria | `America/Argentina/Buenos_Aires`, vía `Intl.DateTimeFormat` (nativo). Días, horas y los cortes de las 06:00, 13:00 y 22:00 se calculan en esa zona, nunca en la zona del navegador. |
+| Zona horaria | `America/Argentina/Buenos_Aires`, vía `Intl.DateTimeFormat` (nativo). Días, horas y los cortes de las 06:00, 13:00 y 20:00 se calculan en esa zona, nunca en la zona del navegador. |
 
 ### Almuerzo: si ese día se almorzó
 Si nadie dice nada, **se almorzó** y se descuenta (el 95% de los días). Se apela a la honestidad de cada uno:
@@ -261,8 +261,8 @@ Semana del lunes 12/10 al domingo 18/10/2026. "Con almuerzo" es lo que pasa si n
 |---|---|---|
 | 1 | Lun a jue 08:00 a 18:00 y vie 08:00 a 17:00 | **44:00 normales**, sin extras |
 | 2 | Igual, pero el martes hasta las 20:00 | **44:00 normales + 2:00 al 50%**. El 50% aparece el viernes (6:00 normales + 2:00 al 50%) |
-| 3 | Mar 08:00 a 23:00 | 08 a 22 menos el almuerzo: **13:00 normales**. 22 a 23: **1:00 al 100%** |
-| 4 | Lun 20:00 a mar 02:00 | Lun: 20 a 22 menos el almuerzo, **1:00 normal**, y 22 a 24 **2:00 al 100%**. Mar: **2:00 al 100%**, sin descuento. Si la salida dice "sin almuerzo", el lunes queda en **2:00 normales** |
+| 3 | Mar 08:00 a 23:00 | 08 a 20 menos el almuerzo: **11:00 normales**. 20 a 23: **3:00 al 100%** |
+| 4 | Lun 18:00 a mar 02:00 | Lun: 18 a 20 menos el almuerzo, **1:00 normal**, y 20 a 24 **4:00 al 100%**. Mar: **2:00 al 100%**, sin descuento. Si la salida dice "sin almuerzo", el lunes queda en **2:00 normales** |
 | 5 | Sáb 08:00 a 15:00 | 08 a 13 **5:00** para las 44 h + 13 a 15 **2:00 al 100%** |
 | 6 | Sáb 05:00 a 10:00 | 05 a 06 **1:00 al 100%** + 06 a 10 **4:00** para las 44 h |
 | 7 | Dom 09:00 a 12:00 | **3:00 al 100%** |
@@ -274,7 +274,7 @@ Semana del lunes 12/10 al domingo 18/10/2026. "Con almuerzo" es lo que pasa si n
 | 13 | Mar 08:00 a 18:00, salida con "sin almuerzo" | **10:00** sin descuento. Si una segunda salida de esa jornada dice otra cosa, vale la primera |
 | 14 | Mar 08:00 a 18:00 por reloj, el supervisor marca "no almorzó" | **10:00**. Si el empleado dijo "sin almuerzo" y el supervisor "almorzó": **9:00** (gana el supervisor) |
 | 15 | Mar 08:00 a 12:30 y 13:00 a 18:00 (pausa fichada de 30 min) | Con almuerzo se descuentan 30 min más: **9:00**. Sin almuerzo: **9:30** |
-| 15b | Mar 08:00 a 18:00 y vuelve de 20:00 a 23:00 por una urgencia | El corte de 18 a 20 no es el almuerzo: se descuenta 1 h. **11:00** para las 44 h y **1:00 al 100%** |
+| 15b | Mar 08:00 a 18:00 y vuelve de 19:00 a 23:00 por una urgencia | El corte de 18 a 19 no es el almuerzo: se descuenta 1 h. **10:00** para las 44 h y **3:00 al 100%** |
 | 15c | Lun 22:00 a Mar 06:00 y Mar 08:00 a 18:00 | Martes: **6:00 al 100%** y **9:00** para las 44 h (el hueco de 06 a 08 no es el almuerzo) |
 | 16 | El supervisor corrige la hora de una salida "sin almuerzo" | El fichaje que la reemplaza conserva "sin almuerzo" |
 | 17 | Lunes incompleto y el resto de la semana 08:00 a 20:00 | El lunes no suma ni ocupa lugar en las 44 h: **44:00 normales**, sin extras |

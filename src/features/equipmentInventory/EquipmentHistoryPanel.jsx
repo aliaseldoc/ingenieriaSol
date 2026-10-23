@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Modal from '../../components/ui/Modal'
 import ConfirmModal from '../../components/ui/ConfirmModal'
@@ -21,6 +21,7 @@ import {
   ROLES,
   FUEL_LEVEL_UNIT,
   formatFuelLevel,
+  isGasEquipment,
 } from '../../lib/constants'
 import { formatDate, computeNextDueDate } from '../../lib/dateUtils'
 import { getVisitPath } from '../../lib/visitAccess'
@@ -89,7 +90,9 @@ function toFormValues(equipment) {
   }
 }
 
-export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, onDeleted }) {
+// openInEditMode: la ficha se abre directamente en edicion (lo usa "Datos
+// Incompletos" con "Completar equipo"). Despues de guardar queda en el detalle.
+export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, onDeleted, openInEditMode = false }) {
   const { profile } = useAuth()
   const navigate = useNavigate()
   const { history, loading } = useEquipmentHistory(equipment?.id)
@@ -98,6 +101,16 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const isTecnico = profile?.role === ROLES.TECNICO
+
+  const equipmentId = equipment?.id ?? null
+  useEffect(() => {
+    if (!openInEditMode || !equipmentId || isTecnico) return
+    setForm(toFormValues(equipment))
+    setIsEditing(true)
+    // Solo al abrir otro equipo: guardar trae el mismo equipo actualizado y
+    // tiene que quedar en el detalle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [equipmentId, openInEditMode])
 
   function startEditing() {
     setForm(toFormValues(equipment))
@@ -234,7 +247,9 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
               <Field label="Filtro de Aceite" value={form.oil_filter_spec} onChange={(v) => setForm((f) => ({ ...f, oil_filter_spec: v }))} />
               <Field label="Filtro de Aire" value={form.air_filter_spec} onChange={(v) => setForm((f) => ({ ...f, air_filter_spec: v }))} />
               <Field label="Cantidad de Agua" value={form.coolant_capacity} onChange={(v) => setForm((f) => ({ ...f, coolant_capacity: v }))} />
-              <Field label="Tamaño de Tanque (Litros)" type="number" value={form.fuel_capacity} onChange={(v) => setForm((f) => ({ ...f, fuel_capacity: v }))} />
+              {!isGasEquipment(form) && (
+                <Field label="Tamaño de Tanque (Litros)" type="number" value={form.fuel_capacity} onChange={(v) => setForm((f) => ({ ...f, fuel_capacity: v }))} />
+              )}
               <Field label="Cantidad de Aceite" value={form.oil_capacity} onChange={(v) => setForm((f) => ({ ...f, oil_capacity: v }))} />
               <Field label="Cantidad de Baterías" value={form.battery_quantity} onChange={(v) => setForm((f) => ({ ...f, battery_quantity: v }))} />
               <Field label="Medida de Batería" value={form.battery_size} onChange={(v) => setForm((f) => ({ ...f, battery_size: v }))} />
@@ -247,12 +262,13 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
               <Field label="Cambio Filtro de Aceite" type="date" value={form.oil_filter_changed_at} onChange={handleChangeTrackingDate('oil_filter_changed_at', 'oil_filter_next_due_at', 1)} />
               <Field label="Cambio Filtro de Aire" type="date" value={form.air_filter_changed_at} onChange={handleChangeTrackingDate('air_filter_changed_at', 'air_filter_next_due_at', 1)} />
               <Field label="Fecha de Batería" type="date" value={form.battery_changed_at} onChange={handleChangeTrackingDate('battery_changed_at', 'battery_next_due_at', 2)} />
-              {/* Se edita en la misma unidad en que se relevo la visita. */}
-              {form.fuel_level_unit === FUEL_LEVEL_UNIT.LITROS ? (
-                <Field label="Litros de Combustible" type="number" value={form.fuel_liters} onChange={(v) => setForm((f) => ({ ...f, fuel_liters: v }))} />
-              ) : (
-                <Field label="Porcentaje de Combustible" type="number" value={form.fuel_percentage} onChange={(v) => setForm((f) => ({ ...f, fuel_percentage: v }))} />
-              )}
+              {/* Se edita en la misma unidad en que se relevo la visita. A gas no hay tanque. */}
+              {!isGasEquipment(form) &&
+                (form.fuel_level_unit === FUEL_LEVEL_UNIT.LITROS ? (
+                  <Field label="Litros de Combustible" type="number" value={form.fuel_liters} onChange={(v) => setForm((f) => ({ ...f, fuel_liters: v }))} />
+                ) : (
+                  <Field label="Porcentaje de Combustible" type="number" value={form.fuel_percentage} onChange={(v) => setForm((f) => ({ ...f, fuel_percentage: v }))} />
+                ))}
               <Field label="Horas de Uso" type="number" value={form.hours_of_use} onChange={(v) => setForm((f) => ({ ...f, hours_of_use: v }))} />
               <Field label="Número de Arranques" type="number" value={form.starts_count} onChange={(v) => setForm((f) => ({ ...f, starts_count: v }))} />
               <div className="space-y-xs">
@@ -315,7 +331,9 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
             <DetailField label="Filtro de Aceite" value={equipment.oil_filter_spec} />
             <DetailField label="Filtro de Aire" value={equipment.air_filter_spec} />
             <DetailField label="Cantidad de Agua" value={equipment.coolant_capacity} />
-            <DetailField label="Tamaño de Tanque" value={equipment.fuel_capacity != null ? `${equipment.fuel_capacity} L` : null} />
+            {!isGasEquipment(equipment) && (
+              <DetailField label="Tamaño de Tanque" value={equipment.fuel_capacity != null ? `${equipment.fuel_capacity} L` : null} />
+            )}
             <DetailField label="Cantidad de Aceite" value={equipment.oil_capacity} />
             <DetailField label="Cantidad de Baterías" value={equipment.battery_quantity} />
             <DetailField label="Medida de Batería" value={equipment.battery_size} />
@@ -323,7 +341,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
             <DetailField label="Cambio Filtro de Aceite" value={equipment.oil_filter_changed_at ? formatDate(equipment.oil_filter_changed_at) : null} />
             <DetailField label="Cambio Filtro de Aire" value={equipment.air_filter_changed_at ? formatDate(equipment.air_filter_changed_at) : null} />
             <DetailField label="Fecha de Batería" value={equipment.battery_changed_at ? formatDate(equipment.battery_changed_at) : null} />
-            <DetailField label="Nivel de Combustible" value={formatFuelLevel(equipment)} />
+            {!isGasEquipment(equipment) && <DetailField label="Nivel de Combustible" value={formatFuelLevel(equipment)} />}
             <DetailField label="Horas de Uso" value={equipment.hours_of_use != null ? `${equipment.hours_of_use} h` : null} />
             <DetailField label="Número de Arranques" value={equipment.starts_count} />
             <DetailField label="Último Service" value={equipment.last_service_date ? formatDate(equipment.last_service_date) : null} />

@@ -148,6 +148,13 @@ export const FUEL_TYPE_LABELS = {
   [FUEL_TYPE.GAS]: 'Gas',
 }
 
+// Un equipo a gas no tiene tanque: la visita no pide el nivel de combustible
+// y la ficha no muestra el tamaño del tanque ni el nivel (pedido del
+// 22/10/2026). Sirve para el equipo guardado y para el formulario de la ficha.
+export function isGasEquipment(equipment) {
+  return equipment?.fuel_type === FUEL_TYPE.GAS
+}
+
 export const CONDITION_STATUS = {
   OPTIMO: 'optimo',
   ATENCION: 'atencion',
@@ -396,12 +403,25 @@ export const VISIT_CHANGES_FIELDS = [
     unit: 'Litros',
     defaultValue: '',
   },
-  { key: 'agregado_combustible_litros', label: 'Agregado de Combustible', type: VISIT_CHANGE_FIELD_TYPE.NUMBER, unit: 'Litros', defaultValue: '' },
+  // Un equipo a gas no carga combustible.
+  {
+    key: 'agregado_combustible_litros',
+    label: 'Agregado de Combustible',
+    type: VISIT_CHANGE_FIELD_TYPE.NUMBER,
+    unit: 'Litros',
+    defaultValue: '',
+    appliesTo: (equipment) => !isGasEquipment(equipment),
+  },
   { key: 'cambio_filtro_combustible', label: 'Cambio Filtro de Combustible', type: VISIT_CHANGE_FIELD_TYPE.SI_NO, defaultValue: 'no' },
   { key: 'cambio_filtro_aceite', label: 'Cambio Filtro de Aceite', type: VISIT_CHANGE_FIELD_TYPE.SI_NO, defaultValue: 'no' },
   { key: 'cambio_filtro_aire', label: 'Cambio Filtro de Aire', type: VISIT_CHANGE_FIELD_TYPE.SI_NO, defaultValue: 'no' },
   { key: 'cambio_bateria', label: 'Cambio de Batería', type: VISIT_CHANGE_FIELD_TYPE.SI_NO, defaultValue: 'no' },
 ]
+
+// Los campos de "Cambios y Agregados" que corresponden a ese equipo.
+export function visitChangesFieldsFor(equipment) {
+  return VISIT_CHANGES_FIELDS.filter((field) => field.appliesTo?.(equipment) ?? true)
+}
 
 // Que columna de la ficha tecnica del equipo (y con cuantos años de
 // vigencia) actualiza cada "cambio_*" al recibir la visita (ver
@@ -420,7 +440,7 @@ export const VISIT_CHANGE_TO_EQUIPMENT_TRACKING = [
 //
 // Jornada: lunes a jueves de 8 a 18 (9 h netas) y viernes de 8 a 17 (8 h
 // netas), 44 h por semana. Lo que pasa de 44 h en la semana va al 50%; la
-// noche (22 a 06), el sabado desde las 13, el domingo y el feriado trabajado
+// noche (20 a 06), el sabado desde las 13, el domingo y el feriado trabajado
 // van siempre al 100%. En un dia habil, entrar entre las 07:20 y las 08 no
 // suma: se cuenta desde las 08. Hasta las 07:19 se cuenta desde la hora real.
 export const TIMESHEET_RULES = {
@@ -438,7 +458,9 @@ export const TIMESHEET_RULES = {
   // feriado aunque no se trabaje. El fin de semana no es laborable.
   weekdayNormalMinutes: { 1: 9 * 60, 2: 9 * 60, 3: 9 * 60, 4: 9 * 60, 5: 8 * 60 },
   weeklyNormalMinutes: 44 * 60,
-  nightStartTime: '22:00',
+  // Desde aca hasta nightEndTime va al 100% (pedido del 23/10/2026; hasta
+  // entonces la noche empezaba a las 22:00).
+  nightStartTime: '20:00',
   nightEndTime: '06:00',
   lunchDiscountMinutes: 60,
   saturdayCutoffTime: '13:00',
