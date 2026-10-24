@@ -78,30 +78,12 @@ function dayDetailRows(row) {
     })
 }
 
-// Quien tiene horas fijas no ficha ni tiene dias: un solo renglon con sus
-// horas de la semana.
-function fixedHoursDetailRow(row) {
-  return [
-    textCell(row.clockPin),
-    textCell(row.fullName),
-    null,
-    null,
-    null,
-    null,
-    null,
-    durationCell(row.totals.normalMinutes),
-    durationCell(row.totals.extra50Minutes),
-    durationCell(row.totals.extra100Minutes),
-    durationCell(row.totals.totalMinutes),
-  ]
-}
-
 // Todo el personal, para que el contador vea de donde sale cada total.
 function detailSheet(rows) {
   const header = ['Legajo', 'Empleado', 'Fecha', 'Día', 'Tipo de día', 'Entrada', 'Salida', 'Normales', 'Al 50%', 'Al 100%', 'Total'].map(headerCell)
   const data = [...rows]
     .sort(compareReportRows)
-    .flatMap((row) => (row.fixedWeeklyMinutes ? [fixedHoursDetailRow(row)] : dayDetailRows(row)))
+    .flatMap(dayDetailRows)
   return {
     sheet: 'Detalle por día',
     data: [header, ...data],

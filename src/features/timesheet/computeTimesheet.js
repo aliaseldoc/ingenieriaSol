@@ -157,7 +157,7 @@ export function pairPunches(punches, { now = Date.now(), rules = TIMESHEET_RULES
 // Paso 5b: la jornada arranca a las 08:00. En un dia habil, un tramo que
 // empieza entre las 07:20 y las 08 cuenta recien desde las 08: el fichaje se
 // guarda y se muestra con su hora, pero esos minutos no suman. Hasta las 07:19
-// cuenta desde la hora real (antes de las 06 es madrugada y va al 100%); el
+// cuenta desde la hora real (antes de las 05 es madrugada y va al 100%); el
 // sabado, el domingo y el feriado no tienen horario y cuentan desde que se
 // ficha. earlyMinutes son los minutos que no se cuentan, para mostrarlo.
 function clampEarlyStart(segment, holidays, rules) {
@@ -230,7 +230,7 @@ function overlapMinutes(piece, from, to) {
 // dentro de la jornada (de 08 a 18, el viernes hasta las 17). Si alguien
 // termina a las 18 y vuelve a las 20 por una urgencia, ese corte no es el
 // almuerzo: la jornada lleva su descuento y la vuelta suma aparte. Tampoco lo
-// es el hueco entre un turno de noche que termino a las 06 y la jornada.
+// es el hueco entre un turno de noche que termino a las 05 y la jornada.
 function lunchPauseMinutes(dateKey, dayType, ordered, rules) {
   const endTime = rules.workdayEndTime[weekdayOfKey(dateKey)]
   if (dayType !== DAY_TYPE.HABIL || !endTime) return 0
@@ -245,8 +245,8 @@ function lunchPauseMinutes(dateKey, dayType, ordered, rules) {
   return pauseMinutes
 }
 
-// Paso 7: las horas de un dia, antes de mirar la semana. Las diurnas (de 06 a
-// 20 entre semana, de 06 a 13 el sabado) cuentan para las 44 h semanales; el
+// Paso 7: las horas de un dia, antes de mirar la semana. Las diurnas (de 05 a
+// 20 entre semana, de 05 a 13 el sabado) cuentan para las 44 h semanales; el
 // resto del dia (la noche, el sabado desde las 13) va siempre al 100%. El
 // domingo y el feriado van enteros al 100%.
 function computeDayHours(dateKey, dayType, pieces, lunchTaken, rules) {
@@ -464,10 +464,60 @@ export function weekPunchRange(weekStartKey) {
   }
 }
 
+// Horas fijas (employees.fixed_weekly_minutes): no ficha. Su semana es un
+// horario simbolico de lunes a viernes desde workdayStartTime, con la quinta
+// parte de las horas fijas por dia (25 h = de 8 a 13), mas las horas de mas que
+// cargo el mismo ese dia (timesheet_extra_hours, ver 0033). Todo va como
+// normales, sin mirar fichajes, feriados ni almuerzos (pedido del 24/10/2026).
+// Los dias tienen la misma forma que los de computeEmployeeDays, asi la grilla,
+// el Excel y la foto del cierre los muestran como los de cualquiera.
+function fixedScheduleDays(dayKeys, fixedWeeklyMinutes, extraMinutesByDay, rules) {
+  const dailyMinutes = Math.round(fixedWeeklyMinutes / 5)
+  return dayKeys.map((dateKey) => {
+    const weekday = weekdayOfKey(dateKey)
+    const minutes = weekday >= 1 && weekday <= 5 ? dailyMinutes + (extraMinutesByDay.get(dateKey) ?? 0) : 0
+    const start = zonedToInstant(dateKey, rules.workdayStartTime)
+    return {
+      dateKey,
+      dayType: classifyDay(dateKey, new Set()),
+      status: minutes > 0 ? DAY_STATUS.OK : DAY_STATUS.SIN_FICHAJES,
+      issues: [],
+      punches: [],
+      tramos: minutes > 0 ? [{ entrada: toTimeString(start), salida: toTimeString(start + minutes * MINUTE_MS) }] : [],
+      lunchTaken: true,
+      lunchSource: LUNCH_SOURCE.DEFAULT,
+      earlyStartMinutes: 0,
+      workedMinutes: minutes,
+      pauseMinutes: 0,
+      lunchDiscountMinutes: 0,
+      extra100Minutes: 0,
+      paidHolidayMinutes: 0,
+      normalMinutes: minutes,
+      extra50Minutes: 0,
+      totalMinutes: minutes,
+    }
+  })
+}
+
+// Filas de timesheet_extra_hours de un empleado -> Map dia -> minutos.
+function extraMinutesByDay(rows = []) {
+  return new Map(rows.map((row) => [row.work_date, row.minutes]))
+}
+
 // Una fila por empleado, con la misma forma que la foto guardada al cerrar
 // (ver toWeekSnapshot), para que el reporte pueda mostrar cualquiera de las dos.
-// `lunchOverrides` son las filas de timesheet_lunch_overrides de la semana.
-export function computeWeekReport({ employees, punches, weekStartKey, holidayKeys = [], lunchOverrides = [], now = Date.now(), rules = TIMESHEET_RULES }) {
+// `lunchOverrides` son las filas de timesheet_lunch_overrides de la semana y
+// `extraHours` las de timesheet_extra_hours.
+export function computeWeekReport({
+  employees,
+  punches,
+  weekStartKey,
+  holidayKeys = [],
+  lunchOverrides = [],
+  extraHours = [],
+  now = Date.now(),
+  rules = TIMESHEET_RULES,
+}) {
   const dayKeys = weekDayKeys(weekStartKey)
   const punchesByEmployee = new Map()
   for (const punch of punches) {
@@ -479,21 +529,24 @@ export function computeWeekReport({ employees, punches, weekStartKey, holidayKey
     if (!overridesByEmployee.has(row.employee_id)) overridesByEmployee.set(row.employee_id, [])
     overridesByEmployee.get(row.employee_id).push(row)
   }
+  const extraHoursByEmployee = new Map()
+  for (const row of extraHours) {
+    if (!extraHoursByEmployee.has(row.employee_id)) extraHoursByEmployee.set(row.employee_id, [])
+    extraHoursByEmployee.get(row.employee_id).push(row)
+  }
 
   return employees.map((employee) => {
-    // Horas fijas (employees.fixed_weekly_minutes): no ficha. La semana le
-    // paga siempre esas horas como normales, sin mirar fichajes, feriados ni
-    // almuerzos; sus dias van en cero para que la grilla arme la fila igual.
     const fixedWeeklyMinutes = employee.fixed_weekly_minutes ?? null
-    const days = computeEmployeeDays({
-      punches: fixedWeeklyMinutes ? [] : (punchesByEmployee.get(employee.id) ?? []),
-      dayKeys,
-      holidayKeys: fixedWeeklyMinutes ? [] : holidayKeys,
-      lunchOverrides: lunchOverridesByDay(overridesByEmployee.get(employee.id)),
-      now,
-      rules,
-    })
-    const totals = sumDays(days)
+    const days = fixedWeeklyMinutes
+      ? fixedScheduleDays(dayKeys, fixedWeeklyMinutes, extraMinutesByDay(extraHoursByEmployee.get(employee.id)), rules)
+      : computeEmployeeDays({
+          punches: punchesByEmployee.get(employee.id) ?? [],
+          dayKeys,
+          holidayKeys,
+          lunchOverrides: lunchOverridesByDay(overridesByEmployee.get(employee.id)),
+          now,
+          rules,
+        })
     return {
       employeeId: employee.id,
       fullName: employee.full_name,
@@ -502,7 +555,7 @@ export function computeWeekReport({ employees, punches, weekStartKey, holidayKey
       reportPosition: employee.report_position ?? null,
       fixedWeeklyMinutes,
       days,
-      totals: fixedWeeklyMinutes ? { ...totals, normalMinutes: fixedWeeklyMinutes, totalMinutes: fixedWeeklyMinutes } : totals,
+      totals: sumDays(days),
     }
   })
 }
