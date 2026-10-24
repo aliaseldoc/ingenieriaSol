@@ -9,72 +9,69 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
-      colors: {
-        background: '#f2f2ef',
-        surface: '#f2f2ef',
-        'surface-bright': '#f2f2ef',
-        'surface-container-lowest': '#ffffff',
-        'surface-container-low': '#e9e9e4',
-        'surface-container': '#e1e1db',
-        'surface-container-high': '#d6d6cf',
-        'surface-container-highest': '#cbcbc3',
-        'surface-variant': '#cbcbc3',
-        'surface-dim': '#c2c2ba',
-        'surface-tint': '#63665f',
-        'on-surface': '#12181a',
-        'on-background': '#12181a',
-        'on-surface-variant': '#5c6360',
-        outline: '#797d77',
-        'outline-variant': '#d8dad5',
-
-        // Grafito/carbón — el "bisel" oscuro (sidebar, chips de avatar).
-        primary: '#0d0f0e',
-        'on-primary': '#ffffff',
-        'primary-container': '#1c1f1d',
-        'on-primary-container': '#9a9d99',
-        'primary-fixed': '#e4e5e1',
-        'primary-fixed-dim': '#c7c9c3',
-        'on-primary-fixed': '#1c1f1d',
-        'on-primary-fixed-variant': '#45473f',
-
-        // Verde pino — la marca (placeholder hasta recibir el logo real:
-        // ajustar sólo estos 8 hex, ningún componente referencia el valor).
-        secondary: '#1f4a3d',
-        'on-secondary': '#ffffff',
-        'secondary-container': '#2c6b57',
-        'on-secondary-container': '#eaf3ef',
-        'secondary-fixed': '#dcece5',
-        'secondary-fixed-dim': '#c3ddd3',
-        'on-secondary-fixed': '#14332a',
-        'on-secondary-fixed-variant': '#1f4a3d',
-
-        // Verde éxito — hermano del pino, ya no un verde-menta desconectado.
-        tertiary: '#000000',
-        'on-tertiary': '#ffffff',
-        'tertiary-container': '#002113',
-        'on-tertiary-container': '#009668',
-        'tertiary-fixed': '#6ffbbe',
-        'tertiary-fixed-dim': '#4f8f6f',
-        'on-tertiary-fixed': '#002113',
-        'on-tertiary-fixed-variant': '#1f4a3d',
-
-        // Ocre — "atención" (nuevo: antes reutilizaba `secondary`, lo que
-        // ahora chocaría con el verde de marca).
-        warning: '#8a5a12',
-        'on-warning': '#ffffff',
-        'warning-container': '#f3e4c9',
-        'on-warning-container': '#5c3b0a',
-
-        // Rojo ladrillo apagado — error/falla.
-        error: '#9c2f2b',
-        'on-error': '#ffffff',
-        'error-container': '#f6dad8',
-        'on-error-container': '#6b1512',
-
-        'inverse-surface': '#2a2d29',
-        'inverse-on-surface': '#f2f2ef',
-        'inverse-primary': '#c7c9c3',
-      },
+      // Los valores viven en src/index.css como variables (--c-<nombre>), con un
+      // juego para el modo claro y otro para el nocturno (pedido del 24/10/2026).
+      // El prefijo no puede ser --color-: Tailwind ya define --color-<nombre>
+      // con el valor de aca, y quedaria apuntandose a si mismo.
+      colors: Object.fromEntries(
+        [
+          'background',
+          'surface',
+          'surface-bright',
+          'surface-container-lowest',
+          'surface-container-low',
+          'surface-container',
+          'surface-container-high',
+          'surface-container-highest',
+          'surface-variant',
+          'surface-dim',
+          'surface-tint',
+          'on-surface',
+          'on-background',
+          'on-surface-variant',
+          'outline',
+          'outline-variant',
+          'primary',
+          'on-primary',
+          'primary-container',
+          'on-primary-container',
+          'primary-fixed',
+          'primary-fixed-dim',
+          'on-primary-fixed',
+          'on-primary-fixed-variant',
+          'secondary',
+          'on-secondary',
+          'secondary-container',
+          'on-secondary-container',
+          'secondary-fixed',
+          'secondary-fixed-dim',
+          'on-secondary-fixed',
+          'on-secondary-fixed-variant',
+          'tertiary',
+          'on-tertiary',
+          'tertiary-container',
+          'on-tertiary-container',
+          'tertiary-fixed',
+          'tertiary-fixed-dim',
+          'on-tertiary-fixed',
+          'on-tertiary-fixed-variant',
+          'warning',
+          'on-warning',
+          'warning-container',
+          'on-warning-container',
+          'error',
+          'on-error',
+          'error-container',
+          'on-error-container',
+          'inverse-surface',
+          'inverse-on-surface',
+          'inverse-primary',
+          'bar',
+          'bar-light',
+          'on-bar',
+          'scrim',
+        ].map((name) => [name, `var(--c-${name})`])
+      ),
       // Ojo: estos nombres (xs/sm/md/lg/xl) tambien son usados internamente
       // por la escala de max-w-*, y en Tailwind v4 spacing tiene prioridad
       // sobre ese valor por defecto. Por eso max-w-sm/md/lg/xl NO deben
@@ -90,18 +87,19 @@ export default {
         'margin-mobile': '1.6rem',
         'margin-desktop': '3.2rem',
       },
+      // Mas redondeado, como la propuesta de Seguimiento (24/10/2026).
       borderRadius: {
-        DEFAULT: '0.4rem',
-        lg: '0.5rem',
-        xl: '0.75rem',
+        DEFAULT: '0.8rem',
+        lg: '1.2rem',
+        xl: '1.6rem',
         full: '9999px',
       },
       boxShadow: {
         // Sombra ajustada y de poco desenfoque — como una sombra proyectada
         // por luz direccional, no el "glow" difuso típico de SaaS. Tintada
         // con `ink` (on-surface) en vez de negro puro.
-        'elevation-1': '0 1px 2px 0 rgb(13 15 14 / 0.06), 0 1px 1px 0 rgb(13 15 14 / 0.04)',
-        'elevation-2': '0 4px 8px -2px rgb(13 15 14 / 0.10), 0 2px 4px -2px rgb(13 15 14 / 0.06)',
+        'elevation-1': 'var(--c-shadow-1)',
+        'elevation-2': 'var(--c-shadow-2)',
       },
       fontFamily: {
         'display-lg': ['"Big Shoulders"', 'sans-serif'],

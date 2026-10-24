@@ -1,5 +1,5 @@
 const VARIANT_CLASSES = {
-  primary: 'bg-secondary text-on-secondary hover:bg-secondary-container shadow-elevation-1',
+  primary: 'bg-secondary text-on-secondary hover:bg-secondary/85 shadow-elevation-1',
   'secondary-outline': 'border border-outline text-on-surface hover:bg-surface-container-low hover:border-on-surface-variant',
   'destructive-outline': 'border border-error text-error hover:bg-error-container',
 }

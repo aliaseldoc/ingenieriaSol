@@ -17,7 +17,7 @@ export default function Sidebar({ navItems }) {
               `flex items-center gap-3 px-lg py-sm font-label-md text-label-md rounded mx-2 transition-colors ${
                 isActive
                   ? 'bg-secondary text-on-secondary'
-                  : 'text-on-primary-fixed-variant hover:text-on-primary hover:bg-primary/20'
+                  : 'text-on-primary/80 hover:text-on-primary hover:bg-on-primary/10'
               }`
             }
           >

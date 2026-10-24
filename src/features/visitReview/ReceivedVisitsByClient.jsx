@@ -19,13 +19,13 @@ function ClientVisitGroup({ client, visits, selectedId, onSelect }) {
       <button
         type="button"
         onClick={() => setExpanded((value) => !value)}
-        className="w-full flex items-center gap-sm py-sm px-md bg-secondary hover:bg-secondary-container transition-colors"
+        className="w-full flex items-center gap-sm py-sm px-md bg-bar hover:bg-bar-light transition-colors"
       >
-        <span className="material-symbols-outlined text-[2rem] text-secondary-fixed-dim">
+        <span className="material-symbols-outlined text-[2rem] text-on-bar/70">
           {expanded ? 'expand_more' : 'chevron_right'}
         </span>
-        <span className="font-label-md text-label-md text-on-secondary">{client?.name ?? 'Sin cliente'}</span>
-        <span className="font-label-sm text-label-sm text-secondary-fixed-dim">({visits.length})</span>
+        <span className="font-label-md text-label-md text-on-bar">{client?.name ?? 'Sin cliente'}</span>
+        <span className="font-label-sm text-label-sm text-on-bar/70">({visits.length})</span>
       </button>
       {expanded && (
         <ul className="divide-y divide-outline-variant/50">

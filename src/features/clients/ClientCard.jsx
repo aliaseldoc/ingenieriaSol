@@ -5,10 +5,10 @@ export default function ClientCard({ client, equipmentCount, onOpenDetail }) {
     <button
       type="button"
       onClick={() => onOpenDetail(client)}
-      className="w-full flex items-center gap-sm py-sm px-md border border-outline-variant rounded-lg bg-secondary hover:bg-secondary-container transition-colors text-left"
+      className="w-full flex items-center gap-sm py-sm px-md border border-outline-variant rounded-lg bg-bar hover:bg-bar-light transition-colors text-left"
     >
-      <span className="flex-1 font-label-md text-label-md text-on-secondary">{client.name}</span>
-      <span className="font-label-sm text-label-sm text-secondary-fixed-dim">{equipmentCount} equipo(s)</span>
+      <span className="flex-1 font-label-md text-label-md text-on-bar">{client.name}</span>
+      <span className="font-label-sm text-label-sm text-on-bar/70">{equipmentCount} equipo(s)</span>
     </button>
   )
 }

@@ -1,8 +1,136 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
+/* Colores del tema (los usa tailwind.config.js). Claro: los de siempre.
+   Nocturno: data-theme="dark" en <html>, lo pone src/lib/theme.js segun lo
+   que eligio el usuario o, si no eligio, segun el dispositivo. "bar" es el
+   verde de las filas de agrupacion y de las barras de titulo: queda oscuro
+   con letras blancas en los dos modos. "scrim" oscurece el fondo de un modal. */
+:root {
+  --c-background: #f2f2ef;
+  --c-surface: #f2f2ef;
+  --c-surface-bright: #f2f2ef;
+  --c-surface-container-lowest: #ffffff;
+  --c-surface-container-low: #e9e9e4;
+  --c-surface-container: #e1e1db;
+  --c-surface-container-high: #d6d6cf;
+  --c-surface-container-highest: #cbcbc3;
+  --c-surface-variant: #cbcbc3;
+  --c-surface-dim: #c2c2ba;
+  --c-surface-tint: #63665f;
+  --c-on-surface: #12181a;
+  --c-on-background: #12181a;
+  --c-on-surface-variant: #5c6360;
+  --c-outline: #797d77;
+  --c-outline-variant: #d8dad5;
+  --c-primary: #0d0f0e;
+  --c-on-primary: #ffffff;
+  --c-primary-container: #1c1f1d;
+  --c-on-primary-container: #9a9d99;
+  --c-primary-fixed: #e4e5e1;
+  --c-primary-fixed-dim: #c7c9c3;
+  --c-on-primary-fixed: #1c1f1d;
+  --c-on-primary-fixed-variant: #45473f;
+  --c-secondary: #1f4a3d;
+  --c-on-secondary: #ffffff;
+  --c-secondary-container: #2c6b57;
+  --c-on-secondary-container: #eaf3ef;
+  --c-secondary-fixed: #dcece5;
+  --c-secondary-fixed-dim: #c3ddd3;
+  --c-on-secondary-fixed: #14332a;
+  --c-on-secondary-fixed-variant: #1f4a3d;
+  --c-tertiary: #000000;
+  --c-on-tertiary: #ffffff;
+  --c-tertiary-container: #002113;
+  --c-on-tertiary-container: #009668;
+  --c-tertiary-fixed: #6ffbbe;
+  --c-tertiary-fixed-dim: #4f8f6f;
+  --c-on-tertiary-fixed: #002113;
+  --c-on-tertiary-fixed-variant: #1f4a3d;
+  --c-warning: #8a5a12;
+  --c-on-warning: #ffffff;
+  --c-warning-container: #f3e4c9;
+  --c-on-warning-container: #5c3b0a;
+  --c-error: #9c2f2b;
+  --c-on-error: #ffffff;
+  --c-error-container: #f6dad8;
+  --c-on-error-container: #6b1512;
+  --c-inverse-surface: #2a2d29;
+  --c-inverse-on-surface: #f2f2ef;
+  --c-inverse-primary: #c7c9c3;
+  --c-bar: #1f4a3d;
+  --c-bar-light: #2c6b57;
+  --c-on-bar: #ffffff;
+  --c-scrim: #12181a;
+  --c-shadow-1: 0 1px 2px 0 rgb(13 15 14 / 0.06), 0 1px 1px 0 rgb(13 15 14 / 0.04);
+  --c-shadow-2: 0 4px 8px -2px rgb(13 15 14 / 0.10), 0 2px 4px -2px rgb(13 15 14 / 0.06);
+  --c-grid-line: rgba(18, 24, 26, 0.06);
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --c-background: #111513;
+  --c-surface: #111513;
+  --c-surface-bright: #161b18;
+  --c-surface-container-lowest: #181d1a;
+  --c-surface-container-low: #1d2320;
+  --c-surface-container: #232a26;
+  --c-surface-container-high: #2b322e;
+  --c-surface-container-highest: #333b37;
+  --c-surface-variant: #333b37;
+  --c-surface-dim: #0d100e;
+  --c-surface-tint: #9aa39e;
+  --c-on-surface: #e6e9e6;
+  --c-on-background: #e6e9e6;
+  --c-on-surface-variant: #a1aaa5;
+  --c-outline: #66706b;
+  --c-outline-variant: #2f3733;
+  --c-primary: #050706;
+  --c-on-primary: #ffffff;
+  --c-primary-container: #0b0e0c;
+  --c-on-primary-container: #9a9d99;
+  --c-primary-fixed: #2b322e;
+  --c-primary-fixed-dim: #333b37;
+  --c-on-primary-fixed: #e6e9e6;
+  --c-on-primary-fixed-variant: #a1aaa5;
+  --c-secondary: #6fbf97;
+  --c-on-secondary: #0b1a13;
+  --c-secondary-container: #2f7560;
+  --c-on-secondary-container: #f2f8f5;
+  --c-secondary-fixed: #1b3a30;
+  --c-secondary-fixed-dim: #234a3d;
+  --c-on-secondary-fixed: #cfe8dd;
+  --c-on-secondary-fixed-variant: #cfe8dd;
+  --c-tertiary: #ffffff;
+  --c-on-tertiary: #000000;
+  --c-tertiary-container: #c9f5df;
+  --c-on-tertiary-container: #43c493;
+  --c-tertiary-fixed: #6ffbbe;
+  --c-tertiary-fixed-dim: #6fbf97;
+  --c-on-tertiary-fixed: #d7f7e7;
+  --c-on-tertiary-fixed-variant: #a8e0c4;
+  --c-warning: #e0a94f;
+  --c-on-warning: #1f1405;
+  --c-warning-container: #3a2c14;
+  --c-on-warning-container: #f2dcb2;
+  --c-error: #e8857e;
+  --c-on-error: #2a0b09;
+  --c-error-container: #3f1c1a;
+  --c-on-error-container: #f7cdc9;
+  --c-inverse-surface: #e6e9e6;
+  --c-inverse-on-surface: #1d2320;
+  --c-inverse-primary: #2b322e;
+  --c-bar: #24584a;
+  --c-bar-light: #2f7560;
+  --c-on-bar: #ffffff;
+  --c-scrim: #000000;
+  --c-shadow-1: 0 1px 2px 0 rgb(0 0 0 / 0.35), 0 1px 1px 0 rgb(0 0 0 / 0.25);
+  --c-shadow-2: 0 6px 14px -4px rgb(0 0 0 / 0.55), 0 2px 4px -2px rgb(0 0 0 / 0.35);
+  --c-grid-line: rgba(230, 233, 230, 0.05);
+  color-scheme: dark;
+}
 html {
   font-size: 62.5%; /* 1rem = 10px, segun preferencia del proyecto */
+  background-color: var(--c-background);
 }
 
 body {
@@ -60,15 +188,17 @@ body {
   border-radius: 9999px;
 }
 
+/* Barras verdes de titulo: letras blancas y en negrita, en los dos modos. */
 .list-title-bar {
-  background-color: theme('colors.secondary-container');
-  color: theme('colors.on-secondary-container');
+  background-color: theme('colors.bar-light');
+  color: theme('colors.on-bar');
+  font-weight: 700;
 }
 
 .grid-pattern {
   background-image:
-    linear-gradient(to right, rgba(18, 24, 26, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(18, 24, 26, 0.06) 1px, transparent 1px);
+    linear-gradient(to right, var(--c-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--c-grid-line) 1px, transparent 1px);
   background-size: 3.2rem 3.2rem;
 }
 

@@ -8,13 +8,13 @@ export default function ClientGroupRow({ client, equipmentList, expanded, onTogg
       <button
         type="button"
         onClick={onToggleExpanded}
-        className="w-full flex items-center gap-sm py-sm px-sm bg-secondary hover:bg-secondary-container transition-colors text-left"
+        className="w-full flex items-center gap-sm py-sm px-sm bg-bar hover:bg-bar-light transition-colors text-left"
       >
-        <span className="material-symbols-outlined text-[2rem] text-secondary-fixed-dim">
+        <span className="material-symbols-outlined text-[2rem] text-on-bar/70">
           {expanded ? 'expand_more' : 'chevron_right'}
         </span>
-        <span className="font-label-md text-label-md text-on-secondary">{client.name}</span>
-        <span className="font-label-sm text-label-sm text-secondary-fixed-dim">({equipmentList.length})</span>
+        <span className="font-label-md text-label-md text-on-bar">{client.name}</span>
+        <span className="font-label-sm text-label-sm text-on-bar/70">({equipmentList.length})</span>
         {!isActiveClient(client) && <StatusChip label="Inactivo" tone="neutral" variant="tag" />}
       </button>
       {expanded && (
