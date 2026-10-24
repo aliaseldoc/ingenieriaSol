@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useEquipment } from '../../hooks/useEquipment'
 import { useClients } from '../../hooks/useClients'
@@ -39,6 +40,19 @@ export default function ClientsPage({ readOnly = false }) {
   const [historyEquipment, setHistoryEquipment] = useState(null)
   const [detailClient, setDetailClient] = useState(null)
   const [formModal, setFormModal] = useState(null) // { mode: 'create' | 'edit', client? }
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // El nombre de un equipo en riesgo, desde Seguimiento: llega con ?cliente=<id>
+  // y abre su detalle. El parametro se borra para que recargar la pagina no lo
+  // vuelva a abrir.
+  const linkedClientId = searchParams.get('cliente')
+  useEffect(() => {
+    if (!linkedClientId || clients.length === 0) return
+    setSearchParams({}, { replace: true })
+    const client = clients.find((candidate) => candidate.id === linkedClientId)
+    if (client) setDetailClient(client)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedClientId, clients])
 
   const clientGroups = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()

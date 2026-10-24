@@ -212,7 +212,7 @@ export default function FollowUpPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-md items-start">
         <div className="lg:col-span-7 min-w-0">
           {progress && !monthLoading && (progress.isCurrent ? (
-            <AtRiskEquipment risk={progress.risk} onPlan={planEquipment} />
+            <AtRiskEquipment risk={progress.risk} clientsPath={`${basePath}/clientes`} onPlan={planEquipment} />
           ) : (
             <ShortfallList shortfall={progress.shortfall} />
           ))}

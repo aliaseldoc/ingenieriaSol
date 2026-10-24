@@ -71,7 +71,7 @@ export default function ClientDetailModal({ client, equipmentList, onClose, onEd
 
   return (
     <>
-      <Modal open={Boolean(client)} title="Detalle del Cliente" onClose={handleClose} size="lg" actions={actions}>
+      <Modal open={Boolean(client)} title={client?.name ?? ''} onClose={handleClose} size="lg" actions={actions}>
         {client && (
           <div className="space-y-md">
             {canEdit ? (

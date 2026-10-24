@@ -1,4 +1,4 @@
-// Toda la fila abre el pop-up "Detalle del Cliente", que tiene su ficha de
+// Toda la fila abre el pop-up con el detalle del cliente, que tiene su ficha de
 // datos y el listado de sus equipos.
 export default function ClientCard({ client, equipmentCount, onOpenDetail }) {
   return (
