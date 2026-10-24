@@ -21,6 +21,9 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       strategies: 'generateSW',
+      // La version nueva queda esperando: la aplica src/offline/PwaAutoUpdate.jsx
+      // cuando nadie esta cargando nada (con 'autoUpdate' recargaria a mitad
+      // de un formulario).
       registerType: 'prompt',
       injectRegister: false,
       includeAssets: ['favicon-32.png', 'apple-touch-icon.png'],
