@@ -8,6 +8,8 @@ import { DAY_STATUS, DAY_TYPE, DAY_TYPE_LABELS, LUNCH_SOURCE, PUNCH_ISSUE_LABELS
 import { getPunchFlags, isDayWithoutLunch } from '../../features/timesheet/punchFlags'
 import { currentWeekStartKey, formatMinutes, formatPunchDateTime, formatShortDayLabel, toDateKey, toTimeString } from '../../features/timesheet/workTime'
 import WeekPicker from '../../features/timesheet/WeekPicker'
+import TotalsSummary from '../../features/timesheet/TotalsSummary'
+import FixedHoursWeek from '../../features/timesheet/FixedHoursWeek'
 import {
   LOCATION_ERROR_LABELS,
   LOCATION_STATUS,
@@ -65,25 +67,6 @@ function LocationStatus({ location }) {
         Sin ubicación: {LOCATION_ERROR_LABELS[location.error]}. El fichaje se guarda igual y queda marcado para revisión del supervisor.
       </span>
     </p>
-  )
-}
-
-function TotalsSummary({ totals }) {
-  const items = [
-    { label: 'Normales', value: totals.normalMinutes },
-    { label: 'Al 50%', value: totals.extra50Minutes },
-    { label: 'Al 100%', value: totals.extra100Minutes },
-    { label: 'Total', value: totals.totalMinutes },
-  ]
-  return (
-    <dl className="grid grid-cols-2 md:grid-cols-4 gap-sm mb-md">
-      {items.map((item) => (
-        <div key={item.label} className="bg-surface-container-lowest border border-outline-variant rounded-lg p-sm text-center">
-          <dt className="font-label-sm text-label-sm text-on-surface-variant uppercase">{item.label}</dt>
-          <dd className="font-headline-md text-headline-md text-on-surface">{formatMinutes(item.value)}</dd>
-        </div>
-      ))}
-    </dl>
   )
 }
 
@@ -230,6 +213,12 @@ export default function PunchPage() {
         />
       </div>
     )
+  }
+
+  // Quien tiene horas fijas no ficha: ve su semana como sale en el reporte y
+  // carga las horas de mas (ver FixedHoursWeek).
+  if (employee.fixed_weekly_minutes) {
+    return <FixedHoursWeek employee={employee} weekStartKey={weekStartKey} onChangeWeek={setWeekStartKey} online={online} />
   }
 
   const duplicateWarning = draft && hasRecentSamePunch(allPunches, draft.punchType, draft.startedAt)

@@ -440,7 +440,7 @@ export const VISIT_CHANGE_TO_EQUIPMENT_TRACKING = [
 //
 // Jornada: lunes a jueves de 8 a 18 (9 h netas) y viernes de 8 a 17 (8 h
 // netas), 44 h por semana. Lo que pasa de 44 h en la semana va al 50%; la
-// noche (20 a 06), el sabado desde las 13, el domingo y el feriado trabajado
+// noche (20 a 05), el sabado desde las 13, el domingo y el feriado trabajado
 // van siempre al 100%. En un dia habil, entrar entre las 07:20 y las 08 no
 // suma: se cuenta desde las 08. Hasta las 07:19 se cuenta desde la hora real.
 export const TIMESHEET_RULES = {
@@ -458,10 +458,10 @@ export const TIMESHEET_RULES = {
   // feriado aunque no se trabaje. El fin de semana no es laborable.
   weekdayNormalMinutes: { 1: 9 * 60, 2: 9 * 60, 3: 9 * 60, 4: 9 * 60, 5: 8 * 60 },
   weeklyNormalMinutes: 44 * 60,
-  // Desde aca hasta nightEndTime va al 100% (pedido del 23/10/2026; hasta
-  // entonces la noche empezaba a las 22:00).
+  // De nightStartTime a nightEndTime va al 100% (pedidos del 23/10/2026 y del
+  // 24/10/2026; hasta entonces la noche iba de 22:00 a 06:00).
   nightStartTime: '20:00',
-  nightEndTime: '06:00',
+  nightEndTime: '05:00',
   lunchDiscountMinutes: 60,
   saturdayCutoffTime: '13:00',
   clockReboundMinutes: 2,

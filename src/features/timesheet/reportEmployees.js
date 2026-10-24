@@ -47,14 +47,16 @@ export function compareReportRows(a, b) {
 }
 
 // lunchOverrides: filas de timesheet_lunch_overrides (lo que marco el
-// supervisor sobre el almuerzo de cada dia).
-export function buildWeekReport({ employees, punches, holidays, lunchOverrides = [], weekStartKey, now = Date.now() }) {
+// supervisor sobre el almuerzo de cada dia). extraHours: filas de
+// timesheet_extra_hours (las horas de mas de quien tiene horas fijas).
+export function buildWeekReport({ employees, punches, holidays, lunchOverrides = [], extraHours = [], weekStartKey, now = Date.now() }) {
   return computeWeekReport({
     employees: selectReportEmployees({ employees, punches, weekStartKey }),
     punches,
     weekStartKey,
     holidayKeys: holidays.map((holiday) => holiday.date),
     lunchOverrides,
+    extraHours,
     now,
   })
 }

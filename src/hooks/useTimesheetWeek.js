@@ -3,6 +3,7 @@ import { listEmployees } from '../api/employees'
 import { listPunchesInRange } from '../api/timePunches'
 import { listHolidaysInRange } from '../api/holidays'
 import { listLunchOverridesInRange } from '../api/lunchOverrides'
+import { listExtraHoursInRange } from '../api/extraHours'
 import { getTimesheetWeek } from '../api/timesheetWeeks'
 import { getTimesheetSettings } from '../api/timesheetSettings'
 import { weekPunchRange } from '../features/timesheet/computeTimesheet'
@@ -11,7 +12,7 @@ import { addDaysToKey } from '../features/timesheet/workTime'
 import { TIMESHEET_WEEK_STATUS } from '../lib/constants'
 
 // Todo lo que el supervisor necesita para una semana: legajos, fichajes,
-// feriados, almuerzos marcados, estado de cierre y ubicacion de la fabrica,
+// feriados, almuerzos marcados, horas de mas, estado de cierre y ubicacion de la fabrica,
 // mas el reporte
 // calculado. Quien entra en el reporte lo decide reportEmployees.js, el mismo
 // que usa el cierre automatico de los lunes.
@@ -25,16 +26,17 @@ export function useTimesheetWeek(weekStartKey) {
     latestRequest.current = requestId
     setState((previous) => ({ ...previous, loading: true, error: null }))
     try {
-      const [employees, punches, holidays, lunchOverrides, week, settings] = await Promise.all([
+      const [employees, punches, holidays, lunchOverrides, extraHours, week, settings] = await Promise.all([
         listEmployees(),
         listPunchesInRange(weekPunchRange(weekStartKey)),
         listHolidaysInRange(addDaysToKey(weekStartKey, -1), addDaysToKey(weekStartKey, 7)),
         listLunchOverridesInRange(weekStartKey, addDaysToKey(weekStartKey, 6)),
+        listExtraHoursInRange(weekStartKey, addDaysToKey(weekStartKey, 6)),
         getTimesheetWeek(weekStartKey),
         getTimesheetSettings(),
       ])
       if (latestRequest.current !== requestId) return
-      setState({ loading: false, error: null, data: { employees, punches, holidays, lunchOverrides, week, settings } })
+      setState({ loading: false, error: null, data: { employees, punches, holidays, lunchOverrides, extraHours, week, settings } })
     } catch (error) {
       if (latestRequest.current !== requestId) return
       setState({ loading: false, error, data: null })
@@ -47,8 +49,8 @@ export function useTimesheetWeek(weekStartKey) {
 
   const rows = useMemo(() => {
     if (!state.data) return []
-    const { employees, punches, holidays, lunchOverrides } = state.data
-    return buildWeekReport({ employees, punches, holidays, lunchOverrides, weekStartKey })
+    const { employees, punches, holidays, lunchOverrides, extraHours } = state.data
+    return buildWeekReport({ employees, punches, holidays, lunchOverrides, extraHours, weekStartKey })
   }, [state.data, weekStartKey])
 
   const week = state.data?.week ?? null
