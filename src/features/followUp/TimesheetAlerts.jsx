@@ -28,7 +28,7 @@ async function loadPunchesAfterLastClose() {
   })
 }
 
-// Tarjeta del Panel de Control, solo para el supervisor: lo que hay que
+// Tarjeta de Seguimiento, solo para el supervisor: lo que hay que
 // revisar del fichaje, con acceso directo a la pantalla para corregirlo.
 export default function TimesheetAlerts() {
   const navigate = useNavigate()

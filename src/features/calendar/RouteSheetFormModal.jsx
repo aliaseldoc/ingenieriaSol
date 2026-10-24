@@ -17,6 +17,11 @@ export default function RouteSheetFormModal({
   equipment,
   createdBy,
   initialDate,
+  // Para "Planificar" desde Seguimiento: equipos, clientes y visita del mes ya
+  // elegidos al abrir una hoja nueva.
+  initialEquipmentIds,
+  initialClientIds,
+  initialVisitOccurrence,
   onClose,
   onSaved,
   onDeleted,
@@ -46,9 +51,9 @@ export default function RouteSheetFormModal({
       setLockedEquipmentIds(new Set(visits.filter(isVisitLocked).map((visit) => visit.equipment_id)))
       setSelectedClientIds(new Set(visits.map((visit) => visit.equipment?.client_id).filter(Boolean)))
     } else {
-      setForm({ ...EMPTY_FORM, scheduledDate: initialDate ?? '' })
-      setSelectedClientIds(new Set())
-      setSelectedEquipmentIds(new Set())
+      setForm({ ...EMPTY_FORM, scheduledDate: initialDate ?? '', visitOccurrence: initialVisitOccurrence ?? '' })
+      setSelectedClientIds(new Set(initialClientIds ?? []))
+      setSelectedEquipmentIds(new Set(initialEquipmentIds ?? []))
       setLockedEquipmentIds(new Set())
     }
     setConfirmingDelete(false)
@@ -73,13 +78,18 @@ export default function RouteSheetFormModal({
   const plannedClientIds = new Set((isEdit ? (routeSheet?.visits ?? []) : []).map((visit) => visit.equipment?.client_id))
   const selectableClients = clients.filter((client) => isActiveClient(client) || plannedClientIds.has(client.id))
 
-  const visibleClients = normalizedSearch
-    ? selectableClients.filter(
-        (client) =>
-          client.name.toLowerCase().includes(normalizedSearch) ||
-          equipment.some((item) => item.client_id === client.id && matchesSearch(item))
-      )
-    : selectableClients
+  // Al abrir desde "Planificar", el cliente elegido va primero para que se vea
+  // sin buscarlo. Se fija al abrir: tildar otro despues no reordena la lista.
+  const pinnedClientIds = new Set(isEdit ? [] : (initialClientIds ?? []))
+  const visibleClients = [
+    ...(normalizedSearch
+      ? selectableClients.filter(
+          (client) =>
+            client.name.toLowerCase().includes(normalizedSearch) ||
+            equipment.some((item) => item.client_id === client.id && matchesSearch(item))
+        )
+      : selectableClients),
+  ].sort((a, b) => Number(pinnedClientIds.has(b.id)) - Number(pinnedClientIds.has(a.id)))
 
   function toggleClient(clientId) {
     const clientEquipmentIds = equipment.filter((item) => item.client_id === clientId).map((item) => item.id)

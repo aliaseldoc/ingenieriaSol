@@ -1,7 +1,7 @@
 // Documento Excel de los services de aceite y baterias vencidos o por vencer,
 // por cliente (pedido del 23/10/2026). Puro, como equipmentReportXlsx.js. La
 // fecha es la del seguimiento de la ficha ("Próx. Cambio ...") y el estado
-// sale de getAlertLevel: la misma regla de las alertas del Panel de Control.
+// sale de getAlertLevel: la misma regla de las alertas de Seguimiento.
 import { dateCell, headerCell, numberCell, textCell } from '../../lib/xlsxCells.js'
 import { isActiveClient } from '../../lib/constants.js'
 import { daysBetween, getAlertLevel, parseDateInput, toISODateString } from '../../lib/dateUtils.js'

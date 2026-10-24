@@ -10,6 +10,7 @@ import {
 import { computeNextDueDate } from '../lib/dateUtils'
 import { collectedDataChanges } from '../features/missingData/missingData'
 import { logVisitEvent, withPreviousSupervisorNotes } from './visitEvents'
+import { RECEPTION_INDEPENDENT_SINCE } from '../features/visitReview/receptionRules'
 
 // Columnas del equipo que necesita el formulario del tecnico: ademas de la
 // identificacion, las que alimentan la ficha (power_kva), los placeholders
@@ -88,6 +89,30 @@ export async function listVisitsPendingReview() {
     .order('submitted_at', { ascending: true })
   if (error) throw error
   return withPreviousSupervisorNotes(data.map(normalizeVisit))
+}
+
+// Cuentas para los pendientes de Seguimiento: solo la cantidad, sin traer filas.
+export async function countVisitsPendingReview() {
+  const { count, error } = await supabase
+    .from('visits')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', VISIT_STATUS.ENVIADA)
+  if (error) throw error
+  return count ?? 0
+}
+
+// La misma regla que isPendingReception (receptionRules.js), dada vuelta para
+// la consulta: enviada, sin recibir y que no sea de las validadas antes de
+// que la recepcion pasara a ser independiente.
+export async function countVisitsPendingReception() {
+  const { count, error } = await supabase
+    .from('visits')
+    .select('id', { count: 'exact', head: true })
+    .not('submitted_at', 'is', null)
+    .is('received_at', null)
+    .or(`status.eq.${VISIT_STATUS.ENVIADA},reviewed_at.is.null,reviewed_at.gte.${RECEPTION_INDEPENDENT_SINCE.toISOString()}`)
+  if (error) throw error
+  return count ?? 0
 }
 
 export async function listAllSubmittedVisits() {

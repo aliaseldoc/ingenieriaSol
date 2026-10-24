@@ -16,7 +16,7 @@ export default function Sidebar({ navItems }) {
             className={({ isActive }) =>
               `flex items-center gap-3 px-lg py-sm font-label-md text-label-md rounded mx-2 transition-colors ${
                 isActive
-                  ? 'bg-secondary text-on-secondary'
+                  ? 'bg-bar-light text-on-bar'
                   : 'text-on-primary/80 hover:text-on-primary hover:bg-on-primary/10'
               }`
             }

@@ -51,7 +51,7 @@ export const DAY_FLAG_DEFINITIONS = [
 ]
 
 // Filtros de la grilla semanal. Tambien los usan los accesos directos de las
-// alertas del Panel de Control (?filtro=...).
+// alertas de Seguimiento (?filtro=...).
 export const WEEK_FILTER = {
   TODOS: 'todos',
   INCOMPLETOS: 'incompletos',

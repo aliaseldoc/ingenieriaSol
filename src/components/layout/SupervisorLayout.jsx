@@ -2,7 +2,7 @@ import RoleLayoutShell from './RoleLayoutShell'
 import { FICHAJE_HABILITADO } from '../../lib/featureFlags'
 
 const NAV_ITEMS = [
-  { to: '/supervisor', end: true, icon: 'dashboard', label: 'Panel de Control' },
+  { to: '/supervisor', end: true, icon: 'monitoring', label: 'Seguimiento' },
   { to: '/supervisor/validacion', icon: 'fact_check', label: 'Validación' },
   { to: '/supervisor/reparaciones', icon: 'build', label: 'Reparaciones' },
   { to: '/supervisor/equipos', icon: 'precision_manufacturing', label: 'Equipos' },
@@ -11,7 +11,6 @@ const NAV_ITEMS = [
   { to: '/supervisor/calendario', icon: 'calendar_month', label: 'Calendario' },
   { to: '/supervisor/personal', icon: 'group', label: 'Personal' },
   ...(FICHAJE_HABILITADO ? [{ to: '/supervisor/fichajes', icon: 'fingerprint', label: 'Fichajes' }] : []),
-  { to: '/supervisor/resumen', icon: 'insights', label: 'Resumen' },
 ]
 
 export default function SupervisorLayout() {

@@ -19,16 +19,17 @@ Roles en la Aplicacion:
 
 Funcionalidades de la aplicación:
     El administrativo debe poder:
-        -tener un home con:
-            - la cantidad de grupos activos, porcentaje de visitas realizadas, alertas de servicios anuales proximos a vencer.
-            -listados de las hojas de rutas de cada tecnico
-            -registro de la ultimas visitas
+        -tener un home "Seguimiento" (lo comparte con el supervisor) con:
+            -las visitas del mes contra la meta (la cantidad de visitas mensuales de cada equipo), el pronostico a fin de mes y el avance por quincena
+            -los equipos en riesgo de no llegar a su meta, con acceso a planificarlos en el calendario
+            -los pendientes de cada rol (recibir, datos incompletos; validar, reparaciones, fichajes)
+            -las alertas de servicios anuales (con los proximos 90 dias) y de combustible
+            -el cierre de los meses anteriores y la comparacion con el mes anterior
         -inventario de equipos agrupados por clientes:
             -con toda su ficha tecnica(luego te voy a especificar todos esos datos generales), historial de visitas, generar las alertar que indiquen que fecha corresponden los sevices anuales
         -calendario de planificacion:
             -poder planificar todas las visitias del mes pudiendo armar la hoja de ruta asignando los tecnicos y el vehiculo para dicha visita
         -recepcion de la visita realizada
-        -resumen del mes y vistas de futuros servives anuales
     El tecnico debe poder:
         -ver la planificacion mensual asiganada por el administrativo
         -tener un formulario de la visita para completar con los parametros relevantes(luego te dare mas detalles)
