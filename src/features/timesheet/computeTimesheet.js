@@ -31,8 +31,8 @@ export const DAY_STATUS = {
 }
 
 // Quien decidio si ese dia hubo almuerzo: lo que marca el supervisor gana a
-// lo que declaro el empleado al registrar la salida, y si nadie dijo nada se
-// asume que almorzo.
+// lo que marco el empleado (su check guardado, o lo que trajo su salida de la
+// app), y si nadie dijo nada se asume que almorzo.
 export const LUNCH_SOURCE = {
   SUPERVISOR: 'supervisor',
   EMPLEADO: 'empleado',
@@ -328,13 +328,20 @@ function declaredLunchByDay(segments) {
   return declared
 }
 
-function resolveLunch(dateKey, lunchOverrides, declaredLunch) {
+// Del empleado, primero lo que trajo su salida de la app: el check se bloquea
+// con la salida, asi que es lo ultimo que marco (y llega aunque la haya
+// registrado sin conexion, con el check sin guardar). Despues el check guardado
+// (timesheet_lunch_checks), que es lo que vale cuando la salida se ficha en el
+// reloj.
+function resolveLunch(dateKey, lunchOverrides, lunchChecks, declaredLunch) {
   if (lunchOverrides.has(dateKey)) return { lunchTaken: lunchOverrides.get(dateKey), lunchSource: LUNCH_SOURCE.SUPERVISOR }
   if (declaredLunch.has(dateKey)) return { lunchTaken: declaredLunch.get(dateKey), lunchSource: LUNCH_SOURCE.EMPLEADO }
+  if (lunchChecks.has(dateKey)) return { lunchTaken: lunchChecks.get(dateKey), lunchSource: LUNCH_SOURCE.EMPLEADO }
   return { lunchTaken: true, lunchSource: LUNCH_SOURCE.DEFAULT }
 }
 
-// Filas de timesheet_lunch_overrides de un empleado -> Map dia -> almorzo.
+// Filas de timesheet_lunch_overrides (o de timesheet_lunch_checks) de un
+// empleado -> Map dia -> almorzo.
 export function lunchOverridesByDay(rows = []) {
   return new Map(rows.map((row) => [row.work_date, row.lunch_taken]))
 }
@@ -343,13 +350,22 @@ export function lunchOverridesByDay(rows = []) {
 // semanas enteras (de lunes a domingo): el cupo de 44 h es semanal. `punches`
 // puede (y conviene) incluir fichajes de un dia antes y uno despues del rango,
 // para que los tramos que cruzan la medianoche en los bordes se armen bien.
-// `lunchOverrides` es lo que marco el supervisor: Map dia -> almorzo.
+// `lunchOverrides` es lo que marco el supervisor y `lunchChecks` lo que marco
+// el empleado con su check: Map dia -> almorzo.
 //
 // Cada dia: { dateKey, dayType, status, issues, punches, tramos, lunchTaken,
 // lunchSource, earlyStartMinutes, ...horas, totalMinutes } donde `punches` son los fichajes de
 // ese dia (tambien los anulados) con `resolvedType` y `ignored` agregados para
 // mostrarlos.
-export function computeEmployeeDays({ punches, dayKeys, holidayKeys = [], lunchOverrides = new Map(), now = Date.now(), rules = TIMESHEET_RULES }) {
+export function computeEmployeeDays({
+  punches,
+  dayKeys,
+  holidayKeys = [],
+  lunchOverrides = new Map(),
+  lunchChecks = new Map(),
+  now = Date.now(),
+  rules = TIMESHEET_RULES,
+}) {
   const holidays = holidayKeys instanceof Set ? holidayKeys : new Set(holidayKeys)
   const paired = pairPunches(punches, { now, rules })
   const { issues, notes, openEntry } = paired
@@ -396,7 +412,7 @@ export function computeEmployeeDays({ punches, dayKeys, holidayKeys = [], lunchO
     const dayType = classifyDay(dateKey, holidays)
     const dayIssues = issuesByDay.get(dateKey) ?? []
     const dayPunches = punchesByDay.get(dateKey) ?? []
-    const lunch = resolveLunch(dateKey, lunchOverrides, declaredLunch)
+    const lunch = resolveLunch(dateKey, lunchOverrides, lunchChecks, declaredLunch)
     const hours = computeDayHours(dateKey, dayType, piecesByDay.get(dateKey) ?? [], lunch.lunchTaken, rules)
 
     let status = DAY_STATUS.OK
@@ -506,14 +522,16 @@ function extraMinutesByDay(rows = []) {
 
 // Una fila por empleado, con la misma forma que la foto guardada al cerrar
 // (ver toWeekSnapshot), para que el reporte pueda mostrar cualquiera de las dos.
-// `lunchOverrides` son las filas de timesheet_lunch_overrides de la semana y
-// `extraHours` las de timesheet_extra_hours.
+// `lunchOverrides` son las filas de timesheet_lunch_overrides de la semana,
+// `lunchChecks` las de timesheet_lunch_checks y `extraHours` las de
+// timesheet_extra_hours.
 export function computeWeekReport({
   employees,
   punches,
   weekStartKey,
   holidayKeys = [],
   lunchOverrides = [],
+  lunchChecks = [],
   extraHours = [],
   now = Date.now(),
   rules = TIMESHEET_RULES,
@@ -528,6 +546,11 @@ export function computeWeekReport({
   for (const row of lunchOverrides) {
     if (!overridesByEmployee.has(row.employee_id)) overridesByEmployee.set(row.employee_id, [])
     overridesByEmployee.get(row.employee_id).push(row)
+  }
+  const checksByEmployee = new Map()
+  for (const row of lunchChecks) {
+    if (!checksByEmployee.has(row.employee_id)) checksByEmployee.set(row.employee_id, [])
+    checksByEmployee.get(row.employee_id).push(row)
   }
   const extraHoursByEmployee = new Map()
   for (const row of extraHours) {
@@ -544,6 +567,7 @@ export function computeWeekReport({
           dayKeys,
           holidayKeys,
           lunchOverrides: lunchOverridesByDay(overridesByEmployee.get(employee.id)),
+          lunchChecks: lunchOverridesByDay(checksByEmployee.get(employee.id)),
           now,
           rules,
         })
