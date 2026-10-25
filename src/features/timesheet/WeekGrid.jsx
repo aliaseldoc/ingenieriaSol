@@ -2,7 +2,29 @@ import { DAY_STATUS } from './computeTimesheet'
 import { DAY_FLAG_DEFINITIONS, getDayFlags, isDayWithoutLunch, rowMatchesFilter } from './punchFlags'
 import { formatMinutes, formatShortDayLabel, weekDayKeys } from './workTime'
 
-function DayCellContent({ day }) {
+// Ingreso arriba y egreso abajo: la primera entrada y la ultima salida del
+// dia. Si hubo mas de un tramo (pausa fichada, turno de noche) el detalle esta
+// en el pop-up del dia.
+function DayTimes({ tramos }) {
+  if (tramos.length === 0) return <span aria-hidden="true" />
+  const entry = tramos.find((tramo) => tramo.entrada)?.entrada ?? null
+  const lastTramo = tramos[tramos.length - 1]
+  const exit = lastTramo.salida ? `${lastTramo.salida}${lastTramo.salidaDiaSiguiente ? ' +1' : ''}` : null
+  return (
+    <span className="flex flex-col font-label-md text-label-md text-on-surface-variant tabular-nums whitespace-nowrap">
+      <span className="pb-[0.2rem] border-b border-outline-variant/60">
+        <span className="sr-only">Ingreso </span>
+        {entry ?? '—'}
+      </span>
+      <span className="pt-[0.2rem]">
+        <span className="sr-only">Egreso </span>
+        {exit ?? '—'}
+      </span>
+    </span>
+  )
+}
+
+function DayHours({ day }) {
   if (day.status === DAY_STATUS.INCOMPLETO) {
     return <span className="font-label-sm text-label-sm text-error uppercase">Incompleto</span>
   }
@@ -15,12 +37,27 @@ function DayCellContent({ day }) {
   const extraMinutes = day.extra50Minutes + day.extra100Minutes
   return (
     <>
-      <span className="font-label-md text-label-md text-on-surface">{formatMinutes(day.totalMinutes)}</span>
+      <span className="block font-label-md text-[1.6rem] leading-[2rem] font-bold text-on-surface tabular-nums">
+        {formatMinutes(day.totalMinutes)}
+      </span>
       {extraMinutes > 0 && (
-        <span className="block font-label-sm text-label-sm text-warning">+{formatMinutes(extraMinutes)} ext.</span>
+        <span className="block font-label-sm text-label-sm text-warning whitespace-nowrap">+{formatMinutes(extraMinutes)} ext.</span>
       )}
       {day.paidHolidayMinutes > 0 && <span className="block font-label-sm text-label-sm text-secondary">Feriado pago</span>}
     </>
+  )
+}
+
+// Arriba el ingreso y el egreso a la izquierda y las horas a la derecha; abajo,
+// las marcas del dia (ubicacion, almuerzo, correcciones...).
+function DayCellContent({ day }) {
+  return (
+    <span className="grid grid-cols-[auto_1fr] items-center gap-x-sm">
+      <DayTimes tramos={day.tramos} />
+      <span className="text-right">
+        <DayHours day={day} />
+      </span>
+    </span>
   )
 }
 
@@ -28,7 +65,7 @@ function DayFlagIcons({ flags }) {
   const active = DAY_FLAG_DEFINITIONS.filter((definition) => flags[definition.key])
   if (active.length === 0) return null
   return (
-    <span className="flex flex-wrap gap-[0.2rem] mt-xs">
+    <span className="flex flex-wrap gap-[0.2rem] mt-xs pt-xs border-t border-outline-variant/40">
       {active.map((definition) => (
         <span
           key={definition.key}
@@ -79,7 +116,7 @@ export default function WeekGrid({ weekStartKey, rows, settings, filter, holiday
   return (
     <div>
       <div className="overflow-x-auto scrollbar-styled bg-surface-container-lowest border border-outline-variant rounded-lg">
-        <table className="w-full min-w-[80rem] text-left border-collapse">
+        <table className="w-full min-w-[100rem] text-left border-collapse">
           <thead>
             <tr className="border-b border-outline-variant">
               <th className="sticky left-0 z-10 bg-surface-container-lowest font-label-md text-label-md text-on-surface-variant uppercase p-sm">
@@ -118,7 +155,7 @@ export default function WeekGrid({ weekStartKey, rows, settings, filter, holiday
                     <button
                       type="button"
                       onClick={() => onSelectDay(row.employeeId, day.dateKey)}
-                      className={`w-full min-h-[5.6rem] px-sm py-xs text-left transition-colors hover:bg-surface-container-low ${
+                      className={`w-full min-h-[6.4rem] px-sm py-xs text-left transition-colors hover:bg-surface-container-low ${
                         day.status === DAY_STATUS.INCOMPLETO ? 'bg-error-container/40' : ''
                       }`}
                       aria-label={`Ver fichajes de ${row.fullName} del ${formatShortDayLabel(day.dateKey)}`}

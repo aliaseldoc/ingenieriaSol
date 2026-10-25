@@ -57,7 +57,7 @@ function HoursSummary({ day }) {
 
 const LUNCH_SOURCE_TEXT = {
   [LUNCH_SOURCE.SUPERVISOR]: 'Lo marcó el supervisor.',
-  [LUNCH_SOURCE.EMPLEADO]: 'Lo declaró el empleado al registrar la salida.',
+  [LUNCH_SOURCE.EMPLEADO]: 'Lo marcó el empleado en la app.',
   [LUNCH_SOURCE.DEFAULT]: 'Nadie lo marcó: se toma que almorzó.',
 }
 

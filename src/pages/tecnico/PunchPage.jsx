@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useMyTimesheet } from '../../hooks/useMyTimesheet'
 import { useConnectivityStatus } from '../../offline/useOfflineSync'
+import { isNetworkError } from '../../offline/network'
 import { savePunchOrQueue } from '../../offline/punchQueue'
 import { getCurrentLocation } from '../../features/timesheet/geolocation'
 import { DAY_STATUS, DAY_TYPE, DAY_TYPE_LABELS, LUNCH_SOURCE, PUNCH_ISSUE_LABELS } from '../../features/timesheet/computeTimesheet'
@@ -25,6 +26,13 @@ import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
 
 const MINUTE_MS = 60 * 1000
+
+// Como va el guardado del check de almuerzo de hoy.
+const LUNCH_SAVE = {
+  GUARDANDO: 'guardando',
+  GUARDADO: 'guardado',
+  PENDIENTE: 'pendiente',
+}
 
 function punchInstant(punch) {
   return new Date(punch.punched_at).getTime()
@@ -137,21 +145,57 @@ export default function PunchPage() {
   const { profile } = useAuth()
   const online = useConnectivityStatus()
   const [weekStartKey, setWeekStartKey] = useState(() => currentWeekStartKey())
-  const { employee, loadingEmployee, loadingWeek, fromCache, cachedAt, allPunches, days, totals, reloadWeek } = useMyTimesheet(profile?.id, weekStartKey)
+  const { employee, loadingEmployee, loadingWeek, fromCache, cachedAt, allPunches, days, totals, reloadWeek, saveLunch } = useMyTimesheet(
+    profile?.id,
+    weekStartKey
+  )
   const [draft, setDraft] = useState(null) // { punchType, startedAt, location }
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // { error, text }
-  // El check de almuerzo es de cada dia: lo que se marco ayer no vale hoy.
-  const [lunchChoice, setLunchChoice] = useState(() => ({ dateKey: toDateKey(Date.now()), taken: true }))
+  // El check de almuerzo se guarda apenas se toca, asi vale aunque la salida se
+  // fiche en el reloj (timesheet_lunch_checks). Mientras se guarda, o si no hay
+  // senal, manda lo que se toco: { dateKey, taken, status }.
+  const [lunchSave, setLunchSave] = useState(null)
+  const [lunchError, setLunchError] = useState('')
 
-  // Cuando la jornada de hoy ya tiene su salida (aunque espere conexion), el
-  // check muestra lo que se declaro y no se cambia mas; si lo marco el
-  // supervisor, muestra lo suyo. Sale del dia ya calculado por el motor, asi
-  // coincide con lo que se liquida.
+  // El check es de hoy: se ve con la semana actual, que trae el dia ya
+  // calculado por el motor (asi coincide con lo que se liquida). Cuando hoy ya
+  // hay una salida, del reloj o de la app (aunque espere conexion), queda como
+  // se marco; si lo marco el supervisor, muestra lo suyo.
   const todayKey = toDateKey(Date.now())
   const today = days.find((day) => day.dateKey === todayKey)
-  const lunchLocked = Boolean(today) && today.lunchSource !== LUNCH_SOURCE.DEFAULT
-  const lunchTaken = lunchLocked ? today.lunchTaken : lunchChoice.dateKey !== todayKey || lunchChoice.taken
+  const showLunchCheck = weekStartKey === currentWeekStartKey()
+  const exitedToday = Boolean(today?.punches.some((punch) => punch.resolvedType === PUNCH_TYPE.SALIDA && !punch.ignored && !punch.voided_at))
+  const lunchBySupervisor = today?.lunchSource === LUNCH_SOURCE.SUPERVISOR
+  const lunchLocked = lunchBySupervisor || exitedToday
+  const unsavedLunch = lunchSave?.dateKey === todayKey && lunchSave.status !== LUNCH_SAVE.GUARDADO ? lunchSave : null
+  const lunchTaken = !lunchLocked && unsavedLunch ? unsavedLunch.taken : (today?.lunchTaken ?? true)
+  // Sin el dia de hoy a mano (mirando otra semana) la salida no lleva el dato:
+  // decide el check guardado.
+  const lunchKnown = Boolean(today) || Boolean(unsavedLunch)
+
+  async function storeLunch(taken) {
+    const workDate = toDateKey(Date.now())
+    setLunchError('')
+    setLunchSave({ dateKey: workDate, taken, status: LUNCH_SAVE.GUARDANDO })
+    try {
+      await saveLunch(workDate, taken)
+      setLunchSave({ dateKey: workDate, taken, status: LUNCH_SAVE.GUARDADO })
+    } catch (error) {
+      if (isNetworkError(error)) {
+        setLunchSave({ dateKey: workDate, taken, status: LUNCH_SAVE.PENDIENTE })
+      } else {
+        setLunchSave(null)
+        setLunchError(error?.message || 'No se pudo guardar el almuerzo.')
+      }
+    }
+  }
+
+  // Lo que se marco sin senal se guarda solo al volver la conexion.
+  useEffect(() => {
+    if (online && lunchSave?.status === LUNCH_SAVE.PENDIENTE && lunchSave.dateKey === toDateKey(Date.now())) storeLunch(lunchSave.taken)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online])
 
   function startPunch(punchType) {
     const startedAt = Date.now()
@@ -178,8 +222,9 @@ export default function PunchPage() {
       location_status: location.status,
       location_error: location.error ?? null,
       created_by: profile.id,
-      // Lo declarado del almuerzo viaja con la salida (tambien sin conexion).
-      ...(punchType === PUNCH_TYPE.SALIDA ? { lunch_taken: lunchTaken } : {}),
+      // Lo marcado del almuerzo viaja tambien con la salida: llega aunque el
+      // check no se haya podido guardar por falta de senal.
+      ...(punchType === PUNCH_TYPE.SALIDA && lunchKnown ? { lunch_taken: lunchTaken } : {}),
     }
     setSaving(true)
     try {
@@ -251,27 +296,38 @@ export default function PunchPage() {
         </button>
       </div>
 
-      <label
-        className={`flex items-start gap-sm mb-sm p-sm rounded-lg border border-outline-variant bg-surface-container-lowest ${
-          lunchLocked ? 'cursor-not-allowed' : 'cursor-pointer'
-        }`}
-      >
-        <input
-          type="checkbox"
-          checked={lunchTaken}
-          disabled={lunchLocked || saving}
-          onChange={(event) => setLunchChoice({ dateKey: todayKey, taken: event.target.checked })}
-          className="mt-[0.2rem] w-[2rem] h-[2rem] shrink-0 accent-secondary"
-        />
-        <span>
-          <span className="block font-label-md text-label-md text-on-surface">Hoy frené a almorzar (se descuenta 1 h)</span>
-          <span className="block font-body-sm text-body-sm text-on-surface-variant">
-            {!lunchLocked && 'Si hoy no frenaste a comer, destildalo antes de registrar la salida.'}
-            {lunchLocked && today.lunchSource === LUNCH_SOURCE.SUPERVISOR && 'Lo marcó el supervisor.'}
-            {lunchLocked && today.lunchSource === LUNCH_SOURCE.EMPLEADO && 'Ya registraste la salida de hoy: queda como lo marcaste.'}
+      {showLunchCheck && (
+        <label
+          className={`flex items-start gap-sm mb-sm p-sm rounded-lg border border-outline-variant bg-surface-container-lowest ${
+            lunchLocked ? 'cursor-not-allowed' : 'cursor-pointer'
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={lunchTaken}
+            disabled={lunchLocked || saving || loadingWeek || lunchSave?.status === LUNCH_SAVE.GUARDANDO}
+            onChange={(event) => storeLunch(event.target.checked)}
+            className="mt-[0.2rem] w-[2rem] h-[2rem] shrink-0 accent-secondary"
+          />
+          <span>
+            <span className="block font-label-md text-label-md text-on-surface">Hoy frené a almorzar (se descuenta 1 h)</span>
+            <span className="block font-body-sm text-body-sm text-on-surface-variant">
+              {lunchBySupervisor && 'Lo marcó el supervisor.'}
+              {!lunchBySupervisor && exitedToday && 'Ya fichaste la salida de hoy: queda como lo marcaste.'}
+              {!lunchLocked && 'Si hoy no frenaste a comer, destildalo antes de fichar la salida, en la app o en el reloj.'}
+            </span>
+            {!lunchLocked && lunchSave?.dateKey === todayKey && (
+              <span className={`block font-body-sm text-body-sm ${lunchSave.status === LUNCH_SAVE.PENDIENTE ? 'text-warning' : 'text-secondary'}`}>
+                {lunchSave.status === LUNCH_SAVE.GUARDANDO && 'Guardando…'}
+                {lunchSave.status === LUNCH_SAVE.GUARDADO && 'Guardado.'}
+                {lunchSave.status === LUNCH_SAVE.PENDIENTE &&
+                  'Sin conexión: se guarda solo al recuperar la señal. Si registrás la salida en la app, viaja con ella.'}
+              </span>
+            )}
+            {lunchError && <span className="block font-body-sm text-body-sm text-error">{lunchError}</span>}
           </span>
-        </span>
-      </label>
+        </label>
+      )}
 
       <p className="font-body-sm text-body-sm text-on-surface-variant mb-md">
         Los fichajes del reloj de fábrica aparecen cuando el supervisor importa el archivo.
@@ -335,7 +391,7 @@ export default function PunchPage() {
                 <dd className="font-headline-md text-headline-md text-on-surface">{toTimeString(draft.startedAt)}</dd>
               </div>
             </dl>
-            {draft.punchType === PUNCH_TYPE.SALIDA && (
+            {draft.punchType === PUNCH_TYPE.SALIDA && lunchKnown && (
               <p className="font-body-md text-body-md text-on-surface">
                 {lunchTaken ? 'Almuerzo: frenaste a almorzar, se descuenta 1 h.' : 'Almuerzo: no frenaste a almorzar, no se descuenta.'}
               </p>
