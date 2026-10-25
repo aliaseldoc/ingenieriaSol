@@ -5,7 +5,14 @@ const TONE_CLASSES = {
   neutral: 'bg-surface-variant text-on-surface-variant',
 }
 
-export default function StatusChip({ label, tone = 'neutral', variant = 'pill' }) {
+// size solo cambia la variante 'tag': 'lg' es para un numero que se tiene que
+// leer de un vistazo (el porcentaje de combustible en Seguimiento).
+const TAG_SIZE_CLASSES = {
+  md: 'rounded-[0.125rem] px-sm py-[0.2rem] font-label-sm text-label-sm',
+  lg: 'shrink-0 rounded min-w-[6.4rem] text-center px-sm py-xs font-headline-md text-headline-md tabular-nums',
+}
+
+export default function StatusChip({ label, tone = 'neutral', variant = 'pill', size = 'md' }) {
   const toneClass = TONE_CLASSES[tone]
 
   if (variant === 'dot') {
@@ -19,7 +26,7 @@ export default function StatusChip({ label, tone = 'neutral', variant = 'pill' }
 
   if (variant === 'tag') {
     return (
-      <span className={`inline-block rounded-[0.125rem] px-sm py-[0.2rem] font-label-sm text-label-sm uppercase ${toneClass}`}>
+      <span className={`inline-block uppercase ${TAG_SIZE_CLASSES[size]} ${toneClass}`}>
         {label}
       </span>
     )

@@ -9,6 +9,7 @@ function toAlertItem(equipment) {
     subtitle: equipment.clients?.name,
     chipLabel: `${equipment.fuel_percentage}%`,
     chipTone: 'warning',
+    chipSize: 'lg',
   }
 }
 
