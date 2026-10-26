@@ -115,7 +115,7 @@ export default function WeekGrid({ weekStartKey, rows, settings, filter, holiday
 
   return (
     <div>
-      <div className="overflow-x-auto scrollbar-styled bg-surface-container-lowest border border-outline-variant rounded-lg">
+      <div className="relative overflow-x-auto scrollbar-styled bg-surface-container-lowest border border-outline-variant rounded-lg">
         <table className="w-full min-w-[100rem] text-left border-collapse">
           <thead>
             <tr className="border-b border-outline-variant">
