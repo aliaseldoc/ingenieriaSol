@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { listExtraHoursInRange, saveExtraHours } from '../../api/extraHours'
 import { TIMESHEET_RULES } from '../../lib/constants'
-import { computeWeekReport } from './computeTimesheet'
+import { DAY_STATUS, computeWeekReport } from './computeTimesheet'
 import { addDaysToKey, formatMinutes, formatShortDayLabel, toDateKey, toTimeString, zonedToInstant } from './workTime'
 import WeekPicker from './WeekPicker'
 import TotalsSummary from './TotalsSummary'
@@ -99,6 +99,9 @@ export default function FixedHoursWeek({ employee, weekStartKey, onChangeWeek, o
               {workdays.map((day) => {
                 const tramo = day.tramos[0]
                 const notYet = day.dateKey > todayKey
+                let detail = 'Todavía no empezó'
+                if (day.status === DAY_STATUS.EN_CURSO) detail = `Desde las ${tramo.entrada} · En curso`
+                else if (tramo) detail = `${tramo.entrada} a ${tramo.salida} · Normales ${formatMinutes(day.normalMinutes)}`
                 return (
                   <li
                     key={day.dateKey}
@@ -106,9 +109,7 @@ export default function FixedHoursWeek({ employee, weekStartKey, onChangeWeek, o
                   >
                     <div>
                       <p className="font-label-md text-label-md text-on-surface">{formatShortDayLabel(day.dateKey)}</p>
-                      <p className="font-body-sm text-body-sm text-on-surface-variant">
-                        {tramo.entrada} a {tramo.salida} · Normales {formatMinutes(day.normalMinutes)}
-                      </p>
+                      <p className="font-body-sm text-body-sm text-on-surface-variant">{detail}</p>
                     </div>
                     <label className="flex items-center gap-sm">
                       <span className="font-label-md text-label-md text-on-surface-variant">Horas de más</span>
