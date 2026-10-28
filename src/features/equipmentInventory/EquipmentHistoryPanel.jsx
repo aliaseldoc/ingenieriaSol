@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Modal from '../../components/ui/Modal'
 import ConfirmModal from '../../components/ui/ConfirmModal'
+import Button from '../../components/ui/Button'
+import TextAreaField from '../../components/ui/TextAreaField'
 import StatusChip from '../../components/ui/StatusChip'
 import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
@@ -10,6 +12,7 @@ import Field from '../../components/ui/Field'
 import { useAuth } from '../../context/AuthContext'
 import { useEquipmentHistory } from '../../hooks/useEquipment'
 import { updateEquipment, deleteEquipment } from '../../api/equipment'
+import { requestEquipmentRepair } from '../../api/repairs'
 import {
   SERVICE_TYPE_LABELS,
   VISIT_STATUS,
@@ -19,6 +22,7 @@ import {
   FUEL_TYPE,
   FUEL_TYPE_LABELS,
   ROLES,
+  ROLE_HOME_PATH,
   FUEL_LEVEL_UNIT,
   formatFuelLevel,
   isGasEquipment,
@@ -100,9 +104,21 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
   const [form, setForm] = useState(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  // "Reparacion Solicitada": la ventana para describir el trabajo y el caso
+  // que se abrio desde este equipo (para "Ver Reparacion").
+  const [repairModalOpen, setRepairModalOpen] = useState(false)
+  const [repairDescription, setRepairDescription] = useState('')
+  const [requestingRepair, setRequestingRepair] = useState(false)
+  const [repairError, setRepairError] = useState('')
+  const [openedRepairId, setOpenedRepairId] = useState(null)
   const isTecnico = profile?.role === ROLES.TECNICO
 
   const equipmentId = equipment?.id ?? null
+  // El aviso de la reparacion abierta es del equipo en el que se abrio.
+  useEffect(() => {
+    setOpenedRepairId(null)
+  }, [equipmentId])
+
   useEffect(() => {
     if (!openInEditMode || !equipmentId || isTecnico) return
     setForm(toFormValues(equipment))
@@ -126,6 +142,25 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
     stopEditing()
     setErrorMessage('')
     onClose()
+  }
+
+  function openRepairModal() {
+    setRepairDescription('')
+    setRepairError('')
+    setRepairModalOpen(true)
+  }
+
+  async function handleRequestRepair() {
+    setRequestingRepair(true)
+    setRepairError('')
+    try {
+      setOpenedRepairId(await requestEquipmentRepair(equipment.id, repairDescription, profile.id))
+      setRepairModalOpen(false)
+    } catch (error) {
+      setRepairError(error.message || 'No se pudo solicitar la reparación.')
+    } finally {
+      setRequestingRepair(false)
+    }
   }
 
   function handleChangeTrackingDate(dateKey, dueKey, yearsAhead) {
@@ -200,6 +235,7 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
         { label: 'Cerrar', variant: 'secondary-outline', onClick: handleClose },
         ...(!isTecnico
           ? [
+              { label: 'Reparación Solicitada', variant: 'secondary-outline', icon: 'build', onClick: openRepairModal },
               { label: 'Eliminar', variant: 'destructive-outline', icon: 'delete', onClick: () => setConfirmingDelete(true) },
               { label: 'Editar', variant: 'primary', icon: 'edit', onClick: startEditing },
             ]
@@ -295,6 +331,21 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
             </div>
           </FormSection>
         </form>
+      )}
+
+      {equipment && !isEditing && openedRepairId && (
+        <div className="mb-lg flex flex-wrap items-center justify-between gap-sm rounded-lg bg-secondary-fixed border border-secondary/40 px-md py-sm">
+          <p role="status" className="font-body-md text-body-md text-on-secondary-fixed">
+            Se abrió la reparación.
+          </p>
+          <Button
+            variant="secondary-outline"
+            icon="build"
+            onClick={() => navigate(`${ROLE_HOME_PATH[profile.role]}/reparaciones?reparacion=${openedRepairId}`)}
+          >
+            Ver Reparación
+          </Button>
+        </div>
       )}
 
       {/* Datos de gestion del servicio contratado: al tecnico no le suman. */}
@@ -410,6 +461,37 @@ export default function EquipmentHistoryPanel({ equipment, onClose, onUpdated, o
         ¿Seguro que querés eliminar este equipo? Esta acción no se puede deshacer.
         {errorMessage && <span role="alert" className="block text-error mt-sm">{errorMessage}</span>}
       </ConfirmModal>
+
+      <Modal
+        open={repairModalOpen}
+        title="Solicitar reparación"
+        onClose={requestingRepair ? () => {} : () => setRepairModalOpen(false)}
+        actions={[
+          { label: 'Cancelar', variant: 'secondary-outline', onClick: () => setRepairModalOpen(false), disabled: requestingRepair },
+          {
+            label: requestingRepair ? 'Guardando…' : 'Confirmar',
+            variant: 'primary',
+            onClick: handleRequestRepair,
+            disabled: requestingRepair || !repairDescription.trim(),
+          },
+        ]}
+      >
+        <p className="font-body-md text-body-md text-on-surface-variant mb-md">
+          Se abre un caso en Reparaciones para seguir el presupuesto con el cliente.
+        </p>
+        <TextAreaField
+          label="Trabajo a realizar"
+          value={repairDescription}
+          onChange={setRepairDescription}
+          rows={4}
+          placeholder="Describí la reparación que hace falta…"
+        />
+        {repairError && (
+          <p role="alert" className="font-body-sm text-body-sm text-error mt-sm">
+            {repairError}
+          </p>
+        )}
+      </Modal>
     </>
   )
 }
