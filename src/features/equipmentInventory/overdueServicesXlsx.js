@@ -1,8 +1,11 @@
 // Documento Excel de los services de aceite y baterias vencidos o por vencer,
 // por cliente (pedido del 23/10/2026). Puro, como equipmentReportXlsx.js. La
 // fecha es la del seguimiento de la ficha ("Próx. Cambio ...") y el estado
-// sale de getAlertLevel: la misma regla de las alertas del Panel de Control.
-import { dateCell, headerCell, numberCell, textCell } from '../../lib/xlsxCells.js'
+// sale de getAlertLevel: la misma regla de las alertas de Seguimiento. Desde
+// el 28/10/2026 tambien entran los que tienen la fecha incompleta ("Sin
+// fecha"), lleva una columna "Observaciones" para completar a mano, no muestra
+// el codigo del equipo y tiene formato de tabla (tableData en xlsxCells.js).
+import { dateCell, numberCell, tableColumns, tableData, textCell } from '../../lib/xlsxCells.js'
 import { isActiveClient } from '../../lib/constants.js'
 import { daysBetween, getAlertLevel, parseDateInput, toISODateString } from '../../lib/dateUtils.js'
 
@@ -24,14 +27,17 @@ const SERVICES = [
   },
 ]
 
-// Solo entran estos dos niveles de getAlertLevel.
-const STATUS_LABELS = { vencido: 'Vencido', proximo: 'Por vencer' }
+// Fecha del ultimo cambio o del proximo sin cargar: no se sabe si esta vencido.
+const SIN_FECHA = 'sin_fecha'
+
+// Entran estos dos niveles de getAlertLevel y los que no tienen fecha.
+const STATUS_LABELS = { vencido: 'Vencido', proximo: 'Por vencer', [SIN_FECHA]: 'Sin fecha' }
+
 
 const COLUMNS = [
   { header: 'Cliente', width: 30, cell: (row) => textCell(row.client.name) },
   { header: 'Contacto', width: 22, cell: (row) => textCell(row.client.contact_name) },
   { header: 'Teléfono', width: 16, cell: (row) => textCell(row.client.contact_phone) },
-  { header: 'Código', width: 11, cell: (row) => textCell(row.item.internal_code) },
   { header: 'Motor', width: 24, cell: (row) => textCell(row.item.motor) },
   { header: 'Service', width: 10, cell: (row) => textCell(row.service.label) },
   { header: 'Estado', width: 11, cell: (row) => textCell(STATUS_LABELS[row.status]) },
@@ -40,6 +46,7 @@ const COLUMNS = [
   { header: 'Días de Atraso', width: 10, cell: (row) => numberCell(row.daysOverdue) },
   { header: 'Cantidad', width: 10, cell: (row) => numberCell(row.item[row.service.quantityField]) },
   { header: 'Filtro / Medida', width: 32, cell: (row) => textCell(row.item[row.service.specField]) },
+  { header: 'Observaciones', width: 36, cell: () => null },
 ]
 
 // Por cliente, por motor (con el codigo para que las filas de un mismo equipo
@@ -53,8 +60,10 @@ function compareRows(a, b) {
   )
 }
 
-// Una fila por service vencido o por vencer de los equipos de clientes
-// activos. Sin fecha de vencimiento no entra.
+// Una fila por service vencido, por vencer o con la fecha incompleta (sin la
+// del ultimo cambio o sin la del proximo) de los equipos de clientes activos.
+// Si el vencimiento esta cargado y ya marca vencido o por vencer, sale asi
+// aunque falte la fecha del ultimo cambio.
 export function buildOverdueServiceRows(equipment, clients, today = new Date()) {
   const clientsById = new Map(clients.map((client) => [client.id, client]))
   const rows = []
@@ -63,7 +72,9 @@ export function buildOverdueServiceRows(equipment, clients, today = new Date()) 
     if (!client || !isActiveClient(client)) continue
     for (const service of SERVICES) {
       const dueDate = item[service.nextDueField] ? parseDateInput(item[service.nextDueField]) : null
-      const status = getAlertLevel(dueDate, today)
+      const incomplete = !item[service.changedAtField] || !dueDate
+      const alertLevel = getAlertLevel(dueDate, today)
+      const status = !STATUS_LABELS[alertLevel] && incomplete ? SIN_FECHA : alertLevel
       if (!STATUS_LABELS[status]) continue
       const daysOverdue = status === 'vencido' ? daysBetween(dueDate, today) : null
       rows.push({ client, item, service, status, daysOverdue })
@@ -77,14 +88,14 @@ export function overdueServicesFileName(today = new Date()) {
 }
 
 export function buildOverdueServicesSheets(rows) {
-  // Los encabezados largos se parten en dos renglones.
-  const header = COLUMNS.map((column) => ({ ...headerCell(column.header), wrap: true }))
-  const data = rows.map((row) => COLUMNS.map((column) => column.cell(row)))
   return [
     {
       sheet: 'Vencidos',
-      data: [header, ...data],
-      columns: COLUMNS.map((column) => ({ width: column.width })),
+      data: tableData(
+        COLUMNS.map((column) => column.header),
+        rows.map((row) => COLUMNS.map((column) => column.cell(row)))
+      ),
+      columns: tableColumns(COLUMNS.map((column) => column.width)),
       stickyRowsCount: 1,
     },
   ]
