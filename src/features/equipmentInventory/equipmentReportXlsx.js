@@ -2,8 +2,9 @@
 // hoja para write-excel-file, sin importar la libreria (ver xlsxCells.js).
 // Las fechas salen como fechas reales y las horas de uso como numero, asi se
 // pueden ordenar y filtrar en Excel; el combustible queda como texto porque
-// lleva su unidad ("120 L" o "80%").
-import { dateCell, headerCell, numberCell, textCell } from '../../lib/xlsxCells.js'
+// lleva su unidad ("120 L" o "80%"). Con formato de tabla (tableData en
+// xlsxCells.js), igual que el de Vencidos.
+import { dateCell, numberCell, tableColumns, tableData, textCell } from '../../lib/xlsxCells.js'
 import { CONDITION_STATUS_LABELS, formatFuelLevel } from '../../lib/constants.js'
 
 const COLUMNS = [
@@ -38,14 +39,14 @@ export function equipmentReportFileName(today = new Date()) {
 }
 
 export function buildEquipmentReportSheets(equipment) {
-  // Los encabezados largos de las fechas se parten en dos renglones.
-  const header = COLUMNS.map((column) => ({ ...headerCell(column.header), wrap: true }))
-  const data = [...equipment].sort(byClientThenMotor).map((item) => COLUMNS.map((column) => column.cell(item)))
   return [
     {
       sheet: 'Equipos',
-      data: [header, ...data],
-      columns: COLUMNS.map((column) => ({ width: column.width })),
+      data: tableData(
+        COLUMNS.map((column) => column.header),
+        [...equipment].sort(byClientThenMotor).map((item) => COLUMNS.map((column) => column.cell(item)))
+      ),
+      columns: tableColumns(COLUMNS.map((column) => column.width)),
       stickyRowsCount: 1,
     },
   ]

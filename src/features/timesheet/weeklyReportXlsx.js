@@ -7,8 +7,11 @@
 // es la misma): { clockPin, fullName, reportPosition, fixedWeeklyMinutes,
 // totals, days[] }. Van en el orden de la liquidacion (compareReportRows).
 //
+// Las dos hojas tienen formato de tabla (tableData en xlsxCells.js), igual que
+// los Excel de Equipos.
+//
 // Con extension explicita en los imports: Deno no adivina el ".js".
-import { dateCell, durationCell, headerCell, numberCell, textCell } from '../../lib/xlsxCells.js'
+import { dateCell, durationCell, numberCell, tableColumns, tableData, textCell } from '../../lib/xlsxCells.js'
 import { DAY_STATUS, DAY_TYPE_LABELS } from './computeTimesheet.js'
 import { compareReportRows } from './reportEmployees.js'
 
@@ -37,7 +40,7 @@ function weekdayName(dateKey) {
 }
 
 function summarySheet(rows) {
-  const header = ['Legajo', 'Empleado', 'Horas normales', 'Horas al 50%', 'Horas al 100%', 'Total', 'Días incompletos'].map(headerCell)
+  const header = ['Legajo', 'Empleado', 'Horas normales', 'Horas al 50%', 'Horas al 100%', 'Total', 'Días incompletos']
   const data = [...rows].sort(compareReportRows).map((row) => [
     textCell(row.clockPin),
     textCell(row.fullName),
@@ -49,8 +52,8 @@ function summarySheet(rows) {
   ])
   return {
     sheet: 'Resumen',
-    data: [header, ...data],
-    columns: [{ width: 10 }, { width: 32 }, { width: 15 }, { width: 14 }, { width: 14 }, { width: 11 }, { width: 16 }],
+    data: tableData(header, data),
+    columns: tableColumns([10, 32, 15, 14, 14, 11, 16]),
     stickyRowsCount: 1,
   }
 }
@@ -80,14 +83,14 @@ function dayDetailRows(row) {
 
 // Todo el personal, para que el contador vea de donde sale cada total.
 function detailSheet(rows) {
-  const header = ['Legajo', 'Empleado', 'Fecha', 'Día', 'Tipo de día', 'Entrada', 'Salida', 'Normales', 'Al 50%', 'Al 100%', 'Total'].map(headerCell)
+  const header = ['Legajo', 'Empleado', 'Fecha', 'Día', 'Tipo de día', 'Entrada', 'Salida', 'Normales', 'Al 50%', 'Al 100%', 'Total']
   const data = [...rows]
     .sort(compareReportRows)
     .flatMap(dayDetailRows)
   return {
     sheet: 'Detalle por día',
-    data: [header, ...data],
-    columns: [{ width: 10 }, { width: 32 }, { width: 12 }, { width: 11 }, { width: 13 }, { width: 16 }, { width: 19 }, { width: 11 }, { width: 10 }, { width: 10 }, { width: 10 }],
+    data: tableData(header, data),
+    columns: tableColumns([10, 32, 12, 11, 13, 16, 19, 11, 10, 10, 10]),
     stickyRowsCount: 1,
   }
 }
