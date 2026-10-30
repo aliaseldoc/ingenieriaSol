@@ -2,6 +2,8 @@
 // archivo no importa la libreria, asi el armado de cada documento es puro y lo
 // pueden usar tanto el navegador (descarga) como la Edge Function de cierre
 // semanal (adjunto del mail), cada uno con su propia entrada de la libreria.
+// La Edge Function vencidos-drive tambien arma su tabla con estas celdas y las
+// pasa a la planilla de Drive (ver supabase/functions/vencidos-drive/planilla.js).
 
 export function headerCell(text) {
   return { value: text, type: String, fontWeight: 'bold', backgroundColor: '#e3ece7', bottomBorderStyle: 'thin' }
