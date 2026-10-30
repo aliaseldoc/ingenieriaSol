@@ -204,7 +204,7 @@ export default function EquipmentPage() {
     downloadXlsx('reporte', () => buildEquipmentReportSheets(equipment), equipmentReportFileName())
   }
 
-  // Services de aceite y baterias vencidos o por vencer, por cliente.
+  // Services de aceite y baterias vencidos, por vencer o sin fecha, por cliente.
   function handleDownloadOverdue() {
     downloadXlsx(
       'vencidos',

@@ -77,7 +77,7 @@ export default function RepairsPage() {
   const selectedRepair = repairs.find((repair) => repair.id === selectedId) ?? null
 
   let emptyMessage = 'No hay reparaciones en este estado.'
-  if (repairs.length === 0) emptyMessage = 'Todavía no hay reparaciones. Se abren desde Validación con "Reparación Solicitada".'
+  if (repairs.length === 0) emptyMessage = 'Todavía no hay reparaciones. Se abren con "Reparación Solicitada", desde Validación o desde el detalle del equipo.'
   else if (term) emptyMessage = 'Ninguna reparación coincide con la búsqueda.'
 
   return (

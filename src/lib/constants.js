@@ -357,8 +357,11 @@ export const FUEL_LEVEL_UNIT = {
 
 // Nivel de combustible de la ficha, en la misma unidad en que se relevo: si
 // la visita se cargo en litros se muestra en litros, si no en porcentaje.
-// Devuelve null cuando el equipo todavia no tiene ninguna medicion.
+// Devuelve null cuando el equipo todavia no tiene ninguna medicion. Un equipo a
+// gas no tiene nivel: dice "Gas" (pedido del 28/10/2026), aunque le haya
+// quedado guardado un porcentaje de antes.
 export function formatFuelLevel(equipment) {
+  if (isGasEquipment(equipment)) return FUEL_TYPE_LABELS[FUEL_TYPE.GAS]
   if (equipment?.fuel_level_unit === FUEL_LEVEL_UNIT.LITROS && equipment?.fuel_liters != null) {
     return `${equipment.fuel_liters} L`
   }

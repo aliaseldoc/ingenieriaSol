@@ -485,21 +485,40 @@ export function weekPunchRange(weekStartKey) {
 // parte de las horas fijas por dia (25 h = de 8 a 13), mas las horas de mas que
 // cargo el mismo ese dia (timesheet_extra_hours, ver 0033). Todo va como
 // normales, sin mirar fichajes, feriados ni almuerzos (pedido del 24/10/2026).
+// Se arma dia a dia como si fichara (pedido del 26/10/2026): un dia que todavia
+// no empezo queda vacio, desde el horario de entrada figura en curso (sin horas,
+// como una entrada sin salida) y a la hora de salida, que corre con las horas
+// de mas, se cierra con todas. Una semana que ya paso sale igual que antes.
 // Los dias tienen la misma forma que los de computeEmployeeDays, asi la grilla,
 // el Excel y la foto del cierre los muestran como los de cualquiera.
-function fixedScheduleDays(dayKeys, fixedWeeklyMinutes, extraMinutesByDay, rules) {
+function fixedScheduleDays(dayKeys, fixedWeeklyMinutes, extraMinutesByDay, rules, now) {
   const dailyMinutes = Math.round(fixedWeeklyMinutes / 5)
   return dayKeys.map((dateKey) => {
     const weekday = weekdayOfKey(dateKey)
-    const minutes = weekday >= 1 && weekday <= 5 ? dailyMinutes + (extraMinutesByDay.get(dateKey) ?? 0) : 0
+    const scheduledMinutes = weekday >= 1 && weekday <= 5 ? dailyMinutes + (extraMinutesByDay.get(dateKey) ?? 0) : 0
     const start = zonedToInstant(dateKey, rules.workdayStartTime)
+    const end = start + scheduledMinutes * MINUTE_MS
+    const started = scheduledMinutes > 0 && now >= start
+    const inProgress = started && now < end
+    const minutes = started && !inProgress ? scheduledMinutes : 0
+
+    let status = DAY_STATUS.SIN_FICHAJES
+    let tramos = []
+    if (inProgress) {
+      status = DAY_STATUS.EN_CURSO
+      tramos = [{ entrada: toTimeString(start), salida: null, enCurso: true }]
+    } else if (minutes > 0) {
+      status = DAY_STATUS.OK
+      tramos = [{ entrada: toTimeString(start), salida: toTimeString(end) }]
+    }
+
     return {
       dateKey,
       dayType: classifyDay(dateKey, new Set()),
-      status: minutes > 0 ? DAY_STATUS.OK : DAY_STATUS.SIN_FICHAJES,
+      status,
       issues: [],
       punches: [],
-      tramos: minutes > 0 ? [{ entrada: toTimeString(start), salida: toTimeString(start + minutes * MINUTE_MS) }] : [],
+      tramos,
       lunchTaken: true,
       lunchSource: LUNCH_SOURCE.DEFAULT,
       earlyStartMinutes: 0,
@@ -561,7 +580,7 @@ export function computeWeekReport({
   return employees.map((employee) => {
     const fixedWeeklyMinutes = employee.fixed_weekly_minutes ?? null
     const days = fixedWeeklyMinutes
-      ? fixedScheduleDays(dayKeys, fixedWeeklyMinutes, extraMinutesByDay(extraHoursByEmployee.get(employee.id)), rules)
+      ? fixedScheduleDays(dayKeys, fixedWeeklyMinutes, extraMinutesByDay(extraHoursByEmployee.get(employee.id)), rules, now)
       : computeEmployeeDays({
           punches: punchesByEmployee.get(employee.id) ?? [],
           dayKeys,

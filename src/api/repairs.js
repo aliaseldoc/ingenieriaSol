@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient'
-import { REPAIR_EVENT_TYPE, REPAIR_STATUS_DATE_FIELD } from '../lib/constants'
+import { REPAIR_EVENT_TYPE, REPAIR_STATUS, REPAIR_STATUS_DATE_FIELD } from '../lib/constants'
 import { toISODateString } from '../lib/dateUtils'
 
 // La lista y el detalle leen lo mismo: el equipo con su cliente, la visita que
@@ -39,6 +39,21 @@ export async function requestVisitRepair(visitId, description) {
   })
   if (error) throw error
   return data
+}
+
+// "Reparacion Solicitada" desde el detalle del equipo (pedido del 28/10/2026):
+// abre el caso sin visita (visit_id queda vacio) y deja el alta en la bitacora,
+// igual que request_visit_repair. Devuelve el id del caso nuevo.
+export async function requestEquipmentRepair(equipmentId, description, actorId) {
+  const trimmed = description.trim()
+  const { data, error } = await supabase
+    .from('repairs')
+    .insert({ equipment_id: equipmentId, description: trimmed, created_by: actorId })
+    .select('id')
+    .single()
+  if (error) throw error
+  await logRepairEvent(data.id, REPAIR_EVENT_TYPE.CREADA, actorId, { toStatus: REPAIR_STATUS.PENDIENTE_PRESUPUESTO, notes: trimmed })
+  return data.id
 }
 
 async function updateRepair(repairId, changes) {
