@@ -1,17 +1,21 @@
-// Documento Excel de los services de aceite y baterias vencidos o por vencer,
-// por cliente (pedido del 23/10/2026). Puro, como equipmentReportXlsx.js. La
-// fecha es la del seguimiento de la ficha ("Próx. Cambio ...") y el estado
-// sale de getAlertLevel: la misma regla de las alertas de Seguimiento. Desde
-// el 28/10/2026 tambien entran los que tienen la fecha incompleta ("Sin
-// fecha"), lleva una columna "Observaciones" para completar a mano, no muestra
-// el codigo del equipo y tiene formato de tabla (tableData en xlsxCells.js).
-import { dateCell, numberCell, tableColumns, tableData, textCell } from '../../lib/xlsxCells.js'
+// Listado de los services de aceite y baterias vencidos o por vencer, por
+// cliente (pedido del 23/10/2026). Puro: lo usa la Edge Function vencidos-drive,
+// que lo escribe como una hoja nueva de la planilla de Drive (pedido del
+// 30/10/2026; hasta entonces se descargaba como Excel). La fecha es la del
+// seguimiento de la ficha ("Próx. Cambio ...") y el estado sale de
+// getAlertLevel: la misma regla de las alertas de Seguimiento. Desde el
+// 28/10/2026 tambien entran los que tienen la fecha incompleta ("Sin fecha"),
+// lleva una columna "Observaciones" para completar a mano y no muestra el
+// codigo del equipo.
+import { dateCell, numberCell, textCell } from '../../lib/xlsxCells.js'
 import { isActiveClient } from '../../lib/constants.js'
-import { daysBetween, getAlertLevel, parseDateInput, toISODateString } from '../../lib/dateUtils.js'
+import { daysBetween, getAlertLevel, parseDateInput } from '../../lib/dateUtils.js'
 
 // Los dos services del listado, en el orden en que salen dentro de cada equipo.
+// La key identifica la fila entre una hoja y la siguiente (ver overdueRowKey).
 const SERVICES = [
   {
+    key: 'aceite',
     label: 'Aceite',
     changedAtField: 'oil_filter_changed_at',
     nextDueField: 'oil_filter_next_due_at',
@@ -19,6 +23,7 @@ const SERVICES = [
     specField: 'oil_filter_spec',
   },
   {
+    key: 'baterias',
     label: 'Baterías',
     changedAtField: 'battery_changed_at',
     nextDueField: 'battery_next_due_at',
@@ -33,7 +38,8 @@ const SIN_FECHA = 'sin_fecha'
 // Entran estos dos niveles de getAlertLevel y los que no tienen fecha.
 const STATUS_LABELS = { vencido: 'Vencido', proximo: 'Por vencer', [SIN_FECHA]: 'Sin fecha' }
 
-
+// La observacion la escribe la gente en la planilla; la funcion la trae de la
+// hoja anterior en row.observation.
 const COLUMNS = [
   { header: 'Cliente', width: 30, cell: (row) => textCell(row.client.name) },
   { header: 'Contacto', width: 22, cell: (row) => textCell(row.client.contact_name) },
@@ -46,7 +52,7 @@ const COLUMNS = [
   { header: 'Días de Atraso', width: 10, cell: (row) => numberCell(row.daysOverdue) },
   { header: 'Cantidad', width: 10, cell: (row) => numberCell(row.item[row.service.quantityField]) },
   { header: 'Filtro / Medida', width: 32, cell: (row) => textCell(row.item[row.service.specField]) },
-  { header: 'Observaciones', width: 36, cell: () => null },
+  { header: 'Observaciones', width: 36, cell: (row) => textCell(row.observation) },
 ]
 
 // Por cliente, por motor (con el codigo para que las filas de un mismo equipo
@@ -83,20 +89,18 @@ export function buildOverdueServiceRows(equipment, clients, today = new Date()) 
   return rows.sort(compareRows)
 }
 
-export function overdueServicesFileName(today = new Date()) {
-  return `services-vencidos-${toISODateString(today)}.xlsx`
+// El mismo equipo y el mismo service en dos hojas distintas: asi la hoja nueva
+// encuentra la observacion que se escribio en la anterior.
+export function overdueRowKey(row) {
+  return `${row.item.id}:${row.service.key}`
 }
 
-export function buildOverdueServicesSheets(rows) {
-  return [
-    {
-      sheet: 'Vencidos',
-      data: tableData(
-        COLUMNS.map((column) => column.header),
-        rows.map((row) => COLUMNS.map((column) => column.cell(row)))
-      ),
-      columns: tableColumns(COLUMNS.map((column) => column.width)),
-      stickyRowsCount: 1,
-    },
-  ]
+// La tabla de la hoja: encabezados, anchos (en caracteres, como los del
+// Excel) y una fila de celdas por service, con su key.
+export function buildOverdueServicesTable(rows) {
+  return {
+    headers: COLUMNS.map((column) => column.header),
+    widths: COLUMNS.map((column) => column.width),
+    rows: rows.map((row) => ({ key: overdueRowKey(row), cells: COLUMNS.map((column) => column.cell(row)) })),
+  }
 }
