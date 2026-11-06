@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient'
+import { invokeEdgeFunction } from './edgeFunctions'
 import { normalizeVisit } from './visits'
 import { VISIT_STATUS } from '../lib/constants'
 
@@ -9,6 +10,12 @@ export async function listEquipmentWithClients() {
     .order('motor')
   if (error) throw error
   return data
+}
+
+// Agrega la hoja de hoy a la planilla de vencidos de Drive (Edge Function
+// vencidos-drive). Devuelve { title, url, services, observations }.
+export function updateOverdueServicesSheet() {
+  return invokeEdgeFunction('vencidos-drive', {})
 }
 
 export async function getEquipmentById(equipmentId) {

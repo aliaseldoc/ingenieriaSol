@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useEquipment } from '../../hooks/useEquipment'
 import { useClients } from '../../hooks/useClients'
-import { createEquipment } from '../../api/equipment'
+import { createEquipment, updateOverdueServicesSheet } from '../../api/equipment'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import FormSection from '../../components/ui/FormSection'
@@ -12,11 +12,6 @@ import ClientGroupRow from '../../features/equipmentInventory/ClientGroupRow'
 import EquipmentHistoryPanel from '../../features/equipmentInventory/EquipmentHistoryPanel'
 import { CONDITION_STATUS, CONDITION_STATUS_LABELS, FUEL_TYPE, FUEL_TYPE_LABELS, isActiveClient, isGasEquipment } from '../../lib/constants'
 import { buildEquipmentReportSheets, equipmentReportFileName } from '../../features/equipmentInventory/equipmentReportXlsx'
-import {
-  buildOverdueServiceRows,
-  buildOverdueServicesSheets,
-  overdueServicesFileName,
-} from '../../features/equipmentInventory/overdueServicesXlsx'
 
 const EMPTY_EQUIPMENT_FORM = {
   client_id: '',
@@ -102,9 +97,11 @@ export default function EquipmentPage() {
   const [savingEquipment, setSavingEquipment] = useState(false)
   const [equipmentError, setEquipmentError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  // El Excel que se esta generando: 'reporte' | 'vencidos' | null.
+  // Lo que se esta generando: 'reporte' (el Excel) | 'vencidos' (la hoja de Drive) | null.
   const [downloading, setDownloading] = useState(null)
   const [downloadError, setDownloadError] = useState('')
+  // La hoja de Drive que se acaba de agregar: { title, url, services, observations }.
+  const [overdueSheet, setOverdueSheet] = useState(null)
   const [collapsedClientIds, setCollapsedClientIds] = useState(() => new Set())
 
   const filteredEquipment = useMemo(() => {
@@ -190,6 +187,7 @@ export default function EquipmentPage() {
   async function downloadXlsx(kind, buildSheets, fileName) {
     setDownloading(kind)
     setDownloadError('')
+    setOverdueSheet(null)
     try {
       const { default: writeXlsxFile } = await import('write-excel-file/browser')
       await writeXlsxFile(buildSheets()).toFile(fileName)
@@ -204,13 +202,20 @@ export default function EquipmentPage() {
     downloadXlsx('reporte', () => buildEquipmentReportSheets(equipment), equipmentReportFileName())
   }
 
-  // Services de aceite y baterias vencidos, por vencer o sin fecha, por cliente.
-  function handleDownloadOverdue() {
-    downloadXlsx(
-      'vencidos',
-      () => buildOverdueServicesSheets(buildOverdueServiceRows(equipment, clients)),
-      overdueServicesFileName(),
-    )
+  // Services de aceite y baterias vencidos, por vencer o sin fecha, por
+  // cliente: se agregan como hoja nueva a la planilla de Drive, que es siempre
+  // la misma (pedido del 30/10/2026; antes se descargaba un Excel).
+  async function handleUpdateOverdue() {
+    setDownloading('vencidos')
+    setDownloadError('')
+    setOverdueSheet(null)
+    try {
+      setOverdueSheet(await updateOverdueServicesSheet())
+    } catch (error) {
+      setDownloadError(error?.message || 'No se pudo actualizar la planilla de vencidos.')
+    } finally {
+      setDownloading(null)
+    }
   }
 
   if (loading || clientsLoading) return <Spinner label="Cargando inventario…" />
@@ -225,13 +230,22 @@ export default function EquipmentPage() {
               {downloadError}
             </p>
           )}
+          {overdueSheet && (
+            <p role="status" className="font-body-sm text-body-sm text-on-surface-variant">
+              Se agregó la hoja «{overdueSheet.title}» con {overdueSheet.services} services
+              {overdueSheet.observations > 0 && ` y ${overdueSheet.observations} observaciones de la hoja anterior`}.{' '}
+              <a href={overdueSheet.url} target="_blank" rel="noopener noreferrer" className="font-label-md text-label-md text-secondary underline">
+                Abrir planilla
+              </a>
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-sm">
           <Button variant="secondary-outline" icon="download" onClick={handleDownloadReport} disabled={downloading !== null}>
             {downloading === 'reporte' ? 'Generando…' : 'Descargar Reporte'}
           </Button>
-          <Button variant="secondary-outline" icon="event_busy" onClick={handleDownloadOverdue} disabled={downloading !== null}>
-            {downloading === 'vencidos' ? 'Generando…' : 'Descargar Vencidos'}
+          <Button variant="secondary-outline" icon="add_to_drive" onClick={handleUpdateOverdue} disabled={downloading !== null}>
+            {downloading === 'vencidos' ? 'Actualizando…' : 'Actualizar Vencidos'}
           </Button>
           <Button variant="primary" icon="add" onClick={() => setShowNewEquipment(true)}>
             Nuevo Equipo
