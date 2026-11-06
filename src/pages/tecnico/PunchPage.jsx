@@ -7,11 +7,21 @@ import { savePunchOrQueue } from '../../offline/punchQueue'
 import { getCurrentLocation } from '../../features/timesheet/geolocation'
 import { DAY_STATUS, DAY_TYPE, DAY_TYPE_LABELS, LUNCH_SOURCE, PUNCH_ISSUE_LABELS } from '../../features/timesheet/computeTimesheet'
 import { getPunchFlags, isDayWithoutLunch } from '../../features/timesheet/punchFlags'
-import { currentWeekStartKey, formatMinutes, formatPunchDateTime, formatShortDayLabel, toDateKey, toTimeString } from '../../features/timesheet/workTime'
+import {
+  currentWeekStartKey,
+  formatMinutes,
+  formatPunchDateTime,
+  formatShortDayLabel,
+  toDateKey,
+  toTimeString,
+  weekdayOfKey,
+} from '../../features/timesheet/workTime'
 import WeekPicker from '../../features/timesheet/WeekPicker'
 import TotalsSummary from '../../features/timesheet/TotalsSummary'
 import FixedHoursWeek from '../../features/timesheet/FixedHoursWeek'
 import {
+  LEAVE_KIND,
+  LEAVE_KIND_LABELS,
   LOCATION_ERROR_LABELS,
   LOCATION_STATUS,
   PUNCH_SOURCE,
@@ -20,6 +30,7 @@ import {
   PUNCH_TYPE_LABELS,
   TIMESHEET_RULES,
 } from '../../lib/constants'
+import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import StatusChip from '../../components/ui/StatusChip'
 import EmptyState from '../../components/ui/EmptyState'
@@ -115,6 +126,7 @@ function MyDay({ day }) {
           <p className="font-body-sm text-body-sm text-on-surface-variant">
             Normales {formatMinutes(day.normalMinutes)}
             {day.paidHolidayMinutes > 0 && ' (feriado pago)'}
+            {day.leaveKind && ` (${LEAVE_KIND_LABELS[day.leaveKind].toLowerCase()})`}
             {day.extra50Minutes > 0 && ` · 50% ${formatMinutes(day.extra50Minutes)}`}
             {day.extra100Minutes > 0 && ` · 100% ${formatMinutes(day.extra100Minutes)}`}
           </p>
@@ -132,6 +144,11 @@ function MyDay({ day }) {
           Fichaste antes de las 08:00: se cuenta desde las 08:00.
         </p>
       )}
+      {day.lateExitMinutes > 0 && (
+        <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">
+          Fichaste la salida hasta {TIMESHEET_RULES.lateExitToleranceMinutes} minutos después del fin de la jornada: se cuenta hasta el fin.
+        </p>
+      )}
       {day.issues.length > 0 && (
         <p className="font-body-sm text-body-sm text-error mt-xs">
           {day.issues.map((issue) => PUNCH_ISSUE_LABELS[issue.kind]).join(' · ')}. Avisá al supervisor para que lo corrija.
@@ -141,14 +158,59 @@ function MyDay({ day }) {
   )
 }
 
+// Dia de estudio o medico de hoy (ver 0036): paga la jornada. El empleado solo
+// marca el de hoy y necesita conexion; lo que marco el supervisor no lo cambia.
+function TodayLeave({ todayKey, leave, online, saving, errorMessage, onChange }) {
+  const jornadaHours = (TIMESHEET_RULES.weekdayNormalMinutes[weekdayOfKey(todayKey)] ?? 0) / 60
+  let text
+  if (leave?.marked_by_supervisor) text = `El supervisor marcó hoy: ${LEAVE_KIND_LABELS[leave.kind]}. Se te paga la jornada (${jornadaHours} h).`
+  else if (leave) text = `Marcaste hoy: ${LEAVE_KIND_LABELS[leave.kind]}. Se te paga la jornada (${jornadaHours} h).`
+  else text = `Si hoy no trabajás por un día de estudio o porque vas al médico, marcalo.`
+  const editable = !leave?.marked_by_supervisor
+
+  return (
+    <section aria-labelledby="today-leave-title" className="mb-sm p-sm rounded-lg border border-outline-variant bg-surface-container-lowest space-y-sm">
+      <div>
+        <h2 id="today-leave-title" className="font-label-md text-label-md text-on-surface">
+          Día de estudio o médico
+        </h2>
+        <p className="font-body-sm text-body-sm text-on-surface-variant">{text}</p>
+      </div>
+      {editable && (
+        <div className="flex flex-wrap gap-sm">
+          {leave ? (
+            <Button variant="secondary-outline" icon="close" disabled={!online || saving} onClick={() => onChange(null)}>
+              {saving ? 'Guardando…' : 'Quitar'}
+            </Button>
+          ) : (
+            <>
+              <Button variant="secondary-outline" icon="school" disabled={!online || saving} onClick={() => onChange(LEAVE_KIND.ESTUDIO)}>
+                Día de estudio
+              </Button>
+              <Button variant="secondary-outline" icon="medical_services" disabled={!online || saving} onClick={() => onChange(LEAVE_KIND.MEDICO)}>
+                Médico
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+      {editable && !online && <p className="font-body-sm text-body-sm text-warning">Sin conexión: marcalo cuando tengas señal.</p>}
+      {saving && !leave && <p className="font-body-sm text-body-sm text-secondary">Guardando…</p>}
+      {errorMessage && (
+        <p role="alert" className="font-body-sm text-body-sm text-error">
+          {errorMessage}
+        </p>
+      )}
+    </section>
+  )
+}
+
 export default function PunchPage() {
   const { profile } = useAuth()
   const online = useConnectivityStatus()
   const [weekStartKey, setWeekStartKey] = useState(() => currentWeekStartKey())
-  const { employee, loadingEmployee, loadingWeek, fromCache, cachedAt, allPunches, days, totals, reloadWeek, saveLunch } = useMyTimesheet(
-    profile?.id,
-    weekStartKey
-  )
+  const { employee, loadingEmployee, loadingWeek, fromCache, cachedAt, allPunches, days, totals, reloadWeek, saveLunch, leaveRows, saveLeave } =
+    useMyTimesheet(profile?.id, weekStartKey)
   const [draft, setDraft] = useState(null) // { punchType, startedAt, location }
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // { error, text }
@@ -157,6 +219,8 @@ export default function PunchPage() {
   // senal, manda lo que se toco: { dateKey, taken, status }.
   const [lunchSave, setLunchSave] = useState(null)
   const [lunchError, setLunchError] = useState('')
+  const [savingLeave, setSavingLeave] = useState(false)
+  const [leaveError, setLeaveError] = useState('')
 
   // El check es de hoy: se ve con la semana actual, que trae el dia ya
   // calculado por el motor (asi coincide con lo que se liquida). Cuando hoy ya
@@ -173,6 +237,24 @@ export default function PunchPage() {
   // Sin el dia de hoy a mano (mirando otra semana) la salida no lleva el dato:
   // decide el check guardado.
   const lunchKnown = Boolean(today) || Boolean(unsavedLunch)
+  // El dia de estudio o medico, como el almuerzo, es solo de hoy: se ve con la
+  // semana actual y en un dia habil que no sea feriado.
+  const showTodayLeave = showLunchCheck && today?.dayType === DAY_TYPE.HABIL
+  const todayLeave = leaveRows.find((row) => row.work_date === todayKey) ?? null
+
+  async function storeLeave(kind) {
+    setSavingLeave(true)
+    setLeaveError('')
+    try {
+      await saveLeave(todayKey, kind)
+    } catch (error) {
+      setLeaveError(
+        isNetworkError(error) ? 'Sin conexión: marcalo cuando tengas señal.' : error?.message || 'No se pudo guardar el día de estudio o médico.'
+      )
+    } finally {
+      setSavingLeave(false)
+    }
+  }
 
   async function storeLunch(taken) {
     const workDate = toDateKey(Date.now())
@@ -327,6 +409,17 @@ export default function PunchPage() {
             {lunchError && <span className="block font-body-sm text-body-sm text-error">{lunchError}</span>}
           </span>
         </label>
+      )}
+
+      {showTodayLeave && (
+        <TodayLeave
+          todayKey={todayKey}
+          leave={todayLeave}
+          online={online}
+          saving={savingLeave}
+          errorMessage={leaveError}
+          onChange={storeLeave}
+        />
       )}
 
       <p className="font-body-sm text-body-sm text-on-surface-variant mb-md">

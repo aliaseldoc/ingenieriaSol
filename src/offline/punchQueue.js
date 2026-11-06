@@ -92,8 +92,9 @@ export async function getCachedMyEmployee(profileId) {
   return entry?.profileId === profileId ? entry.employee : null
 }
 
-// Ultima semana consultada con conexion (fichajes, feriados y almuerzos).
-export async function cacheMyWeek(employeeId, weekStartKey, punches, holidayKeys, lunchOverrides, lunchChecks) {
+// Ultima semana consultada con conexion (fichajes, feriados, almuerzos y dias
+// de estudio o medico).
+export async function cacheMyWeek(employeeId, weekStartKey, punches, holidayKeys, lunchOverrides, lunchChecks, leaveDays) {
   await putValue(STORES.META, {
     key: WEEK_CACHE_KEY,
     employeeId,
@@ -102,6 +103,7 @@ export async function cacheMyWeek(employeeId, weekStartKey, punches, holidayKeys
     holidayKeys,
     lunchOverrides,
     lunchChecks,
+    leaveDays,
     cachedAt: new Date().toISOString(),
   })
 }

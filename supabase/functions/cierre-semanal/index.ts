@@ -14,6 +14,10 @@
 // timesheet): si cada lado tuviera su copia, el mail y la app podrian no
 // coincidir. Por eso esos modulos llevan extension explicita en sus imports.
 //
+// Al mandar el reporte tambien escribe la hoja de la semana en la planilla de
+// Drive del reporte de horas (pedido del 04/11/2026, ver planillaHoras.js), y
+// el mail lleva el link. Si Drive falla, el mail sale igual con el Excel.
+//
 // Se despliega con --no-verify-jwt: la tarea programada no tiene usuario y se
 // identifica con CRON_SECRET. Una persona se valida aca adentro, como en las
 // demas funciones.
@@ -21,6 +25,9 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { encodeBase64 } from 'jsr:@std/encoding@1/base64'
 import writeXlsxFile from 'npm:write-excel-file@4.1.1/universal'
 import { sendEmail } from '../_shared/brevo.ts'
+import { abrirPlanilla, planillaUrl } from '../_shared/sheetsApi.ts'
+import { newSheetId, sheetRange } from '../_shared/hojasGoogle.js'
+import { buildWeekSheetRequests, hourlyRatesByKey, latestWeekSheet, weekSheetIndex, weekSheetTitle } from './planillaHoras.js'
 import { escapeHtml, reporteSemanalHtml, reporteSemanalSubject } from '../_shared/plantillas.ts'
 import { toWeekSnapshot, weekPunchRange } from '../../../src/features/timesheet/computeTimesheet.js'
 import { buildWeekReport, compareReportRows } from '../../../src/features/timesheet/reportEmployees.js'
@@ -31,6 +38,9 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const CRON_SECRET = Deno.env.get('CRON_SECRET')
+// La planilla de Drive del reporte de horas. Sin los dos, no se escribe nada.
+const SERVICE_ACCOUNT_JSON = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON')
+const REPORTE_HORAS_SHEET_ID = Deno.env.get('REPORTE_HORAS_SHEET_ID')
 
 const ZONA = 'America/Argentina/Buenos_Aires'
 // La tarea de las 09:00 solo manda semanas cerradas hace poco. Sin este tope,
@@ -85,11 +95,10 @@ async function fetchAllPages(buildQuery) {
 
 // Las mismas consultas que useTimesheetWeek (listEmployees, listPunchesInRange,
 // listHolidaysInRange, listLunchOverridesInRange, listLunchChecksInRange,
-// listExtraHoursInRange), con
-// la clave de servicio.
+// listExtraHoursInRange, listLeaveDaysInRange), con la clave de servicio.
 async function calcularSemana(admin, weekStartKey) {
   const { from, to } = weekPunchRange(weekStartKey)
-  const [employeesResult, punches, holidaysResult, lunchResult, checksResult, extraResult] = await Promise.all([
+  const [employeesResult, punches, holidaysResult, lunchResult, checksResult, extraResult, leaveResult] = await Promise.all([
     admin.from('employees').select('*, profiles(role, username)').order('full_name'),
     fetchAllPages(() =>
       admin.from('time_punches').select('*').gte('punched_at', from).lt('punched_at', to).order('punched_at')
@@ -118,12 +127,19 @@ async function calcularSemana(admin, weekStartKey) {
       .gte('work_date', weekStartKey)
       .lte('work_date', addDaysToKey(weekStartKey, 6))
       .order('work_date'),
+    admin
+      .from('timesheet_leave_days')
+      .select('*')
+      .gte('work_date', weekStartKey)
+      .lte('work_date', addDaysToKey(weekStartKey, 6))
+      .order('work_date'),
   ])
   if (employeesResult.error) throw employeesResult.error
   if (holidaysResult.error) throw holidaysResult.error
   if (lunchResult.error) throw lunchResult.error
   if (checksResult.error) throw checksResult.error
   if (extraResult.error) throw extraResult.error
+  if (leaveResult.error) throw leaveResult.error
   return buildWeekReport({
     employees: employeesResult.data,
     punches,
@@ -131,6 +147,7 @@ async function calcularSemana(admin, weekStartKey) {
     lunchOverrides: lunchResult.data,
     lunchChecks: checksResult.data,
     extraHours: extraResult.data,
+    leaveDays: leaveResult.data,
     weekStartKey,
   })
 }
@@ -219,8 +236,44 @@ function avisoIncompletosHtml(rows) {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 10px 0;background-color:#fbf0d9;border-left:4px solid #a86b00;border-radius:4px;"><tr><td style="padding:12px 14px;font-size:14px;line-height:21px;color:#5c3b00;">${escapeHtml(texto)}</td></tr></table>`
 }
 
+// Escribe la hoja de la semana en la planilla de Drive (reemplaza la que ya
+// estaba, si la semana se reabrio y se vuelve a mandar) con el valor hora de
+// la hoja mas reciente, y devuelve su link. Sin configurar devuelve null.
+async function escribirEnDrive(weekStartKey, rows) {
+  if (!SERVICE_ACCOUNT_JSON || !REPORTE_HORAS_SHEET_ID) return null
+  const sheetsFetch = await abrirPlanilla(SERVICE_ACCOUNT_JSON, REPORTE_HORAS_SHEET_ID)
+  const { sheets } = await sheetsFetch('?fields=sheets.properties(sheetId,title,index)')
+  const existing = sheets.map((sheet) => sheet.properties)
+  const title = weekSheetTitle(weekStartKey)
+  const source = latestWeekSheet(existing, weekStartKey)
+  const hourlyRates = source
+    ? hourlyRatesByKey(
+        (await sheetsFetch(`/values/${encodeURIComponent(sheetRange(source.title))}?valueRenderOption=UNFORMATTED_VALUE`)).values
+      )
+    : new Map()
+  const sheetId = newSheetId(existing)
+  const replaceSheetId = existing.find((sheet) => sheet.title === title)?.sheetId ?? null
+  const index = weekSheetIndex(existing, weekStartKey, replaceSheetId)
+  await sheetsFetch(':batchUpdate', {
+    method: 'POST',
+    body: JSON.stringify({ requests: buildWeekSheetRequests({ rows, hourlyRates, title, sheetId, replaceSheetId, index }) }),
+  })
+  return planillaUrl(REPORTE_HORAS_SHEET_ID, sheetId)
+}
+
 async function enviarSemana(admin, week, recipients) {
   const rows = week.snapshot?.rows ?? []
+
+  // Drive no frena el mail: si falla, el reporte sale igual con el Excel.
+  let planilla = null
+  try {
+    const url = await escribirEnDrive(week.week_start, rows)
+    if (url) planilla = { url }
+  } catch (error) {
+    console.error('[cierre-semanal] planilla de Drive', error)
+    planilla = { error: error?.message ?? 'error desconocido' }
+  }
+
   let closedByName = null
   if (week.closed_by) {
     const { data } = await admin.from('profiles').select('full_name').eq('id', week.closed_by).maybeSingle()
@@ -237,6 +290,7 @@ async function enviarSemana(admin, week, recipients) {
     // Ya armados (y escapados) aca.
     tabla_html: rows.length > 0 ? tablaHtml(rows) : '<p style="margin:0 0 10px 0;">Nadie fichó esta semana.</p>',
     aviso_html: avisoIncompletosHtml(rows),
+    planilla_url: planilla?.url ?? null,
   }
 
   const blob = await writeXlsxFile(buildWeeklyReportSheets(rows)).toBlob()
@@ -251,7 +305,7 @@ async function enviarSemana(admin, week, recipients) {
 
   const { error } = await admin.rpc('mark_week_report_sent', { p_week_start: week.week_start })
   if (error) throw error
-  return { semana: week.week_start, resultado: 'enviada', corregido: datos.corregido }
+  return { semana: week.week_start, resultado: 'enviada', corregido: datos.corregido, planilla }
 }
 
 async function enviar(admin, weekStartKey) {

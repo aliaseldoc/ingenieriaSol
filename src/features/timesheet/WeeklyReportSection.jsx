@@ -48,6 +48,9 @@ export default function WeeklyReportSection({ weekStartKey, rows, week, isClosed
   const [reopenReason, setReopenReason] = useState('')
   const [working, setWorking] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  // Como quedo la planilla de Drive al mandar el reporte con el boton:
+  // { warning, text, url }.
+  const [sendNotice, setSendNotice] = useState(null)
 
   const displayRows = isClosed && week?.snapshot ? week.snapshot.rows : rows
   const blockers = findCloseBlockers(rows)
@@ -99,8 +102,16 @@ export default function WeeklyReportSection({ weekStartKey, rows, week, isClosed
     runAction(() => closeTimesheetWeek(weekStartKey, toWeekSnapshot(rows, weekStartKey)))
   }
 
+  // El mail sale aunque Drive falle: la funcion avisa como quedo la planilla.
   function handleConfirmSend() {
-    runAction(() => sendWeekReport(weekStartKey))
+    setSendNotice(null)
+    runAction(async () => {
+      const result = await sendWeekReport(weekStartKey)
+      const planilla = result?.envios?.[0]?.planilla
+      if (planilla?.url) setSendNotice({ warning: false, text: 'Reporte enviado. La hoja de la semana quedó en la planilla de Drive.', url: planilla.url })
+      else if (planilla?.error) setSendNotice({ warning: true, text: `Reporte enviado, pero la planilla de Drive no se pudo actualizar: ${planilla.error}` })
+      else setSendNotice({ warning: false, text: 'Reporte enviado.' })
+    })
   }
 
   function handleReopen(event) {
@@ -152,6 +163,17 @@ export default function WeeklyReportSection({ weekStartKey, rows, week, isClosed
 
       {isClosed && <ReportMailStatus week={week} hasRecipients={hasRecipients} />}
 
+      {sendNotice && (
+        <p role="status" className={`font-body-sm text-body-sm ${sendNotice.warning ? 'text-warning' : 'text-secondary'}`}>
+          {sendNotice.text}{' '}
+          {sendNotice.url && (
+            <a href={sendNotice.url} target="_blank" rel="noopener noreferrer" className="font-label-md text-label-md text-secondary underline">
+              Abrir planilla
+            </a>
+          )}
+        </p>
+      )}
+
       <WeeklyReportTable rows={displayRows} />
 
       {events.length > 0 && (
@@ -187,7 +209,7 @@ export default function WeeklyReportSection({ weekStartKey, rows, week, isClosed
         onCancel={working ? () => {} : closeDialog}
         onConfirm={working ? () => {} : handleConfirmSend}
       >
-        Se manda ahora el reporte de esta semana, con el Excel adjunto, a los destinatarios cargados abajo.
+        Se manda ahora el reporte de esta semana, con el Excel adjunto, a los destinatarios cargados abajo, y se actualiza su hoja en la planilla de Drive.
         {week?.report_sent_at && <span className="block mt-sm">Ya se había mandado el {formatDateTime(week.report_sent_at)}: les va a llegar de nuevo.</span>}
         {errorMessage && <span role="alert" className="block text-error mt-sm">{errorMessage}</span>}
       </ConfirmModal>
