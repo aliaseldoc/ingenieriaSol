@@ -6,6 +6,7 @@ import { useClients } from '../../hooks/useClients'
 import { useAsync } from '../../hooks/useVisits'
 import { useAnnualServiceAlerts } from '../../hooks/useAnnualServiceAlerts'
 import { useFuelAlerts } from '../../hooks/useFuelAlerts'
+import { useTimesheetReviewCount } from '../../hooks/useTimesheetReviewCount'
 import { countVisitsPendingReception, countVisitsPendingReview, listVisitsInRange } from '../../api/visits'
 import { listHolidaysInRange } from '../../api/holidays'
 import { listRepairs } from '../../api/repairs'
@@ -30,7 +31,6 @@ import PendingTasks from '../../features/followUp/PendingTasks'
 import AnnualServiceAlerts from '../../features/followUp/AnnualServiceAlerts'
 import UpcomingAnnualServices from '../../features/followUp/UpcomingAnnualServices'
 import FuelAlerts from '../../features/followUp/FuelAlerts'
-import TimesheetAlerts from '../../features/followUp/TimesheetAlerts'
 import EquipmentHistoryPanel from '../../features/equipmentInventory/EquipmentHistoryPanel'
 import Spinner from '../../components/ui/Spinner'
 
@@ -89,6 +89,9 @@ export default function FollowUpPage() {
     }
     return { reception: await countVisitsPendingReception() }
   }, [isSupervisor])
+
+  // El fichaje es solo del supervisor: el administrativo no lo ve (ni tiene acceso por RLS).
+  const timesheetReview = useTimesheetReviewCount(FICHAJE_HABILITADO && isSupervisor)
 
   // Las alertas, como antes: equipos de clientes activos.
   const alertEquipment = useMemo(() => equipment.filter((item) => isActiveClient(item.clients)), [equipment])
@@ -157,6 +160,16 @@ export default function FollowUpPage() {
     ? [
         { key: 'validar', label: 'Visitas por validar', value: pendingData?.review ?? null, to: `${basePath}/validacion` },
         { key: 'reparaciones', label: 'Reparaciones sin presupuesto', value: pendingData?.repairs ?? null, to: `${basePath}/reparaciones` },
+        ...(FICHAJE_HABILITADO
+          ? [
+              {
+                key: 'fichajes',
+                label: 'Fichajes a revisar',
+                value: timesheetReview.count,
+                to: `${basePath}/fichajes?tab=semana&semana=${timesheetReview.weekStartKey}`,
+              },
+            ]
+          : []),
       ]
     : [
         { key: 'recibir', label: 'Visitas por recibir', value: pendingData?.reception ?? null, to: `${basePath}/recepcion` },
@@ -209,21 +222,23 @@ export default function FollowUpPage() {
         <MonthProgressCard progress={progress} comparison={comparison} />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-md items-start">
-        <div className="lg:col-span-7 min-w-0">
-          {progress && !monthLoading && (progress.isCurrent ? (
-            <AtRiskEquipment risk={progress.risk} clientsPath={`${basePath}/clientes`} onPlan={planEquipment} />
-          ) : (
-            <ShortfallList shortfall={progress.shortfall} />
-          ))}
+      {progress && !monthLoading && progress.isCurrent ? (
+        <AtRiskEquipment
+          risk={progress.risk}
+          clientsPath={`${basePath}/clientes`}
+          onPlan={planEquipment}
+          aside={<PendingTasks items={pendingItems} />}
+        />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-md items-start">
+          <div className="lg:col-span-7 min-w-0">
+            {progress && !monthLoading && <ShortfallList shortfall={progress.shortfall} />}
+          </div>
+          <div className="lg:col-span-5 min-w-0">
+            <PendingTasks items={pendingItems} />
+          </div>
         </div>
-        <div className="lg:col-span-5 min-w-0">
-          <PendingTasks items={pendingItems} />
-        </div>
-      </div>
-
-      {/* El fichaje es solo del supervisor: el administrativo no lo ve (ni tiene acceso por RLS). */}
-      {FICHAJE_HABILITADO && isSupervisor && <TimesheetAlerts />}
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-md items-start">
         <AlertPanel title="Service anual">

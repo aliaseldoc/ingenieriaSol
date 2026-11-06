@@ -16,9 +16,10 @@ import { TIMESHEET_WEEK_STATUS } from '../lib/constants'
 // feriados, almuerzos marcados (por el supervisor y por cada empleado), horas de mas, estado de cierre y ubicacion de la fabrica,
 // mas el reporte
 // calculado. Quien entra en el reporte lo decide reportEmployees.js, el mismo
-// que usa el cierre automatico de los lunes.
-export function useTimesheetWeek(weekStartKey) {
-  const [state, setState] = useState({ loading: true, error: null, data: null })
+// que usa el cierre automatico de los lunes. Con enabled = false no consulta
+// nada (Seguimiento solo lo usa para el supervisor).
+export function useTimesheetWeek(weekStartKey, { enabled = true } = {}) {
+  const [state, setState] = useState({ loading: enabled, error: null, data: null })
   // Si se cambia de semana rapido, solo vale la ultima respuesta.
   const latestRequest = useRef(0)
 
@@ -46,8 +47,8 @@ export function useTimesheetWeek(weekStartKey) {
   }, [weekStartKey])
 
   useEffect(() => {
-    reload()
-  }, [reload])
+    if (enabled) reload()
+  }, [reload, enabled])
 
   const rows = useMemo(() => {
     if (!state.data) return []

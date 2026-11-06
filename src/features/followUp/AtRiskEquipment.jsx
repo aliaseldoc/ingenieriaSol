@@ -76,26 +76,41 @@ function RiskGroup({ group, rows, clientsPath, onPlan }) {
   )
 }
 
+const CARD_CLASSES = 'min-w-0 bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden'
+
 // Los equipos que no van a llegar a su meta del mes, en tres listas de la mas
-// urgente a la menos urgente (ver monthProgress.js). "Planificar" lleva al
-// calendario con el equipo ya elegido; el nombre lleva al detalle del cliente.
-export default function AtRiskEquipment({ risk, clientsPath, onPlan }) {
+// urgente a la menos urgente (ver monthProgress.js), cada una en su tarjeta.
+// Arman la grilla de Seguimiento: la primera arriba a la izquierda, con el
+// titulo y el total; `aside` (Pendientes) a su lado, y las otras dos en la fila
+// de abajo, una al lado de la otra y del mismo ancho (si queda una sola, va
+// alineada con la de arriba). En el celular van seguidas y `aside` queda al
+// final. "Planificar" lleva al calendario con el equipo ya elegido; el
+// nombre lleva al detalle del cliente.
+export default function AtRiskEquipment({ risk, clientsPath, onPlan, aside }) {
   const total = GROUPS.reduce((sum, group) => sum + risk[group.kind].length, 0)
+  const [firstGroup, ...otherGroups] = GROUPS.filter((group) => risk[group.kind].length > 0)
+  const otherSpan = otherGroups.length === 2 ? 'lg:col-span-6' : 'lg:col-span-7'
 
   return (
-    <section className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden">
-      <h2 className="list-title-bar font-label-md text-label-md uppercase tracking-wide px-md py-sm">
-        Equipos en riesgo{total > 0 ? ` (${total})` : ''}
-      </h2>
-      {total === 0 ? (
-        <EmptyState icon="task_alt" title="Ningún equipo en riesgo" description="Todos tienen su visita hecha o planificada." />
-      ) : (
-        <div className="p-md flex flex-col gap-lg">
-          {GROUPS.map((group) => (
-            <RiskGroup key={group.kind} group={group} rows={risk[group.kind]} clientsPath={clientsPath} onPlan={onPlan} />
-          ))}
-        </div>
-      )}
-    </section>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-md items-start">
+      <section className={`lg:col-span-7 ${CARD_CLASSES}`}>
+        <h2 className="list-title-bar font-label-md text-label-md uppercase tracking-wide px-md py-sm">
+          Equipos en riesgo{total > 0 ? ` (${total})` : ''}
+        </h2>
+        {firstGroup ? (
+          <div className="p-md">
+            <RiskGroup group={firstGroup} rows={risk[firstGroup.kind]} clientsPath={clientsPath} onPlan={onPlan} />
+          </div>
+        ) : (
+          <EmptyState icon="task_alt" title="Ningún equipo en riesgo" description="Todos tienen su visita hecha o planificada." />
+        )}
+      </section>
+      <div className="lg:col-span-5 min-w-0 order-last lg:order-none">{aside}</div>
+      {otherGroups.map((group) => (
+        <section key={group.kind} className={`${otherSpan} p-md ${CARD_CLASSES}`}>
+          <RiskGroup group={group} rows={risk[group.kind]} clientsPath={clientsPath} onPlan={onPlan} />
+        </section>
+      ))}
+    </div>
   )
 }

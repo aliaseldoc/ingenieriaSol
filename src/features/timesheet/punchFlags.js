@@ -50,8 +50,7 @@ export const DAY_FLAG_DEFINITIONS = [
   { key: 'withoutLunch', icon: 'no_meals', label: 'Sin almuerzo (no se descuenta la hora)' },
 ]
 
-// Filtros de la grilla semanal. Tambien los usan los accesos directos de las
-// alertas de Seguimiento (?filtro=...).
+// Filtros de la grilla semanal; se pueden pasar por la URL (?filtro=...).
 export const WEEK_FILTER = {
   TODOS: 'todos',
   INCOMPLETOS: 'incompletos',
