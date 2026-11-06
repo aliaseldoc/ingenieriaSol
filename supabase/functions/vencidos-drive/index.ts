@@ -17,7 +17,7 @@
 // va entre /d/ y /edit en su link). La planilla es de la cuenta de la empresa
 // y se le comparte a la cuenta de servicio como Editor.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { googleAccessToken } from '../_shared/google.ts'
+import { abrirPlanilla, planillaUrl } from '../_shared/sheetsApi.ts'
 import {
   buildOverdueServiceRows,
   buildOverdueServicesTable,
@@ -33,8 +33,6 @@ const SPREADSHEET_ID = Deno.env.get('VENCIDOS_SHEET_ID')
 
 const ALLOWED_ROLES = ['administrativo', 'supervisor']
 const ZONA = 'America/Argentina/Buenos_Aires'
-const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets'
-const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets'
 
 const EQUIPMENT_COLUMNS =
   'id, client_id, motor, internal_code, oil_filter_changed_at, oil_filter_next_due_at, oil_capacity, oil_filter_spec, battery_changed_at, battery_next_due_at, battery_quantity, battery_size'
@@ -81,26 +79,6 @@ function hoyArgentina() {
   )
 }
 
-function mensajeDeGoogle(status, body) {
-  const detalle = body?.error?.message ?? ''
-  if (status === 403) return 'La cuenta de servicio no puede editar la planilla de Drive: compartila con ella como Editor.'
-  if (status === 404) return 'No se encontró la planilla de Drive. Revisá el id configurado.'
-  if (status === 400 && detalle.includes('already exists')) {
-    return 'Otra persona está actualizando la planilla en este momento. Probá de nuevo en unos segundos.'
-  }
-  return `Google respondió con un error (${status}): ${detalle || 'sin detalle'}`
-}
-
-async function sheetsFetch(token, path, init = {}) {
-  const response = await fetch(`${SHEETS_API}/${SPREADSHEET_ID}${path}`, {
-    ...init,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-  })
-  const body = await response.json().catch(() => null)
-  if (!response.ok) throw new Error(mensajeDeGoogle(response.status, body))
-  return body
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -125,13 +103,13 @@ Deno.serve(async (req) => {
 
     const todayKey = hoyArgentina()
     const title = sheetTitle(todayKey)
-    const token = await googleAccessToken(JSON.parse(SERVICE_ACCOUNT_JSON), SHEETS_SCOPE)
-    const { sheets } = await sheetsFetch(token, '?fields=sheets.properties(sheetId,title)')
+    const sheetsFetch = await abrirPlanilla(SERVICE_ACCOUNT_JSON, SPREADSHEET_ID)
+    const { sheets } = await sheetsFetch('?fields=sheets.properties(sheetId,title)')
     const existingSheets = sheets.map((sheet) => sheet.properties)
 
     const source = latestSheet(existingSheets, todayKey)
     const observations = source
-      ? observationsByKey((await sheetsFetch(token, `/values/${encodeURIComponent(sheetRange(source.title))}`)).values)
+      ? observationsByKey((await sheetsFetch(`/values/${encodeURIComponent(sheetRange(source.title))}`)).values)
       : new Map()
 
     const rows = buildOverdueServiceRows(equipmentResult.data, clientsResult.data, parseDateInput(todayKey)).map((row) => ({
@@ -140,7 +118,7 @@ Deno.serve(async (req) => {
     }))
     const sheetId = newSheetId(existingSheets)
     const replaceSheetId = existingSheets.find((sheet) => sheet.title === title)?.sheetId ?? null
-    await sheetsFetch(token, ':batchUpdate', {
+    await sheetsFetch(':batchUpdate', {
       method: 'POST',
       body: JSON.stringify({ requests: buildSheetRequests({ table: buildOverdueServicesTable(rows), title, sheetId, replaceSheetId }) }),
     })
@@ -148,7 +126,7 @@ Deno.serve(async (req) => {
     return jsonResponse(
       {
         title,
-        url: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit#gid=${sheetId}`,
+        url: planillaUrl(SPREADSHEET_ID, sheetId),
         services: rows.length,
         observations: rows.filter((row) => row.observation).length,
       },

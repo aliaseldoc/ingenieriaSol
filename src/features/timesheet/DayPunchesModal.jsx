@@ -2,10 +2,19 @@ import { useState } from 'react'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import StatusChip from '../../components/ui/StatusChip'
-import { LOCATION_ERROR_LABELS, LOCATION_STATUS, PUNCH_SOURCE, PUNCH_SOURCE_LABELS, PUNCH_TYPE_LABELS } from '../../lib/constants'
+import {
+  LEAVE_KIND_LABELS,
+  LOCATION_ERROR_LABELS,
+  LOCATION_STATUS,
+  PUNCH_SOURCE,
+  PUNCH_SOURCE_LABELS,
+  PUNCH_TYPE_LABELS,
+  TIMESHEET_RULES,
+} from '../../lib/constants'
 import { addManualPunch, correctPunchTime, voidPunch } from '../../api/timePunches'
 import { setLunchOverride } from '../../api/lunchOverrides'
-import { DAY_STATUS, DAY_TYPE, DAY_TYPE_LABELS, LUNCH_SOURCE, PUNCH_ISSUE_LABELS } from './computeTimesheet'
+import { removeLeaveDay, saveLeaveDay } from '../../api/leaveDays'
+import { DAY_STATUS, DAY_TYPE, LUNCH_SOURCE, PUNCH_ISSUE_LABELS, dayTypeLabel } from './computeTimesheet'
 import { getPunchFlags } from './punchFlags'
 import { formatDistance } from './geo'
 import { formatMinutes, formatShortDayLabel, toTimeString, zonedToInstant } from './workTime'
@@ -43,9 +52,22 @@ function HoursSummary({ day }) {
           no. Lo trabajado ese día se paga aparte, al 100%.
         </p>
       )}
+      {day.leaveKind && (
+        <p className="font-body-sm text-body-sm text-secondary">
+          {day.paidLeaveMinutes > 0
+            ? `${LEAVE_KIND_LABELS[day.leaveKind]}: las horas normales incluyen ${formatMinutes(day.paidLeaveMinutes)} para completar la jornada de ese día.`
+            : `${LEAVE_KIND_LABELS[day.leaveKind]}: lo trabajado ya cubre la jornada de ese día, no suma de más.`}
+        </p>
+      )}
       {day.earlyStartMinutes > 0 && (
         <p className="font-body-sm text-body-sm text-on-surface-variant">
           Entró antes de las 08:00: {formatMinutes(day.earlyStartMinutes)} no se cuentan, porque la jornada arranca a las 08:00.
+        </p>
+      )}
+      {day.lateExitMinutes > 0 && (
+        <p className="font-body-sm text-body-sm text-on-surface-variant">
+          Salió hasta {TIMESHEET_RULES.lateExitToleranceMinutes} minutos después del fin de la jornada: {formatMinutes(day.lateExitMinutes)} no
+          se cuentan.
         </p>
       )}
       <p className="font-body-sm text-body-sm text-on-surface-variant">
@@ -84,6 +106,41 @@ function LunchToggle({ day, disabled, saving, errorMessage, onChange }) {
       </label>
       <p className="font-body-sm text-body-sm text-on-surface-variant">
         {saving ? 'Guardando…' : LUNCH_SOURCE_TEXT[day.lunchSource]}
+      </p>
+      {errorMessage && (
+        <p role="alert" className="font-body-sm text-body-sm text-error">
+          {errorMessage}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// Dia de estudio o medico (ver 0036): el supervisor lo carga o lo quita en
+// cualquier dia habil de una semana abierta, tambien para los de fabrica.
+function LeaveSelect({ day, disabled, saving, errorMessage, onChange }) {
+  const selectId = `leave-${day.dateKey}`
+  return (
+    <div className="space-y-xs border border-outline-variant rounded-lg p-sm">
+      <label htmlFor={selectId} className="block font-label-md text-label-md text-on-surface">
+        Día de estudio o médico
+      </label>
+      <select
+        id={selectId}
+        value={day.leaveKind ?? ''}
+        disabled={disabled || saving}
+        onChange={(event) => onChange(event.target.value || null)}
+        className="bg-surface border border-outline rounded px-sm py-sm font-body-md text-body-md text-on-surface focus:border-secondary focus:border-2 focus:outline-none transition-all disabled:opacity-60"
+      >
+        <option value="">No</option>
+        {Object.entries(LEAVE_KIND_LABELS).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+      <p className="font-body-sm text-body-sm text-on-surface-variant">
+        {saving ? 'Guardando…' : 'Paga la jornada de ese día (9 h, el viernes 8 h). Si además trabajó, se completa hasta la jornada.'}
       </p>
       {errorMessage && (
         <p role="alert" className="font-body-sm text-body-sm text-error">
@@ -156,12 +213,29 @@ export default function DayPunchesModal({ row, day, settings, weekClosed, actorI
   const [errorMessage, setErrorMessage] = useState('')
   const [savingLunch, setSavingLunch] = useState(false)
   const [lunchError, setLunchError] = useState('')
+  const [savingLeave, setSavingLeave] = useState(false)
+  const [leaveError, setLeaveError] = useState('')
 
   function handleClose() {
     setCorrection(null)
     setErrorMessage('')
     setLunchError('')
+    setLeaveError('')
     onClose()
+  }
+
+  async function handleLeaveChange(kind) {
+    setSavingLeave(true)
+    setLeaveError('')
+    try {
+      if (kind) await saveLeaveDay({ employeeId: row.employeeId, workDate: day.dateKey, kind })
+      else await removeLeaveDay({ employeeId: row.employeeId, workDate: day.dateKey })
+      await onChanged()
+    } catch (error) {
+      setLeaveError(error?.message || 'No se pudo guardar el día de estudio o médico.')
+    } finally {
+      setSavingLeave(false)
+    }
   }
 
   async function handleLunchChange(lunchTaken) {
@@ -237,7 +311,7 @@ export default function DayPunchesModal({ row, day, settings, weekClosed, actorI
       {open && !correction && (
         <div className="space-y-lg">
           <div className="flex flex-wrap items-center gap-sm">
-            <StatusChip label={DAY_TYPE_LABELS[day.dayType]} tone="neutral" variant="tag" />
+            <StatusChip label={dayTypeLabel(day)} tone="neutral" variant="tag" />
             {day.status === DAY_STATUS.INCOMPLETO && <StatusChip label="Fichaje incompleto" tone="error" variant="tag" />}
             {day.status === DAY_STATUS.EN_CURSO && <StatusChip label="Jornada en curso" tone="warning" variant="tag" />}
             {weekClosed && <StatusChip label="Semana cerrada" tone="neutral" variant="tag" />}
@@ -260,6 +334,11 @@ export default function DayPunchesModal({ row, day, settings, weekClosed, actorI
 
           {day.dayType === DAY_TYPE.HABIL && day.punches.length > 0 && (
             <LunchToggle day={day} disabled={!canEdit} saving={savingLunch} errorMessage={lunchError} onChange={handleLunchChange} />
+          )}
+
+          {/* Quien tiene horas fijas no ficha ni usa dias de estudio o medico. */}
+          {day.dayType === DAY_TYPE.HABIL && !row.fixedWeeklyMinutes && (
+            <LeaveSelect day={day} disabled={!canEdit} saving={savingLeave} errorMessage={leaveError} onChange={handleLeaveChange} />
           )}
 
           <section>

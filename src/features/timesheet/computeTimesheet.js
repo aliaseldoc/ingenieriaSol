@@ -4,7 +4,7 @@
 // guarda al cerrar la semana, asi los tres siempre dan igual.
 // Con extension explicita: la Edge Function de cierre semanal corre este mismo
 // motor en Deno, que no adivina el ".js" como Vite.
-import { PUNCH_SOURCE, PUNCH_TYPE, TIMESHEET_RULES } from '../../lib/constants.js'
+import { LEAVE_KIND_LABELS, PUNCH_SOURCE, PUNCH_TYPE, TIMESHEET_RULES } from '../../lib/constants.js'
 import { addDaysToKey, minutesBetween, toDateKey, toTimeString, weekDayKeys, weekdayOfKey, weekStartOfKey, zonedToInstant } from './workTime.js'
 
 const MINUTE_MS = 60 * 1000
@@ -66,6 +66,21 @@ function punchInstant(punch) {
 function paidHolidayMinutesFor(dateKey, dayType, rules) {
   if (dayType !== DAY_TYPE.FERIADO) return 0
   return rules.weekdayNormalMinutes[weekdayOfKey(dateKey)] ?? 0
+}
+
+// Dia de estudio o medico (timesheet_leave_days, pedido del 04/11/2026): paga
+// la jornada de ese dia como un feriado, y si ademas se trabajo, completa lo
+// que falte para llegar a la jornada (con 4 h trabajadas se cobran 9, no 13).
+// Solo en un dia habil: el feriado ya paga la jornada.
+function paidLeaveMinutesFor(dateKey, leaveKind, countedWeeklyMinutes, rules) {
+  if (!leaveKind) return 0
+  return Math.max(0, (rules.weekdayNormalMinutes[weekdayOfKey(dateKey)] ?? 0) - countedWeeklyMinutes)
+}
+
+// Como se nombra el dia en el reporte y en las pantallas: el estudio o el
+// medico antes que el tipo de dia.
+export function dayTypeLabel(day) {
+  return LEAVE_KIND_LABELS[day.leaveKind] ?? DAY_TYPE_LABELS[day.dayType] ?? day.dayType
 }
 
 function classifyDay(dateKey, holidayKeys) {
@@ -168,6 +183,22 @@ function clampEarlyStart(segment, holidays, rules) {
   if (segment.start < earlyWindowStart || segment.start >= workdayStart) return segment
   const start = Math.min(workdayStart, segment.end)
   return { ...segment, start, earlyMinutes: minutesBetween(segment.start, start) }
+}
+
+// Paso 5c: lo mismo a la salida (pedido del 04/11/2026). En un dia habil, una
+// salida desde el fin de la jornada (18:00, el viernes 17:00) hasta 20 minutos
+// despues, inclusive, cuenta hasta el fin: de 08:00 a 18:20 con almuerzo son
+// 9 h. Desde el minuto 21 cuenta hasta la hora real. lateMinutes son los
+// minutos que no se cuentan, para mostrarlo.
+function clampLateEnd(segment, holidays, rules) {
+  const dateKey = toDateKey(segment.end)
+  const endTime = rules.workdayEndTime[weekdayOfKey(dateKey)]
+  if (!endTime || classifyDay(dateKey, holidays) !== DAY_TYPE.HABIL) return segment
+  const workdayEnd = zonedToInstant(dateKey, endTime)
+  const toleranceEnd = workdayEnd + rules.lateExitToleranceMinutes * MINUTE_MS
+  if (segment.end <= workdayEnd || segment.end > toleranceEnd) return segment
+  const end = Math.max(workdayEnd, segment.start)
+  return { ...segment, end, lateMinutes: minutesBetween(end, segment.end) }
 }
 
 // Entradas y salidas de cada dia, para el reporte y el Excel. Un tramo va en
@@ -281,8 +312,8 @@ function computeDayHours(dateKey, dayType, pieces, lunchTaken, rules) {
 }
 
 // Paso 8: el cupo de 44 h normales es por semana. Las horas que paga un
-// feriado son siempre normales y ocupan su lugar en el cupo (una semana con
-// feriado se cobra como cualquier otra); las diurnas trabajadas lo van
+// feriado o un dia de estudio o medico son siempre normales y ocupan su lugar
+// en el cupo (una semana con feriado se cobra como cualquier otra); las diurnas trabajadas lo van
 // llenando de lunes a domingo y lo que lo pasa va al 50%. Por eso el 50% cae
 // en el dia en que la semana supera las 44 h, aunque el dia largo haya sido
 // otro. Se agrupa por semana por si se piden dias de mas de una.
@@ -290,7 +321,7 @@ function splitWeeklyNormal(days, rules) {
   const quotaByWeek = new Map()
   for (const day of days) {
     const weekKey = weekStartOfKey(day.dateKey)
-    quotaByWeek.set(weekKey, (quotaByWeek.get(weekKey) ?? rules.weeklyNormalMinutes) - day.paidHolidayMinutes)
+    quotaByWeek.set(weekKey, (quotaByWeek.get(weekKey) ?? rules.weeklyNormalMinutes) - day.paidHolidayMinutes - day.paidLeaveMinutes)
   }
 
   const splitByDay = new Map()
@@ -304,7 +335,7 @@ function splitWeeklyNormal(days, rules) {
 
   return days.map(({ weeklyMinutes, ...day }) => {
     const split = splitByDay.get(day.dateKey)
-    const normalMinutes = day.paidHolidayMinutes + split.normalMinutes
+    const normalMinutes = day.paidHolidayMinutes + day.paidLeaveMinutes + split.normalMinutes
     return {
       ...day,
       normalMinutes,
@@ -346,15 +377,22 @@ export function lunchOverridesByDay(rows = []) {
   return new Map(rows.map((row) => [row.work_date, row.lunch_taken]))
 }
 
+// Filas de timesheet_leave_days de un empleado -> Map dia -> 'estudio' | 'medico'.
+export function leaveKindsByDay(rows = []) {
+  return new Map(rows.map((row) => [row.work_date, row.kind]))
+}
+
 // Calcula todos los dias pedidos de un empleado. `dayKeys` tiene que cubrir
 // semanas enteras (de lunes a domingo): el cupo de 44 h es semanal. `punches`
 // puede (y conviene) incluir fichajes de un dia antes y uno despues del rango,
 // para que los tramos que cruzan la medianoche en los bordes se armen bien.
 // `lunchOverrides` es lo que marco el supervisor y `lunchChecks` lo que marco
-// el empleado con su check: Map dia -> almorzo.
+// el empleado con su check: Map dia -> almorzo. `leaveDays` son sus dias de
+// estudio o medico: Map dia -> 'estudio' | 'medico'.
 //
 // Cada dia: { dateKey, dayType, status, issues, punches, tramos, lunchTaken,
-// lunchSource, earlyStartMinutes, ...horas, totalMinutes } donde `punches` son los fichajes de
+// lunchSource, earlyStartMinutes, lateExitMinutes, leaveKind, ...horas,
+// totalMinutes } donde `punches` son los fichajes de
 // ese dia (tambien los anulados) con `resolvedType` y `ignored` agregados para
 // mostrarlos.
 export function computeEmployeeDays({
@@ -363,22 +401,29 @@ export function computeEmployeeDays({
   holidayKeys = [],
   lunchOverrides = new Map(),
   lunchChecks = new Map(),
+  leaveDays = new Map(),
   now = Date.now(),
   rules = TIMESHEET_RULES,
 }) {
   const holidays = holidayKeys instanceof Set ? holidayKeys : new Set(holidayKeys)
   const paired = pairPunches(punches, { now, rules })
   const { issues, notes, openEntry } = paired
-  const segments = paired.segments.map((segment) => clampEarlyStart(segment, holidays, rules))
+  const segments = paired.segments.map((segment) => clampLateEnd(clampEarlyStart(segment, holidays, rules), holidays, rules))
   const declaredLunch = declaredLunchByDay(segments)
   // Con los tramos sin recortar: se muestra la hora fichada, no la de las 08.
   const tramos = tramosByDay(punches, paired.segments, notes, openEntry)
 
   const earlyMinutesByDay = new Map()
+  const lateMinutesByDay = new Map()
   for (const segment of segments) {
-    if (!segment.earlyMinutes) continue
-    const dateKey = toDateKey(segment.start)
-    earlyMinutesByDay.set(dateKey, (earlyMinutesByDay.get(dateKey) ?? 0) + segment.earlyMinutes)
+    if (segment.earlyMinutes) {
+      const dateKey = toDateKey(segment.start)
+      earlyMinutesByDay.set(dateKey, (earlyMinutesByDay.get(dateKey) ?? 0) + segment.earlyMinutes)
+    }
+    if (segment.lateMinutes) {
+      const dateKey = toDateKey(segment.end)
+      lateMinutesByDay.set(dateKey, (lateMinutesByDay.get(dateKey) ?? 0) + segment.lateMinutes)
+    }
   }
 
   const piecesByDay = new Map()
@@ -426,6 +471,7 @@ export function computeEmployeeDays({
       status === DAY_STATUS.INCOMPLETO
         ? { workedMinutes: hours.workedMinutes, pauseMinutes: 0, lunchDiscountMinutes: 0, weeklyMinutes: 0, extra100Minutes: 0 }
         : hours
+    const leaveKind = dayType === DAY_TYPE.HABIL ? (leaveDays.get(dateKey) ?? null) : null
 
     return {
       dateKey,
@@ -438,10 +484,15 @@ export function computeEmployeeDays({
       // Minutos fichados antes de las 08:00 que no se cuentan (ver
       // clampEarlyStart). Solo para mostrarlo.
       earlyStartMinutes: earlyMinutesByDay.get(dateKey) ?? 0,
+      // Minutos fichados hasta 20 despues del fin de la jornada que no se
+      // cuentan (ver clampLateEnd). Solo para mostrarlo.
+      lateExitMinutes: lateMinutesByDay.get(dateKey) ?? 0,
       ...counted,
       // El feriado pago suma su jornada aparte de lo trabajado (que ese dia
       // ya se clasifico todo al 100%), y no depende de los fichajes.
       paidHolidayMinutes: paidHolidayMinutesFor(dateKey, dayType, rules),
+      leaveKind,
+      paidLeaveMinutes: paidLeaveMinutesFor(dateKey, leaveKind, counted.weeklyMinutes, rules),
     }
   })
 
@@ -453,6 +504,7 @@ export function sumDays(days) {
   const totals = {
     normalMinutes: 0,
     paidHolidayMinutes: 0,
+    paidLeaveMinutes: 0,
     extra50Minutes: 0,
     extra100Minutes: 0,
     totalMinutes: 0,
@@ -462,6 +514,7 @@ export function sumDays(days) {
   for (const day of days) {
     totals.normalMinutes += day.normalMinutes
     totals.paidHolidayMinutes += day.paidHolidayMinutes
+    totals.paidLeaveMinutes += day.paidLeaveMinutes
     totals.extra50Minutes += day.extra50Minutes
     totals.extra100Minutes += day.extra100Minutes
     totals.totalMinutes += day.totalMinutes
@@ -522,11 +575,14 @@ function fixedScheduleDays(dayKeys, fixedWeeklyMinutes, extraMinutesByDay, rules
       lunchTaken: true,
       lunchSource: LUNCH_SOURCE.DEFAULT,
       earlyStartMinutes: 0,
+      lateExitMinutes: 0,
       workedMinutes: minutes,
       pauseMinutes: 0,
       lunchDiscountMinutes: 0,
       extra100Minutes: 0,
       paidHolidayMinutes: 0,
+      leaveKind: null,
+      paidLeaveMinutes: 0,
       normalMinutes: minutes,
       extra50Minutes: 0,
       totalMinutes: minutes,
@@ -542,8 +598,8 @@ function extraMinutesByDay(rows = []) {
 // Una fila por empleado, con la misma forma que la foto guardada al cerrar
 // (ver toWeekSnapshot), para que el reporte pueda mostrar cualquiera de las dos.
 // `lunchOverrides` son las filas de timesheet_lunch_overrides de la semana,
-// `lunchChecks` las de timesheet_lunch_checks y `extraHours` las de
-// timesheet_extra_hours.
+// `lunchChecks` las de timesheet_lunch_checks, `extraHours` las de
+// timesheet_extra_hours y `leaveDays` las de timesheet_leave_days.
 export function computeWeekReport({
   employees,
   punches,
@@ -552,6 +608,7 @@ export function computeWeekReport({
   lunchOverrides = [],
   lunchChecks = [],
   extraHours = [],
+  leaveDays = [],
   now = Date.now(),
   rules = TIMESHEET_RULES,
 }) {
@@ -576,6 +633,11 @@ export function computeWeekReport({
     if (!extraHoursByEmployee.has(row.employee_id)) extraHoursByEmployee.set(row.employee_id, [])
     extraHoursByEmployee.get(row.employee_id).push(row)
   }
+  const leaveByEmployee = new Map()
+  for (const row of leaveDays) {
+    if (!leaveByEmployee.has(row.employee_id)) leaveByEmployee.set(row.employee_id, [])
+    leaveByEmployee.get(row.employee_id).push(row)
+  }
 
   return employees.map((employee) => {
     const fixedWeeklyMinutes = employee.fixed_weekly_minutes ?? null
@@ -587,6 +649,7 @@ export function computeWeekReport({
           holidayKeys,
           lunchOverrides: lunchOverridesByDay(overridesByEmployee.get(employee.id)),
           lunchChecks: lunchOverridesByDay(checksByEmployee.get(employee.id)),
+          leaveDays: leaveKindsByDay(leaveByEmployee.get(employee.id)),
           now,
           rules,
         })
@@ -626,6 +689,10 @@ export function toWeekSnapshot(rows, weekStartKey) {
         workedMinutes: day.workedMinutes,
         lunchDiscountMinutes: day.lunchDiscountMinutes,
         paidHolidayMinutes: day.paidHolidayMinutes,
+        // Dia de estudio o medico: el reporte lo nombra y lo muestra aunque no
+        // tenga fichajes.
+        leaveKind: day.leaveKind ?? null,
+        paidLeaveMinutes: day.paidLeaveMinutes ?? 0,
         normalMinutes: day.normalMinutes,
         extra50Minutes: day.extra50Minutes,
         extra100Minutes: day.extra100Minutes,

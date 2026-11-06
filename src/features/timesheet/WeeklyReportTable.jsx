@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import EmptyState from '../../components/ui/EmptyState'
-import { DAY_STATUS, DAY_TYPE_LABELS } from './computeTimesheet'
+import { DAY_STATUS, dayTypeLabel } from './computeTimesheet'
 import { compareReportRows } from './reportEmployees'
 import { formatMinutes, formatShortDayLabel } from './workTime'
 import { formatDayTimes } from './weeklyReportXlsx'
@@ -31,7 +31,7 @@ function DayDetail({ days }) {
           return (
             <tr key={day.dateKey} className="border-b border-outline-variant/50">
               <td className={CELL_CLASS}>{formatShortDayLabel(day.dateKey)}</td>
-              <td className={CELL_CLASS}>{DAY_TYPE_LABELS[day.dayType]}</td>
+              <td className={CELL_CLASS}>{dayTypeLabel(day)}</td>
               <td className={timesClass}>{entradas || '—'}</td>
               <td className={timesClass}>{salidas || '—'}</td>
               <td className={CELL_CLASS}>{formatMinutes(day.normalMinutes)}</td>

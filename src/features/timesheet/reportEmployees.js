@@ -50,6 +50,7 @@ export function compareReportRows(a, b) {
 // supervisor sobre el almuerzo de cada dia). lunchChecks: filas de
 // timesheet_lunch_checks (lo que marco el empleado con su check). extraHours:
 // filas de timesheet_extra_hours (las horas de mas de quien tiene horas fijas).
+// leaveDays: filas de timesheet_leave_days (dias de estudio o medico).
 export function buildWeekReport({
   employees,
   punches,
@@ -57,6 +58,7 @@ export function buildWeekReport({
   lunchOverrides = [],
   lunchChecks = [],
   extraHours = [],
+  leaveDays = [],
   weekStartKey,
   now = Date.now(),
 }) {
@@ -68,6 +70,7 @@ export function buildWeekReport({
     lunchOverrides,
     lunchChecks,
     extraHours,
+    leaveDays,
     now,
   })
 }

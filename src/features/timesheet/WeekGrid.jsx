@@ -1,3 +1,4 @@
+import { LEAVE_KIND_LABELS } from '../../lib/constants'
 import { DAY_STATUS } from './computeTimesheet'
 import { DAY_FLAG_DEFINITIONS, getDayFlags, isDayWithoutLunch, rowMatchesFilter } from './punchFlags'
 import { formatMinutes, formatShortDayLabel, weekDayKeys } from './workTime'
@@ -44,6 +45,7 @@ function DayHours({ day }) {
         <span className="block font-label-sm text-label-sm text-warning whitespace-nowrap">+{formatMinutes(extraMinutes)} ext.</span>
       )}
       {day.paidHolidayMinutes > 0 && <span className="block font-label-sm text-label-sm text-secondary">Feriado pago</span>}
+      {day.leaveKind && <span className="block font-label-sm text-label-sm text-secondary">{LEAVE_KIND_LABELS[day.leaveKind]}</span>}
     </>
   )
 }
