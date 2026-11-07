@@ -36,8 +36,8 @@ const TABS = [
 
 const WEEK_TABS = [TAB.SEMANA, TAB.REPORTE]
 
-// Pestaña, semana y filtro viven en la URL (?tab=&semana=&filtro=): asi las
-// alertas del Panel de Control pueden abrir directamente lo que hay que revisar.
+// Pestaña, semana y filtro viven en la URL (?tab=&semana=&filtro=): asi
+// "Fichajes a revisar" de Seguimiento abre directamente la semana.
 export default function TimesheetPage() {
   const { profile } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useUnassignedRouteSheets, useRouteSheetsInRange } from '../../hooks/useRouteSheets'
 import { useTechnicians } from '../../hooks/useTechnicians'
@@ -64,10 +65,31 @@ export default function CalendarPage({ readOnly = false }) {
   const [selectedRouteSheet, setSelectedRouteSheet] = useState(null)
   const [summaryRouteSheet, setSummaryRouteSheet] = useState(null)
   const [selectedDate, setSelectedDate] = useState(null)
-  // null | { mode: 'create', initialDate } | { mode: 'edit', routeSheet }
+  // null | { mode: 'create', initialDate, initialEquipmentIds?, initialClientIds?,
+  // initialVisitOccurrence? } | { mode: 'edit', routeSheet }
   const [formModal, setFormModal] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [replicating, setReplicating] = useState(false)
   const [bulkAssigning, setBulkAssigning] = useState(false)
+
+  // "Planificar" desde Seguimiento: llega con ?planificar=<equipo>&visita=<primera|segunda>
+  // y abre la hoja de ruta nueva con ese equipo (y su cliente) ya elegidos. El
+  // parametro se borra para que recargar la pagina no la vuelva a abrir.
+  const planEquipmentId = searchParams.get('planificar')
+  useEffect(() => {
+    if (!planEquipmentId || !canEdit || equipment.length === 0) return
+    const item = equipment.find((candidate) => candidate.id === planEquipmentId)
+    setSearchParams({}, { replace: true })
+    if (!item) return
+    setFormModal({
+      mode: 'create',
+      initialDate: null,
+      initialEquipmentIds: [item.id],
+      initialClientIds: item.client_id ? [item.client_id] : [],
+      initialVisitOccurrence: searchParams.get('visita') ?? '',
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planEquipmentId, canEdit, equipment])
 
   // Solo las hojas del mes realmente visible (rangeRouteSheets en vista Mes
   // incluye dias de relleno de los meses vecinos que completan la grilla).
@@ -310,6 +332,9 @@ export default function CalendarPage({ readOnly = false }) {
             equipment={equipment}
             createdBy={profile.id}
             initialDate={formModal?.mode === 'create' ? formModal.initialDate : null}
+            initialEquipmentIds={formModal?.initialEquipmentIds}
+            initialClientIds={formModal?.initialClientIds}
+            initialVisitOccurrence={formModal?.initialVisitOccurrence}
             onClose={() => setFormModal(null)}
             onSaved={() => {
               setFormModal(null)

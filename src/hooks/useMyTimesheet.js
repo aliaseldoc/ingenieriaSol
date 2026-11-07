@@ -4,7 +4,8 @@ import { listPunchesInRange } from '../api/timePunches'
 import { listHolidaysInRange } from '../api/holidays'
 import { listLunchOverridesInRange } from '../api/lunchOverrides'
 import { listLunchChecksInRange, saveLunchCheck } from '../api/lunchChecks'
-import { computeEmployeeDays, lunchOverridesByDay, sumDays, weekPunchRange } from '../features/timesheet/computeTimesheet'
+import { listLeaveDaysInRange, removeLeaveDay, saveLeaveDay } from '../api/leaveDays'
+import { computeEmployeeDays, leaveKindsByDay, lunchOverridesByDay, sumDays, weekPunchRange } from '../features/timesheet/computeTimesheet'
 import { addDaysToKey, weekDayKeys } from '../features/timesheet/workTime'
 import { isNetworkError } from '../offline/network'
 import { usePendingPunches } from '../offline/useOfflineSync'
@@ -20,6 +21,7 @@ export function useMyTimesheet(profileId, weekStartKey) {
     holidayKeys: [],
     lunchOverrides: [],
     lunchChecks: [],
+    leaveDays: [],
     fromCache: false,
     cachedAt: null,
   })
@@ -52,16 +54,17 @@ export function useMyTimesheet(profileId, weekStartKey) {
     latestRequest.current = requestId
     setWeekData((previous) => ({ ...previous, loading: true }))
     try {
-      const [punches, holidays, lunchOverrides, lunchChecks] = await Promise.all([
+      const [punches, holidays, lunchOverrides, lunchChecks, leaveDays] = await Promise.all([
         listPunchesInRange({ ...weekPunchRange(weekStartKey), employeeId }),
         listHolidaysInRange(addDaysToKey(weekStartKey, -1), addDaysToKey(weekStartKey, 7)),
         listLunchOverridesInRange(weekStartKey, addDaysToKey(weekStartKey, 6), employeeId),
         listLunchChecksInRange(weekStartKey, addDaysToKey(weekStartKey, 6), employeeId),
+        listLeaveDaysInRange(weekStartKey, addDaysToKey(weekStartKey, 6), employeeId),
       ])
       const holidayKeys = holidays.map((holiday) => holiday.date)
-      await cacheMyWeek(employeeId, weekStartKey, punches, holidayKeys, lunchOverrides, lunchChecks)
+      await cacheMyWeek(employeeId, weekStartKey, punches, holidayKeys, lunchOverrides, lunchChecks, leaveDays)
       if (latestRequest.current !== requestId) return
-      setWeekData({ loading: false, punches, holidayKeys, lunchOverrides, lunchChecks, fromCache: false, cachedAt: null })
+      setWeekData({ loading: false, punches, holidayKeys, lunchOverrides, lunchChecks, leaveDays, fromCache: false, cachedAt: null })
     } catch (error) {
       const cached = isNetworkError(error) ? await getCachedMyWeek(employeeId, weekStartKey) : null
       if (latestRequest.current !== requestId) return
@@ -71,6 +74,7 @@ export function useMyTimesheet(profileId, weekStartKey) {
         holidayKeys: cached?.holidayKeys ?? [],
         lunchOverrides: cached?.lunchOverrides ?? [],
         lunchChecks: cached?.lunchChecks ?? [],
+        leaveDays: cached?.leaveDays ?? [],
         fromCache: true,
         cachedAt: cached?.cachedAt ?? null,
       })
@@ -104,8 +108,9 @@ export function useMyTimesheet(profileId, weekStartKey) {
         holidayKeys: weekData.holidayKeys,
         lunchOverrides: lunchOverridesByDay(weekData.lunchOverrides),
         lunchChecks: lunchOverridesByDay(weekData.lunchChecks),
+        leaveDays: leaveKindsByDay(weekData.leaveDays),
       }),
-    [allPunches, weekStartKey, weekData.holidayKeys, weekData.lunchOverrides, weekData.lunchChecks]
+    [allPunches, weekStartKey, weekData.holidayKeys, weekData.lunchOverrides, weekData.lunchChecks, weekData.leaveDays]
   )
 
   // Guarda el check de almuerzo del dia y lo suma a la semana en pantalla sin
@@ -125,6 +130,27 @@ export function useMyTimesheet(profileId, weekStartKey) {
     [employeeId]
   )
 
+  // Dia de estudio o medico de hoy (kind: 'estudio' | 'medico', o null para
+  // quitarlo). Necesita conexion: sin red tira el error y la pantalla lo avisa.
+  const saveLeave = useCallback(
+    async (workDate, kind) => {
+      if (kind) await saveLeaveDay({ employeeId, workDate, kind })
+      else await removeLeaveDay({ employeeId, workDate })
+      setWeekData((previous) => ({
+        ...previous,
+        leaveDays: [
+          ...previous.leaveDays.filter((row) => row.work_date !== workDate),
+          ...(kind ? [{ employee_id: employeeId, work_date: workDate, kind, marked_by_supervisor: false }] : []),
+        ],
+      }))
+    },
+    [employeeId]
+  )
+
+  // Las filas tal cual: la pantalla mira si el de hoy lo marco el supervisor,
+  // que el empleado no puede cambiar.
+  const leaveRows = weekData.leaveDays
+
   return {
     employee,
     loadingEmployee: employee === undefined,
@@ -136,5 +162,7 @@ export function useMyTimesheet(profileId, weekStartKey) {
     totals: sumDays(days),
     reloadWeek,
     saveLunch,
+    leaveRows,
+    saveLeave,
   }
 }

@@ -442,10 +442,13 @@ export const VISIT_CHANGE_TO_EQUIPMENT_TRACKING = [
 // supervisor, la vista del tecnico y la foto que se guarda al cerrar.
 //
 // Jornada: lunes a jueves de 8 a 18 (9 h netas) y viernes de 8 a 17 (8 h
-// netas), 44 h por semana. Lo que pasa de 44 h en la semana va al 50%; la
+// netas), 44 h por semana. Lo que pasa de 44 h en la semana va al 50%, en los
+// dias en que se trabajo mas que la jornada; la
 // noche (20 a 05), el sabado desde las 13, el domingo y el feriado trabajado
 // van siempre al 100%. En un dia habil, entrar entre las 07:20 y las 08 no
 // suma: se cuenta desde las 08. Hasta las 07:19 se cuenta desde la hora real.
+// Igual a la salida: hasta 20 minutos despues del fin de la jornada se cuenta
+// hasta el fin; desde el minuto 21, hasta la hora real.
 export const TIMESHEET_RULES = {
   timeZone: 'America/Argentina/Buenos_Aires',
   workdayStartTime: '08:00',
@@ -457,6 +460,10 @@ export const TIMESHEET_RULES = {
   // entre dos fichajes cuenta como pausa del almuerzo solo si cae entero
   // dentro de la jornada.
   workdayEndTime: { 1: '18:00', 2: '18:00', 3: '18:00', 4: '18:00', 5: '17:00' },
+  // Una salida de un dia habil desde workdayEndTime hasta estos minutos
+  // despues (inclusive) cuenta hasta workdayEndTime (pedido del 04/11/2026: de
+  // 08:00 a 18:20 con almuerzo son 9 h justas).
+  lateExitToleranceMinutes: 20,
   // Jornada de cada dia (0 = domingo ... 6 = sabado): es lo que paga un
   // feriado aunque no se trabaje. El fin de semana no es laborable.
   weekdayNormalMinutes: { 1: 9 * 60, 2: 9 * 60, 3: 9 * 60, 4: 9 * 60, 5: 8 * 60 },
@@ -474,6 +481,18 @@ export const TIMESHEET_RULES = {
 }
 
 export const DEFAULT_FACTORY_RADIUS_M = 500
+
+// Dia en que el empleado no trabaja y cobra la jornada (pedido del 04/11/2026,
+// ver timesheet_leave_days en la migracion 0036).
+export const LEAVE_KIND = {
+  ESTUDIO: 'estudio',
+  MEDICO: 'medico',
+}
+
+export const LEAVE_KIND_LABELS = {
+  [LEAVE_KIND.ESTUDIO]: 'Estudio',
+  [LEAVE_KIND.MEDICO]: 'Médico',
+}
 
 export const PUNCH_SOURCE = {
   RELOJ: 'reloj',

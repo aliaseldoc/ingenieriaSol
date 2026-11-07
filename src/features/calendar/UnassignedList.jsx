@@ -10,7 +10,7 @@ export default function UnassignedList({ routeSheets, onSelectRouteSheet, onOpen
         type="button"
         onClick={onOpenBulkAssign}
         disabled={routeSheets.length === 0}
-        className="list-title-bar shrink-0 text-left font-label-md text-label-md uppercase tracking-wider mb-sm px-md py-sm rounded shadow-elevation-1 hover:bg-secondary hover:shadow-elevation-2 transition-all cursor-pointer disabled:hover:bg-secondary-container disabled:hover:shadow-elevation-1 disabled:cursor-not-allowed"
+        className="list-title-bar shrink-0 text-left font-label-md text-label-md uppercase tracking-wider mb-sm px-md py-sm rounded shadow-elevation-1 hover:bg-bar hover:shadow-elevation-2 transition-all cursor-pointer disabled:hover:bg-bar-light disabled:hover:shadow-elevation-1 disabled:cursor-not-allowed"
       >
         Hojas de Ruta Sin Asignar{routeSheets.length > 0 ? ` (${routeSheets.length})` : ''}
       </button>

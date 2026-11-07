@@ -23,16 +23,6 @@ export async function listEventsForVisit(visitId) {
   return data
 }
 
-export async function listRecentEvents(limit = 10) {
-  const { data, error } = await supabase
-    .from('visit_events')
-    .select('*, profiles(full_name), visits(equipment_id, equipment(motor, clients(name)))')
-    .order('created_at', { ascending: false })
-    .limit(limit)
-  if (error) throw error
-  return data
-}
-
 // Nota informativa del supervisor al tecnico: queda en el historial de la
 // visita y no cambia su estado.
 export async function sendSupervisorNote(visitId, actorId, text) {

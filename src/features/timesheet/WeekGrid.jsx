@@ -1,3 +1,4 @@
+import { LEAVE_KIND_LABELS } from '../../lib/constants'
 import { DAY_STATUS } from './computeTimesheet'
 import { DAY_FLAG_DEFINITIONS, getDayFlags, isDayWithoutLunch, rowMatchesFilter } from './punchFlags'
 import { formatMinutes, formatShortDayLabel, weekDayKeys } from './workTime'
@@ -44,6 +45,7 @@ function DayHours({ day }) {
         <span className="block font-label-sm text-label-sm text-warning whitespace-nowrap">+{formatMinutes(extraMinutes)} ext.</span>
       )}
       {day.paidHolidayMinutes > 0 && <span className="block font-label-sm text-label-sm text-secondary">Feriado pago</span>}
+      {day.leaveKind && <span className="block font-label-sm text-label-sm text-secondary">{LEAVE_KIND_LABELS[day.leaveKind]}</span>}
     </>
   )
 }
@@ -179,8 +181,8 @@ export default function WeekGrid({ weekStartKey, rows, settings, filter, holiday
           <span className="material-symbols-outlined text-[1.6rem] text-secondary" aria-hidden="true">
             info
           </span>
-          Extras: lo que pasa de 44 h en la semana va al 50% (aparece el día en que se superan); la noche (20 a 05), el sábado desde
-          las 13, el domingo y el feriado trabajado, al 100%
+          Extras: lo que pasa de 44 h en la semana va al 50%, en los días en que se trabajó más que la jornada (entrar antes, salir
+          después, no almorzar o el sábado); la noche (20 a 05), el sábado desde las 13, el domingo y el feriado trabajado, al 100%
         </li>
         <li className="flex items-center gap-xs">
           <span className="material-symbols-outlined text-[1.6rem] text-secondary" aria-hidden="true">

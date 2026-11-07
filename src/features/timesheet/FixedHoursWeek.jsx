@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { listExtraHoursInRange, saveExtraHours } from '../../api/extraHours'
+import { listHolidaysInRange } from '../../api/holidays'
 import { TIMESHEET_RULES } from '../../lib/constants'
 import { DAY_STATUS, computeWeekReport } from './computeTimesheet'
 import { addDaysToKey, formatMinutes, formatShortDayLabel, toDateKey, toTimeString, zonedToInstant } from './workTime'
@@ -16,6 +17,7 @@ const EXTRA_OPTIONS = Array.from({ length: 21 }, (_, index) => index * 30)
 // al elegir; solo con conexion.
 export default function FixedHoursWeek({ employee, weekStartKey, onChangeWeek, online }) {
   const [extraHours, setExtraHours] = useState([])
+  const [holidayKeys, setHolidayKeys] = useState([])
   const [loading, setLoading] = useState(true)
   const [savingDay, setSavingDay] = useState(null)
   const [message, setMessage] = useState(null) // { error, text }
@@ -23,9 +25,16 @@ export default function FixedHoursWeek({ employee, weekStartKey, onChangeWeek, o
   const reload = useCallback(async () => {
     setLoading(true)
     try {
-      setExtraHours(await listExtraHoursInRange(weekStartKey, addDaysToKey(weekStartKey, 6), employee.id))
+      const weekEndKey = addDaysToKey(weekStartKey, 6)
+      const [extra, holidays] = await Promise.all([
+        listExtraHoursInRange(weekStartKey, weekEndKey, employee.id),
+        listHolidaysInRange(weekStartKey, weekEndKey),
+      ])
+      setExtraHours(extra)
+      setHolidayKeys(holidays.map((holiday) => holiday.date))
     } catch (error) {
       setExtraHours([])
+      setHolidayKeys([])
       setMessage({ error: true, text: error?.message || 'No se pudieron cargar tus horas de más.' })
     } finally {
       setLoading(false)
@@ -39,8 +48,8 @@ export default function FixedHoursWeek({ employee, weekStartKey, onChangeWeek, o
   }, [online, reload])
 
   const [row] = useMemo(
-    () => computeWeekReport({ employees: [employee], punches: [], weekStartKey, extraHours }),
-    [employee, weekStartKey, extraHours]
+    () => computeWeekReport({ employees: [employee], punches: [], weekStartKey, extraHours, holidayKeys }),
+    [employee, weekStartKey, extraHours, holidayKeys]
   )
   const extraByDay = new Map(extraHours.map((item) => [item.work_date, item.minutes]))
   const workdays = row.days.slice(0, 5)
@@ -100,7 +109,10 @@ export default function FixedHoursWeek({ employee, weekStartKey, onChangeWeek, o
                 const tramo = day.tramos[0]
                 const notYet = day.dateKey > todayKey
                 let detail = 'Todavía no empezó'
-                if (day.status === DAY_STATUS.EN_CURSO) detail = `Desde las ${tramo.entrada} · En curso`
+                if (day.paidHolidayMinutes > 0) {
+                  detail = `Feriado pago · ${formatMinutes(day.paidHolidayMinutes)}`
+                  if (day.workedMinutes > 0) detail += ` · De más ${formatMinutes(day.workedMinutes)}`
+                } else if (day.status === DAY_STATUS.EN_CURSO) detail = `Desde las ${tramo.entrada} · En curso`
                 else if (tramo) detail = `${tramo.entrada} a ${tramo.salida} · Normales ${formatMinutes(day.normalMinutes)}`
                 return (
                   <li

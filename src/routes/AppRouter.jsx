@@ -10,13 +10,12 @@ import LoginPage from '../pages/LoginPage'
 import ProfilePage from '../pages/ProfilePage'
 
 import AdminLayout from '../components/layout/AdminLayout'
-import DashboardPage from '../pages/admin/DashboardPage'
+import FollowUpPage from '../pages/admin/FollowUpPage'
 import EquipmentPage from '../pages/admin/EquipmentPage'
 import ClientsPage from '../pages/admin/ClientsPage'
 import MissingDataPage from '../pages/admin/MissingDataPage'
 import CalendarPage from '../pages/admin/CalendarPage'
 import ReceptionPage from '../pages/admin/ReceptionPage'
-import SummaryPage from '../pages/admin/SummaryPage'
 import VisitDetailPage from '../pages/admin/VisitDetailPage'
 import RepairsPage from '../pages/admin/RepairsPage'
 
@@ -55,14 +54,14 @@ export default function AppRouter() {
 
         <Route element={<RoleRoute allow={['administrativo']} />}>
           <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<DashboardPage />} />
+            <Route index element={<FollowUpPage />} />
             <Route path="equipos" element={<EquipmentPage />} />
             <Route path="clientes" element={<ClientsPage />} />
             <Route path="datos-incompletos" element={<MissingDataPage />} />
             <Route path="calendario" element={<CalendarPage />} />
             <Route path="recepcion" element={<ReceptionPage />} />
             <Route path="reparaciones" element={<RepairsPage />} />
-            <Route path="resumen" element={<SummaryPage />} />
+            <Route path="resumen" element={<Navigate to=".." replace />} />
             <Route path="visita/:visitId" element={<VisitDetailPage />} />
             {/* El administrativo ficha igual que el tecnico: misma pantalla. */}
             {FICHAJE_HABILITADO && <Route path="fichaje" element={<PunchPage />} />}
@@ -109,7 +108,7 @@ export default function AppRouter() {
 
         <Route element={<RoleRoute allow={['supervisor']} />}>
           <Route path="/supervisor" element={<SupervisorLayout />}>
-            <Route index element={<DashboardPage />} />
+            <Route index element={<FollowUpPage />} />
             <Route path="validacion" element={<ValidationPage />} />
             <Route path="reparaciones" element={<RepairsPage />} />
             <Route path="equipos" element={<EquipmentPage />} />
@@ -121,7 +120,7 @@ export default function AppRouter() {
             {FICHAJE_HABILITADO && <Route path="fichajes" element={<TimesheetPage />} />}
             <Route path="visita/:visitId" element={<VisitDetailPage />} />
             <Route path="perfil" element={<ProfilePage />} />
-            <Route path="resumen" element={<SummaryPage />} />
+            <Route path="resumen" element={<Navigate to=".." replace />} />
           </Route>
         </Route>
       </Route>

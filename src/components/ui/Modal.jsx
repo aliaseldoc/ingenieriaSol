@@ -32,7 +32,7 @@ export default function Modal({ open, title, children, onClose, actions = [], si
 
   return (
     <div
-      className={`fixed inset-0 ${fullViewport ? '' : 'md:left-[25.6rem]'} z-50 flex items-center justify-center bg-on-surface/40 p-margin-mobile`}
+      className={`fixed inset-0 ${fullViewport ? '' : 'md:left-[25.6rem]'} z-50 flex items-center justify-center bg-scrim/50 p-margin-mobile`}
       onClick={onClose}
     >
       <div

@@ -332,10 +332,26 @@ export function reporteSemanalHtml(p) {
           </td>
         </tr>
 
+        ${p.planilla_url ? `<!-- Planilla de Drive -->
+        <tr>
+          <td style="padding:8px 24px 4px 24px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="background-color:#1f4a3d;border-radius:6px;">
+                  <a href="${escapeHtml(p.planilla_url)}" style="display:inline-block;padding:11px 20px;font-size:14px;line-height:20px;color:#ffffff;font-weight:bold;text-decoration:none;">Abrir la planilla de horas</a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:8px 0 0 0;font-size:13px;line-height:20px;color:#5c6360;">
+              La planilla de Drive tiene una hoja por semana, con el valor hora y el total a pagar.
+            </p>
+          </td>
+        </tr>` : ''}
+
         <tr>
           <td style="padding:8px 24px 24px 24px;">
             <p style="margin:0;font-size:13px;line-height:20px;color:#5c6360;">
-              Se adjunta el detalle por día en Excel. Ante cualquier consulta puede responder este correo.
+              Se adjunta el reporte en Excel: el resumen y el detalle por día. Ante cualquier consulta puede responder este correo.
             </p>
           </td>
         </tr>

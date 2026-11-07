@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import EmptyState from '../../components/ui/EmptyState'
-import { DAY_STATUS, DAY_TYPE_LABELS } from './computeTimesheet'
+import { DAY_STATUS, dayTypeLabel } from './computeTimesheet'
 import { compareReportRows } from './reportEmployees'
 import { formatMinutes, formatShortDayLabel } from './workTime'
-import { formatDayTimes } from './weeklyReportXlsx'
+import { formatDayTimes, lunchLabel } from './weeklyReportXlsx'
 
 const HEADER_CLASS ='font-label-md text-label-md text-on-surface-variant uppercase py-sm px-sm'
 const CELL_CLASS = 'font-body-md text-body-md text-on-surface py-sm px-sm'
@@ -17,6 +17,7 @@ function DayDetail({ days }) {
           <th className={HEADER_CLASS}>Tipo</th>
           <th className={HEADER_CLASS}>Entrada</th>
           <th className={HEADER_CLASS}>Salida</th>
+          <th className={HEADER_CLASS}>Almorzó</th>
           <th className={HEADER_CLASS}>Normales</th>
           <th className={HEADER_CLASS}>Al 50%</th>
           <th className={HEADER_CLASS}>Al 100%</th>
@@ -31,9 +32,10 @@ function DayDetail({ days }) {
           return (
             <tr key={day.dateKey} className="border-b border-outline-variant/50">
               <td className={CELL_CLASS}>{formatShortDayLabel(day.dateKey)}</td>
-              <td className={CELL_CLASS}>{DAY_TYPE_LABELS[day.dayType]}</td>
+              <td className={CELL_CLASS}>{dayTypeLabel(day)}</td>
               <td className={timesClass}>{entradas || '—'}</td>
               <td className={timesClass}>{salidas || '—'}</td>
+              <td className={CELL_CLASS}>{lunchLabel(day) || '—'}</td>
               <td className={CELL_CLASS}>{formatMinutes(day.normalMinutes)}</td>
               <td className={CELL_CLASS}>{formatMinutes(day.extra50Minutes)}</td>
               <td className={CELL_CLASS}>{formatMinutes(day.extra100Minutes)}</td>

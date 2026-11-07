@@ -19,7 +19,7 @@ function AlertRow({ item, onSelect, muteAction }) {
           <p className="font-label-md text-label-md text-on-surface truncate">{item.title}</p>
           <p className="font-body-sm text-body-sm text-on-surface-variant truncate">{item.subtitle}</p>
         </div>
-        <StatusChip label={item.chipLabel} tone={item.chipTone} variant="tag" />
+        <StatusChip label={item.chipLabel} tone={item.chipTone} variant="tag" size={item.chipSize} />
       </button>
       {muteAction && (
         <button

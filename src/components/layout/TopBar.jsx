@@ -1,4 +1,5 @@
 import UserMenu from './UserMenu'
+import ThemeToggle from './ThemeToggle'
 
 // headerAction: control extra del rol junto al menu de usuario (hoy, la
 // campanita de notas del tecnico).
@@ -8,6 +9,7 @@ export default function TopBar({ title, headerAction = null }) {
       <span className="font-headline-md text-headline-md font-extrabold text-on-surface">{title}</span>
       <div className="flex items-center gap-sm">
         {headerAction}
+        <ThemeToggle />
         <UserMenu />
       </div>
     </header>

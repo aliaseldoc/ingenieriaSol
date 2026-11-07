@@ -104,14 +104,14 @@ function DateGroupList({
                     <button
                       type="button"
                       onClick={() => onToggleGroup(key)}
-                      className="w-full flex items-center gap-sm py-sm px-md bg-secondary hover:bg-secondary-container transition-colors text-left"
+                      className="w-full flex items-center gap-sm py-sm px-md bg-bar hover:bg-bar-light transition-colors text-left"
                     >
-                      <span className="material-symbols-outlined text-[2rem] text-secondary-fixed-dim">
+                      <span className="material-symbols-outlined text-[2rem] text-on-bar/70">
                         {expanded ? 'expand_more' : 'chevron_right'}
                       </span>
-                      <span className="flex-1 font-label-md text-label-md text-on-secondary">{group.clientName}</span>
+                      <span className="flex-1 font-label-md text-label-md text-on-bar">{group.clientName}</span>
                       {hasUnreadNotes && <StatusChip label="Nota nueva" tone="error" variant="tag" />}
-                      <span className="font-label-sm text-label-sm text-secondary-fixed-dim">({group.visits.length})</span>
+                      <span className="font-label-sm text-label-sm text-on-bar/70">({group.visits.length})</span>
                     </button>
                     {expanded && (
                       <div className="p-sm space-y-sm">

@@ -27,6 +27,21 @@ export function durationCell(minutes) {
   return { value: (minutes ?? 0) / 1440, type: Number, format: '[h]:mm' }
 }
 
+// Montos en pesos (valor hora y total a pagar del reporte de horas).
+export const MONEY_FORMAT = '"$ "#,##0.00'
+
+// Un monto. Sin valor queda la celda vacia, con el formato puesto para que lo
+// que se escriba a mano salga en pesos.
+export function moneyCell(value) {
+  const number = value == null || value === '' ? null : Number(value)
+  return { value: Number.isFinite(number) ? number : null, type: Number, format: MONEY_FORMAT }
+}
+
+// Formula de Excel (y de Google Sheets), con su formato de numero.
+export function formulaCell(formula, format) {
+  return { value: formula, type: 'Formula', format }
+}
+
 // 'AAAA-MM-DD' (columna date de la base, o dateKey del motor de horas) a fecha
 // real de Excel. Se arma en UTC porque la libreria convierte con getTime(): asi
 // la fecha cae exacta en su dia, corra donde corra (navegador o servidor).
@@ -59,6 +74,12 @@ export function tableData(headers, rows) {
     headers.map((text) => tableStyled(headerCell(text), TABLE_HEADER)),
     ...rows.map((cells, index) => cells.map((cell) => tableStyled(cell, { backgroundColor: TABLE_BANDS[index % 2] }))),
   ]
+}
+
+// Titulo de una tabla dentro de la hoja (por ejemplo "Detalle por dia" debajo
+// del resumen), en negrita y con la letra de la tabla.
+export function tableTitleCell(text) {
+  return { value: text, type: String, fontWeight: 'bold', fontSize: TABLE_FONT_SIZE }
 }
 
 // Anchos de columna pensados para la letra de 11, agrandados para la de 14.
