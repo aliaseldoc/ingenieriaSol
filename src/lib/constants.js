@@ -442,7 +442,8 @@ export const VISIT_CHANGE_TO_EQUIPMENT_TRACKING = [
 // supervisor, la vista del tecnico y la foto que se guarda al cerrar.
 //
 // Jornada: lunes a jueves de 8 a 18 (9 h netas) y viernes de 8 a 17 (8 h
-// netas), 44 h por semana. Lo que pasa de 44 h en la semana va al 50%; la
+// netas), 44 h por semana. Lo que pasa de 44 h en la semana va al 50%, en los
+// dias en que se trabajo mas que la jornada; la
 // noche (20 a 05), el sabado desde las 13, el domingo y el feriado trabajado
 // van siempre al 100%. En un dia habil, entrar entre las 07:20 y las 08 no
 // suma: se cuenta desde las 08. Hasta las 07:19 se cuenta desde la hora real.

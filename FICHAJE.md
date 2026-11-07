@@ -56,7 +56,8 @@ Así, un supervisor que no ficha no aparece con el feriado pago como única hora
     - Van como **normales**, no al 50% ni al 100%.
     - Nadie más las carga: el supervisor solo las ve.
     - Con la semana cerrada no se cambian, y un día que todavía no pasó no se carga.
-- En el reporte sale en su lugar, con todo como normales. No cuentan sus fichajes, los feriados ni el almuerzo.
+- En el reporte sale en su lugar, con todo como normales. No cuentan sus fichajes ni el almuerzo.
+- **Feriado (pedido del 07/11/2026):** un feriado de lunes a viernes le paga sus horas fijas del día (5 h) como **"Feriado pago"**, y se ve por adelantado como el de los demás. La semana sigue dando 25 h. Las horas de más de ese día también van como normales.
 - En "Detalle por día" lleva sus 5 días con entrada y salida, como cualquiera.
 - Su pantalla "Fichaje" no tiene los botones de entrada y salida: muestra su semana como sale en el reporte, con la carga de horas de más de cada día.
 
@@ -218,7 +219,7 @@ Configuración **igual para todos**. Las reglas viven como constantes en `src/li
 | Jornada | Lunes a jueves de 8 a 18 h (9 h netas) y viernes de 8 a 17 h (8 h netas): **44 h por semana**. El sábado no es laborable. |
 | Pago por tiempo trabajado | Se paga desde el fichaje de entrada hasta el de salida. Llegar tarde está permitido y se cobra desde ese momento (ej.: entra 08:20, cobra desde las 08:20). No hay tolerancias ni penalizaciones. |
 | Entrada antes de las 08:00 | Siempre se guarda la hora real del fichaje. En un día hábil (lunes a viernes que no sea feriado), una entrada **entre las 07:20 y las 08:00 cuenta desde las 08:00** (ej.: entra 07:40, cobra desde las 08:00). Una entrada **hasta las 07:19 cuenta desde la hora real**; antes de las 05:00 es una urgencia de madrugada y esos minutos van al 100%. El sábado, el domingo y el feriado no tienen horario: cuentan desde que se ficha. (Cambiado el 21/10/2026: antes la ventana arrancaba a las 06:00.) |
-| Horas al 50% | **Por semana**: lo que pasa de **44 h** en la semana. Para las 44 h cuentan las horas diurnas de lunes a viernes (05 a 20), las del sábado de 05 a 13 y las horas que paga un feriado. |
+| Horas al 50% | **Por semana**: lo que pasa de **44 h** en la semana. Para las 44 h cuentan las horas diurnas de lunes a viernes (05 a 20), las del sábado de 05 a 13 y las horas que paga un feriado. Esas horas se ubican en los **días en que se trabajó más que la jornada** (por entrar antes, salir después, no almorzar, o el sábado). (Cambiado el 07/11/2026: antes aparecían en el día en que la semana superaba las 44 h.) |
 | Horas al 100% | Siempre, sin importar las 44 h: la **noche (20 a 05)** de cualquier día, el **sábado desde las 13**, el **domingo** y lo trabajado en un **feriado**. (Cambiado el 23/10/2026 y el 24/10/2026: antes la noche iba de 22 a 06.) |
 | Feriado de lunes a viernes | Se paga **siempre la jornada de ese día**: 9 h de lunes a jueves y 8 h el viernes, se trabaje o no. Esas horas son normales y **cuentan para las 44 h**, así que una semana con un feriado que nadie trabajó se cobra como cualquier semana normal. Si además se trabaja, esas horas se pagan aparte, al **100%** y sin descuento de almuerzo. |
 | Feriado en sábado o domingo | Sin trabajar no suma horas. Si se trabaja, todo al **100%**. |
@@ -252,7 +253,7 @@ Si nadie dice nada, **se almorzó** y se descuenta (el 95% de los días). Se ape
     - un tramo de más de 16 h.
 6. **Cruce de medianoche:** el tramo se parte a las 00:00 y cada parte se clasifica según su propio día.
 7. **Por cada día:** calcular los minutos trabajados y la pausa del almuerzo fichada (solo los cortes que caen enteros dentro de la jornada), aplicar el almuerzo si corresponde y separar las horas que cuentan para las 44 h (diurnas) de las que van directo al 100%.
-8. **Por semana:** las horas que paga un feriado ocupan su lugar en el cupo de 44 h. Las diurnas trabajadas lo van llenando de lunes a domingo, y lo que lo pasa va al 50%. Por eso el 50% aparece en el día en que la semana supera las 44 h, aunque el día largo haya sido otro.
+8. **Por semana:** las horas que paga un feriado ocupan su lugar en el cupo de 44 h. Lo que la semana pasa del cupo va al 50%, y se ubica en los días en que se trabajó más que la jornada (9 h, el viernes 8 h; el sábado no tiene jornada), de lunes a domingo hasta cubrirlo. El resto de las diurnas llena el cupo de lunes a domingo. La cantidad al 50% de la semana es la misma que antes del 07/11/2026; solo cambió el día en que aparece.
 9. **Totales:** sumar por empleado las horas normales, al 50%, al 100%, el total y la cantidad de días incompletos.
 
 El motor va en funciones **puras**, sin React ni Supabase (`src/features/timesheet/computeTimesheet.js`), y se usa igual en:
@@ -267,7 +268,7 @@ Semana del lunes 12/10 al domingo 18/10/2026. "Con almuerzo" es lo que pasa si n
 | # | Situación | Resultado |
 |---|---|---|
 | 1 | Lun a jue 08:00 a 18:00 y vie 08:00 a 17:00 | **44:00 normales**, sin extras |
-| 2 | Igual, pero el martes hasta las 20:00 | **44:00 normales + 2:00 al 50%**. El 50% aparece el viernes (6:00 normales + 2:00 al 50%) |
+| 2 | Igual, pero el martes hasta las 20:00 | **44:00 normales + 2:00 al 50%**. El 50% aparece el martes (9:00 normales + 2:00 al 50%); el viernes, 8:00 normales |
 | 3 | Mar 08:00 a 23:00 | 08 a 20 menos el almuerzo: **11:00 normales**. 20 a 23: **3:00 al 100%** |
 | 4 | Lun 18:00 a mar 02:00 | Lun: 18 a 20 menos el almuerzo, **1:00 normal**, y 20 a 24 **4:00 al 100%**. Mar: **2:00 al 100%**, sin descuento. Si la salida dice "sin almuerzo", el lunes queda en **2:00 normales** |
 | 5 | Sáb 08:00 a 15:00 | 08 a 13 **5:00** para las 44 h + 13 a 15 **2:00 al 100%** |

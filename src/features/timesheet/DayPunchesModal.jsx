@@ -71,7 +71,7 @@ function HoursSummary({ day }) {
         </p>
       )}
       <p className="font-body-sm text-body-sm text-on-surface-variant">
-        Normales y al 50% salen de la semana: lo que pasa de 44 h va al 50%, en el día en que se superan.
+        Normales y al 50% salen de la semana: lo que pasa de 44 h va al 50%, en los días en que se trabajó más que la jornada.
       </p>
     </div>
   )

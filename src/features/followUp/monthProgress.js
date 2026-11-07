@@ -7,8 +7,9 @@
 //   * La meta de cada uno es su "Cantidad de Visitas Mensuales"
 //     (equipment.monthly_visits), o 2 mientras no este cargada.
 //   * Una visita esta hecha cuando el tecnico la envio (cualquier estado
-//     despues de planificada o borrador). Por equipo cuenta hasta su meta, y
-//     los reportes del tecnico (is_unplanned) no cuentan.
+//     despues de planificada o borrador). Por equipo cuenta hasta su meta.
+//     Los reportes del tecnico (is_unplanned) cuentan como cualquier visita
+//     (pedido del 07/11/2026; hasta entonces no contaban).
 //   * Con 2 visitas, va una por quincena: del 1 al 15 y del 16 a fin de mes.
 //   * Dias habiles: de lunes a viernes, sin los feriados cargados.
 //
@@ -94,7 +95,7 @@ function compareEquipment(a, b) {
 function equipmentWithVisits(equipment, visits, monthKey) {
   const visitsByEquipment = new Map()
   for (const visit of visits) {
-    if (visit.is_unplanned || !visit.scheduled_date || monthKeyOf(visit.scheduled_date) !== monthKey) continue
+    if (!visit.scheduled_date || monthKeyOf(visit.scheduled_date) !== monthKey) continue
     if (!visitsByEquipment.has(visit.equipment_id)) visitsByEquipment.set(visit.equipment_id, [])
     visitsByEquipment.get(visit.equipment_id).push(visit)
   }
@@ -162,6 +163,13 @@ export function buildMonthProgress({ equipment, visits, holidayKeys = [], monthK
     ).length,
   }
 
+  // Los de 1 visita se pueden hacer cualquier dia del mes: no van por quincena.
+  const oneVisitEntries = entries.filter((entry) => entry.target === 1)
+  const singleVisit = {
+    total: oneVisitEntries.length,
+    done: oneVisitEntries.filter((entry) => entry.done >= 1).length,
+  }
+
   const risk = { [RISK.OVERDUE]: [], [RISK.FORTNIGHT_MISSED]: [], [RISK.NOT_PLANNED]: [] }
   if (isCurrent) {
     for (const entry of [...entries].sort((a, b) => compareEquipment(a.item, b.item))) {
@@ -190,6 +198,7 @@ export function buildMonthProgress({ equipment, visits, holidayKeys = [], monthK
     expected: isCurrent && workdays.length > 0 ? Math.round((target * elapsedWorkdays) / workdays.length) : null,
     forecast,
     fortnights,
+    singleVisit,
     risk,
     shortfall,
   }

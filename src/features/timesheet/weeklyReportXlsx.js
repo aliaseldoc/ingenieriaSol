@@ -29,7 +29,7 @@ import {
   tableTitleCell,
   textCell,
 } from '../../lib/xlsxCells.js'
-import { DAY_STATUS, dayTypeLabel } from './computeTimesheet.js'
+import { DAY_STATUS, DAY_TYPE, dayTypeLabel, skippedLunch } from './computeTimesheet.js'
 import { compareReportRows } from './reportEmployees.js'
 
 // Horarios de un dia para el detalle (Excel y pantalla de Reporte): un tramo
@@ -47,6 +47,16 @@ export function formatDayTimes(day) {
     entradas: tramos.map((tramo) => tramo.entrada ?? 'falta').join(' / '),
     salidas: tramos.map(salida).join(' / '),
   }
+}
+
+// Si almorzo, para el detalle (Excel y pantalla de Reporte; pedido del
+// 07/11/2026): "No" el dia habil trabajado en que no freno, "Sí" el que
+// almorzo. Queda en blanco el fin de semana, el feriado, el dia sin trabajo y
+// las fotos de semanas cerradas antes de que se guardara el dato.
+export function lunchLabel(day) {
+  if (skippedLunch(day)) return 'No'
+  if (day.dayType === DAY_TYPE.HABIL && day.lunchTaken === true && day.workedMinutes > 0) return 'Sí'
+  return ''
 }
 
 const WEEKDAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
@@ -80,6 +90,7 @@ const DETAIL_COLUMNS = [
   { header: 'Tipo de día', width: 13 },
   { header: 'Entrada', width: 16 },
   { header: 'Salida', width: 19 },
+  { header: 'Almorzó', width: 10 },
   { header: 'Normales', width: 11 },
   { header: 'Al 50%', width: 10 },
   { header: 'Al 100%', width: 10 },
@@ -115,6 +126,7 @@ function dayDetailRows(row) {
         textCell(dayTypeLabel(day)),
         textCell(entradas),
         textCell(salidas),
+        textCell(lunchLabel(day)),
         durationCell(day.normalMinutes),
         durationCell(day.extra50Minutes),
         durationCell(day.extra100Minutes),

@@ -3,7 +3,7 @@
 // configuracion de la fabrica (el tecnico nunca la recibe).
 import { LOCATION_STATUS, PUNCH_SOURCE } from '../../lib/constants'
 import { getFactoryRange } from './geo'
-import { DAY_STATUS, DAY_TYPE } from './computeTimesheet'
+import { DAY_STATUS, skippedLunch } from './computeTimesheet'
 
 export function getPunchFlags(punch, factorySettings = null) {
   const range = factorySettings ? getFactoryRange(punch, factorySettings) : null
@@ -35,10 +35,10 @@ export function getDayFlags(dayPunches, factorySettings = null) {
   return flags
 }
 
-// Dia habil trabajado al que no se le desconto el almuerzo, porque el
-// empleado declaro que no freno o porque lo marco el supervisor.
+// Dia habil trabajado al que no se le desconto el almuerzo (el mismo criterio
+// que el reporte, ver skippedLunch).
 export function isDayWithoutLunch(day) {
-  return day.dayType === DAY_TYPE.HABIL && !day.lunchTaken && day.workedMinutes > 0
+  return skippedLunch(day)
 }
 
 export const DAY_FLAG_DEFINITIONS = [

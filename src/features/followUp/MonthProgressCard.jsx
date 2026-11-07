@@ -6,7 +6,7 @@ function percentOf(value, total) {
 
 function FortnightBar({ title, value, total, caption, tone }) {
   return (
-    <div className="flex-1 min-w-[22rem] bg-surface rounded-lg p-sm flex flex-col gap-xs">
+    <div className="flex-1 min-w-[20rem] bg-surface rounded-lg p-sm flex flex-col gap-xs">
       <p className="font-body-sm text-body-sm text-on-surface">
         <b>{title}</b> · {value} de {total} {caption}
       </p>
@@ -21,8 +21,19 @@ function FortnightBar({ title, value, total, caption, tone }) {
 // el ancho completo es la meta. En el mes en curso suma el pronostico (rayado),
 // la marca de "esperado hoy" y la comparacion con el mes anterior; un mes que
 // ya termino muestra solo lo que se hizo.
+// Avance por tipo de equipo (pedido del 07/11/2026): los de 2 visitas, una por
+// quincena; los de 1 visita, en cualquier momento del mes.
+function VisitGroup({ title, className = '', children }) {
+  return (
+    <div className={`min-w-0 flex flex-col gap-xs ${className}`}>
+      <p className="font-label-sm text-label-sm uppercase tracking-wide text-on-surface-variant">{title}</p>
+      <div className="flex flex-wrap gap-sm">{children}</div>
+    </div>
+  )
+}
+
 export default function MonthProgressCard({ progress, comparison = null }) {
-  const { target, done, percentage, forecast, expected, fortnights, isCurrent } = progress
+  const { target, done, percentage, forecast, expected, fortnights, singleVisit, isCurrent } = progress
   const [year, month] = progress.monthKey.split('-').map(Number)
   const lastDay = new Date(year, month, 0).getDate()
   const forecastPercentage = target > 0 && forecast !== null ? Math.round((forecast / target) * 100) : null
@@ -93,17 +104,26 @@ export default function MonthProgressCard({ progress, comparison = null }) {
           </ul>
         </div>
 
-        {fortnights.total > 0 && (
-          <div className="flex flex-wrap gap-sm">
-            <FortnightBar title="1ª quincena" value={fortnights.firstDone} total={fortnights.total} caption="equipos visitados" tone="bg-secondary" />
-            {/* En el mes en curso importa si esta planificada; cerrado, si se hizo. */}
-            <FortnightBar
-              title="2ª quincena"
-              value={isCurrent ? fortnights.secondPlanned : fortnights.secondDone}
-              total={fortnights.total}
-              caption={isCurrent ? 'con visita planificada' : 'equipos visitados'}
-              tone={isCurrent ? 'bg-warning' : 'bg-secondary'}
-            />
+        {(fortnights.total > 0 || singleVisit.total > 0) && (
+          <div className="flex flex-wrap gap-md">
+            {fortnights.total > 0 && (
+              <VisitGroup title={`Equipos de 2 visitas (${fortnights.total})`} className="flex-[2] basis-[42rem]">
+                <FortnightBar title="1ª quincena" value={fortnights.firstDone} total={fortnights.total} caption="visitados" tone="bg-secondary" />
+                {/* En el mes en curso importa si esta planificada; cerrado, si se hizo. */}
+                <FortnightBar
+                  title="2ª quincena"
+                  value={isCurrent ? fortnights.secondPlanned : fortnights.secondDone}
+                  total={fortnights.total}
+                  caption={isCurrent ? 'con visita planificada' : 'visitados'}
+                  tone={isCurrent ? 'bg-warning' : 'bg-secondary'}
+                />
+              </VisitGroup>
+            )}
+            {singleVisit.total > 0 && (
+              <VisitGroup title={`Equipos de 1 visita (${singleVisit.total})`} className="flex-1 basis-[22rem]">
+                <FortnightBar title="En el mes" value={singleVisit.done} total={singleVisit.total} caption="visitados" tone="bg-secondary" />
+              </VisitGroup>
+            )}
           </div>
         )}
 
