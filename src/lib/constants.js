@@ -551,6 +551,7 @@ export const CLOCK_EVENT_KIND_LABELS = {
   contacto: 'Contacto',
   fichajes: 'Fichajes',
   rechazo: 'Rechazo',
+  orden: 'Orden',
 }
 
 // Si el reloj no se comunica en este lapso, la pantalla lo muestra caido.

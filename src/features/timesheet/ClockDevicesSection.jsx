@@ -55,8 +55,36 @@ function driftNotice(device) {
   return `La hora del reloj está ${minutes} min ${seconds > 0 ? 'adelantada' : 'atrasada'}: corregila en el equipo.`
 }
 
+// Fichajes que llegaron tarde: el reloj los guardó y los mandó recién después.
+// Se avisa solo si pasó hoy, para que el supervisor sepa que hubo una demora.
+function lateNotice(device) {
+  if (!device.last_late_at || !device.last_late_seconds) return null
+  const sinceMinutes = minutesSince(device.last_late_at)
+  if (sinceMinutes === null || sinceMinutes > 24 * 60) return null
+  const lateMinutes = Math.round(device.last_late_seconds / 60)
+  const lateText = lateMinutes >= 120 ? `${Math.round(lateMinutes / 60)} h` : `${lateMinutes} min`
+  return `Llegaron fichajes con hasta ${lateText} de demora (${formatAgo(sinceMinutes)}). Las horas son correctas: se guardan con la hora en que se fichó.`
+}
+
+// El reloj informa cuántos fichajes tiene guardados sin subir. Con el equipo
+// sano es 0; si no baja, está trabado.
+function unsentNotice(device) {
+  if (!device.unsent_punches || device.unsent_punches < 1) return null
+  const checkedMinutes = minutesSince(device.unsent_checked_at)
+  if (checkedMinutes === null || checkedMinutes > 10) return null
+  const plural = device.unsent_punches === 1 ? 'fichaje sin subir' : 'fichajes sin subir'
+  return `El reloj tiene ${device.unsent_punches} ${plural}. Si no baja solo, el sistema lo reinicia.`
+}
+
 function describeEvent(event) {
   const detail = event.detail ?? {}
+  if (event.kind === 'orden') {
+    if (detail.auto) return `Reinicio automático: ${detail.motivo ?? 'el reloj se trabó'}`
+    const names = { info: 'Consulta de estado', reiniciar: 'Reinicio', consulta: 'Consulta de fichajes' }
+    const name = names[detail.tipo] ?? 'Orden'
+    return `${name} (respuesta ${detail.retorno ?? '—'})`
+  }
+  if (event.kind === 'contacto' && detail.muestra) return 'Muestra de la configuración del reloj'
   if (event.kind === 'fichajes') {
     const parts = [`${detail.nuevos ?? 0} nuevos`]
     if (detail.repetidos) parts.push(`${detail.repetidos} repetidos`)
@@ -233,6 +261,8 @@ export default function ClockDevicesSection({ actorId, onChanged }) {
                 {state.devices.map((device) => {
                   const connection = connectionState(device)
                   const drift = driftNotice(device)
+                  const late = lateNotice(device)
+                  const unsent = unsentNotice(device)
                   return (
                     <li key={device.id} className="bg-surface-container-lowest border border-outline-variant rounded-lg p-md space-y-sm">
                       <div className="flex flex-wrap items-center justify-between gap-sm">
@@ -271,6 +301,13 @@ export default function ClockDevicesSection({ actorId, onChanged }) {
                         </div>
                       </dl>
                       {drift && <p className="font-body-sm text-body-sm text-error">{drift}</p>}
+                      {unsent && <p className="font-body-sm text-body-sm text-error">{unsent}</p>}
+                      {late && <p className="font-body-sm text-body-sm text-on-surface-variant">{late}</p>}
+                      {device.last_auto_reboot_at && minutesSince(device.last_auto_reboot_at) <= 24 * 60 && (
+                        <p className="font-body-sm text-body-sm text-on-surface-variant">
+                          El sistema reinició el reloj {formatAgo(minutesSince(device.last_auto_reboot_at))} porque se había trabado.
+                        </p>
+                      )}
                     </li>
                   )
                 })}
