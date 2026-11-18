@@ -12,8 +12,10 @@
 import {
   ACCION,
   esTablaConocida,
+  formatearOrden,
   interpretarPedido,
   parsearFichajes,
+  parsearRespuestaOrden,
   parsearTiempoReal,
   respuestaAlta,
   respuestaSaludo,
@@ -87,6 +89,15 @@ export default async function handler(pedido, respuesta) {
       // fichajes y llegan todo el tiempo, asi que no se anotan.
       if (esTablaConocida(query.table)) {
         await llamarBase('touch_clock_device', { p_serial: serial, p_kind: 'ping', p_detail: null, p_ip: ip })
+        // La configuracion del equipo trae su version y su hora: se guarda una
+        // muestra cada tanto para poder verla.
+        if (String(query.table).toUpperCase() === 'OPTIONS') {
+          try {
+            await llamarBase('log_clock_sample', { p_serial: serial, p_table: 'options', p_body: await leerCuerpo(pedido) })
+          } catch (error) {
+            console.error('[reloj] no se pudo anotar la muestra', serial, error)
+          }
+        }
         return responder(respuesta, 200, 'OK')
       }
       const cuerpo = await leerCuerpo(pedido)
@@ -99,9 +110,45 @@ export default async function handler(pedido, respuesta) {
       return responder(respuesta, 200, 'OK')
     }
 
-    // Los pedidos que no traen datos solo sirven para saber que el reloj
-    // sigue vivo: se contestan con OK sin tocar nada mas.
-    if (tipo === ACCION.COMANDOS || tipo === ACCION.RESPUESTA_COMANDO) {
+    // La consulta periodica del reloj ("¿tenes ordenes para mi?"): ademas de
+    // avisar que sigue vivo, se le entrega la proxima orden si hay una. Sin
+    // ordenes se contesta OK, igual que antes.
+    if (tipo === ACCION.COMANDOS && accion === 'getrequest') {
+      // Si la base falla, el reloj recibe OK como siempre: perder una consulta
+      // de ordenes no cuesta nada y un error aca no deberia alterar al equipo.
+      try {
+        const estado = await llamarBase('clock_poll', { p_serial: serial, p_ip: ip })
+        if (estado?.orden) {
+          return responder(respuesta, 200, formatearOrden({ id: estado.orden.id, texto: estado.orden.texto }))
+        }
+      } catch (error) {
+        console.error('[reloj] fallo la consulta de ordenes', serial, error)
+      }
+      return responder(respuesta, 200, 'OK')
+    }
+
+    // El equipo contesta a una orden. Se guarda lo que mande, tal cual: sin
+    // eso no hay forma de saber que formato habla este firmware. Solo se
+    // contesta OK cuando quedo guardado, como con los fichajes.
+    if (tipo === ACCION.RESPUESTA_COMANDO) {
+      const cuerpo = await leerCuerpo(pedido)
+      const respuestas = parsearRespuestaOrden(cuerpo)
+      // Un cuerpo vacio igual se anota: es una respuesta sin datos.
+      for (const r of respuestas.length ? respuestas : [{ id: null, retorno: null, datos: '' }]) {
+        await llamarBase('clock_command_result', {
+          p_serial: serial,
+          p_id: r.id,
+          p_return: r.retorno,
+          p_body: r.datos,
+          p_ip: ip,
+        })
+      }
+      return responder(respuesta, 200, 'OK')
+    }
+
+    // El resto de los pedidos sin datos (ping, push, querydata) solo sirven
+    // para saber que el reloj sigue vivo.
+    if (tipo === ACCION.COMANDOS) {
       await llamarBase('touch_clock_device', { p_serial: serial, p_kind: 'ping', p_detail: null, p_ip: ip })
       return responder(respuesta, 200, 'OK')
     }

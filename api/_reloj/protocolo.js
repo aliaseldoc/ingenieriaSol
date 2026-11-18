@@ -124,6 +124,44 @@ export function parsearTiempoReal(cuerpo) {
   return { filas, invalidas }
 }
 
+// Una orden para el reloj viaja como "C:<id>:<orden>". El id es el que el
+// equipo devuelve despues para decir a que orden responde.
+export function formatearOrden({ id, texto }) {
+  return `C:${id}:${texto}`
+}
+
+// Lo que el equipo contesta a una orden (POST devicecmd). Segun el firmware
+// viene una respuesta por linea ("ID=12&Return=0&CMD=INFO") o una cabecera
+// seguida de registros en las lineas siguientes. Se separa por cabecera y todo
+// lo que sigue hasta la proxima queda como `datos`.
+//
+// Si no hay ninguna cabecera con ID se devuelve una sola respuesta sin id y con
+// el cuerpo entero: no se pierde nada y despues se ve que mando el equipo.
+export function parsearRespuestaOrden(cuerpo) {
+  const texto = String(cuerpo ?? '')
+  const respuestas = []
+
+  for (const linea of texto.split(/\r?\n/)) {
+    if (!linea.trim()) continue
+
+    if (/^ID=/i.test(linea.trim())) {
+      const campos = {}
+      for (const parte of linea.trim().split('&')) {
+        const corte = parte.indexOf('=')
+        if (corte > 0) campos[parte.slice(0, corte).trim().toLowerCase()] = parte.slice(corte + 1).trim()
+      }
+      const id = /^\d+$/.test(campos.id ?? '') ? campos.id : null
+      respuestas.push({ id, retorno: campos.return ?? null, cmd: campos.cmd ?? null, datos: [] })
+      continue
+    }
+
+    if (respuestas.length === 0) respuestas.push({ id: null, retorno: null, cmd: null, datos: [] })
+    respuestas[respuestas.length - 1].datos.push(linea)
+  }
+
+  return respuestas.map((r) => ({ ...r, datos: r.datos.join('\n') }))
+}
+
 // Respuesta al alta: el equipo espera un codigo que lo identifique. Alcanza
 // con devolverle su propia serie, que es lo que ya usamos como identidad.
 export function respuestaAlta({ serial }) {
