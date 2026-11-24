@@ -63,6 +63,11 @@ function DayCellContent({ day }) {
   )
 }
 
+// Las marcas son avisos (amarillo); la que puede ser fichar por otro va en rojo.
+function flagColorClass(definition) {
+  return definition.tone === 'error' ? 'text-error' : 'text-warning'
+}
+
 function DayFlagIcons({ flags }) {
   const active = DAY_FLAG_DEFINITIONS.filter((definition) => flags[definition.key])
   if (active.length === 0) return null
@@ -71,7 +76,7 @@ function DayFlagIcons({ flags }) {
       {active.map((definition) => (
         <span
           key={definition.key}
-          className="material-symbols-outlined text-[1.6rem] text-warning"
+          className={`material-symbols-outlined text-[1.6rem] ${flagColorClass(definition)}`}
           title={definition.label}
           aria-label={definition.label}
         >
@@ -192,7 +197,7 @@ export default function WeekGrid({ weekStartKey, rows, settings, filter, holiday
         </li>
         {DAY_FLAG_DEFINITIONS.map((definition) => (
           <li key={definition.key} className="flex items-center gap-xs">
-            <span className="material-symbols-outlined text-[1.6rem] text-warning" aria-hidden="true">
+            <span className={`material-symbols-outlined text-[1.6rem] ${flagColorClass(definition)}`} aria-hidden="true">
               {definition.icon}
             </span>
             {definition.label}

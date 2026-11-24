@@ -15,7 +15,7 @@ import { addManualPunch, correctPunchTime, voidPunch } from '../../api/timePunch
 import { setLunchOverride } from '../../api/lunchOverrides'
 import { removeLeaveDay, saveLeaveDay } from '../../api/leaveDays'
 import { DAY_STATUS, DAY_TYPE, LUNCH_SOURCE, PUNCH_ISSUE_LABELS, dayTypeLabel } from './computeTimesheet'
-import { getPunchFlags } from './punchFlags'
+import { getPunchFlags, getVerifyTypeLabel } from './punchFlags'
 import { formatDistance } from './geo'
 import { formatMinutes, formatShortDayLabel, toTimeString, zonedToInstant } from './workTime'
 import PunchCorrectionForm, { CORRECTION_MODE } from './PunchCorrectionForm'
@@ -153,6 +153,7 @@ function LeaveSelect({ day, disabled, saving, errorMessage, onChange }) {
 
 function PunchItem({ punch, settings, canEdit, onCorrect, onVoid }) {
   const flags = getPunchFlags(punch, settings)
+  const verifyLabel = getVerifyTypeLabel(punch)
   const voided = Boolean(punch.voided_at)
 
   return (
@@ -164,6 +165,8 @@ function PunchItem({ punch, settings, canEdit, onCorrect, onVoid }) {
         </p>
         <div className="flex flex-wrap gap-xs">
           <StatusChip label={PUNCH_SOURCE_LABELS[punch.source]} tone="neutral" variant="tag" />
+          {verifyLabel && !flags.withoutFingerprint && <StatusChip label={verifyLabel} tone="neutral" variant="tag" />}
+          {flags.withoutFingerprint && <StatusChip label={`Sin huella · ${verifyLabel}`} tone="error" variant="tag" />}
           {voided && <StatusChip label="Anulado" tone="error" variant="tag" />}
           {punch.ignored && <StatusChip label="Repetido (no cuenta)" tone="neutral" variant="tag" />}
           {flags.withoutLocation && <StatusChip label="Sin ubicación" tone="warning" variant="tag" />}

@@ -1,7 +1,7 @@
 // Marcas que se muestran junto a cada fichaje y en cada celda de la grilla
 // semanal. La de "fuera de rango" solo se calcula si se pasa la
 // configuracion de la fabrica (el tecnico nunca la recibe).
-import { LOCATION_STATUS, PUNCH_SOURCE } from '../../lib/constants'
+import { CLOCK_VERIFY_TYPE, CLOCK_VERIFY_TYPE_LABELS, LOCATION_STATUS, PUNCH_SOURCE } from '../../lib/constants'
 import { getFactoryRange } from './geo'
 import { DAY_STATUS, skippedLunch } from './computeTimesheet'
 
@@ -14,12 +14,27 @@ export function getPunchFlags(punch, factorySettings = null) {
     afterClose: Boolean(punch.arrived_after_close),
     range,
     outOfRange: Boolean(range?.outOfRange),
+    withoutFingerprint: isClockPunchWithoutFingerprint(punch),
   }
+}
+
+// Fichaje del reloj hecho con clave, tarjeta o cualquier cosa que no sea la
+// huella: con esos metodos se puede fichar por otro. Los fichajes de antes de
+// que se guardara el metodo (verify_type null) no se marcan.
+function isClockPunchWithoutFingerprint(punch) {
+  return punch.source === PUNCH_SOURCE.RELOJ && punch.verify_type != null && punch.verify_type !== CLOCK_VERIFY_TYPE.HUELLA
+}
+
+// Nombre del metodo para mostrar junto al fichaje. Un codigo que no esta en la
+// tabla se muestra con su numero, asi se puede agregar despues.
+export function getVerifyTypeLabel(punch) {
+  if (punch.source !== PUNCH_SOURCE.RELOJ || punch.verify_type == null) return null
+  return CLOCK_VERIFY_TYPE_LABELS[punch.verify_type] ?? `Código ${punch.verify_type}`
 }
 
 // Resumen de un dia: los anulados solo cuentan como "corregido a mano".
 export function getDayFlags(dayPunches, factorySettings = null) {
-  const flags = { withoutLocation: false, offline: false, manual: false, afterClose: false, outOfRange: false }
+  const flags = { withoutLocation: false, offline: false, manual: false, afterClose: false, outOfRange: false, withoutFingerprint: false }
   for (const punch of dayPunches) {
     if (punch.voided_at) {
       flags.manual = true
@@ -31,6 +46,7 @@ export function getDayFlags(dayPunches, factorySettings = null) {
     flags.manual ||= punchFlags.manual
     flags.afterClose ||= punchFlags.afterClose
     flags.outOfRange ||= punchFlags.outOfRange
+    flags.withoutFingerprint ||= punchFlags.withoutFingerprint
   }
   return flags
 }
@@ -48,6 +64,7 @@ export const DAY_FLAG_DEFINITIONS = [
   { key: 'outOfRange', icon: 'wrong_location', label: 'Fichado fuera de rango' },
   { key: 'afterClose', icon: 'lock_clock', label: 'Llegó con la semana cerrada' },
   { key: 'withoutLunch', icon: 'no_meals', label: 'Sin almuerzo (no se descuenta la hora)' },
+  { key: 'withoutFingerprint', icon: 'password', label: 'Fichó en el reloj sin huella (clave o tarjeta)', tone: 'error' },
 ]
 
 // Filtros de la grilla semanal; se pueden pasar por la URL (?filtro=...).

@@ -506,6 +506,23 @@ export const PUNCH_SOURCE_LABELS = {
   [PUNCH_SOURCE.MANUAL]: 'Manual',
 }
 
+// Con que se identifico la persona en el reloj (time_punches.verify_type, el
+// "verifytype" que manda el equipo). Codigos de la tabla de ZKTeco: si un
+// fichaje de prueba muestra otro numero para la huella, se corrige aca. Todo
+// lo que no sea huella se marca, porque con clave o tarjeta se puede fichar
+// por otro.
+export const CLOCK_VERIFY_TYPE = {
+  HUELLA: 1,
+  CLAVE: 3,
+  TARJETA: 4,
+}
+
+export const CLOCK_VERIFY_TYPE_LABELS = {
+  [CLOCK_VERIFY_TYPE.HUELLA]: 'Huella',
+  [CLOCK_VERIFY_TYPE.CLAVE]: 'Clave',
+  [CLOCK_VERIFY_TYPE.TARJETA]: 'Tarjeta',
+}
+
 export const PUNCH_TYPE = {
   ENTRADA: 'entrada',
   SALIDA: 'salida',

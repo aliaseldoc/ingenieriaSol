@@ -124,6 +124,8 @@ En el mismo flujo vienen mezcladas líneas de estado de la puerta (`time=…	sen
 
 **Qué cuenta como fichaje:** toda línea con hora válida y un `pin` distinto de 0. No se filtra por el código de `event` a propósito. En las pruebas el único código de verificación correcta fue el `3` (con huella, clave y tarjeta), y las tarjetas no reconocidas llegaron como `event=27` con `pin=0`. Pero la tabla de códigos de ZKTeco cambia entre modelos y firmwares, y descartar por un código desconocido perdería fichajes reales; en cambio, todo lo que no identifica a una persona ya viene con `pin=0` o sin `pin`, así que queda afuera solo.
 
+**Método de identificación (desde 0039):** cada línea trae `verifytype`, con qué se identificó la persona. Se guarda el código tal cual en `time_punches.verify_type` (y en `clock_pending_punches`, que lo pasa al reclamar). La traducción vive en `CLOCK_VERIFY_TYPE` (`src/lib/constants.js`): según la tabla de ZKTeco, 1 huella, 3 clave, 4 tarjeta. **Sin confirmar en este equipo**: hay que hacer un fichaje de prueba con cada método y corregir la tabla si el número es otro. Todo lo que no sea huella se marca en rojo, porque con clave o tarjeta se puede fichar por otro. Los fichajes anteriores no tienen el dato.
+
 Las tablas `options`, `rtstate`, `tabledata`, `operlog`, `attphoto` y `biodata` son sincronización del equipo (su configuración, su lista de usuarios, el estado de la puerta): se contestan OK y no se anotan, porque llegan todo el tiempo. Una tabla que no esté en esa lista **sí** se anota con su contenido: es la única forma de enterarse de que un modelo nuevo habla distinto.
 
 ### Reglas de la integración
@@ -317,11 +319,13 @@ Nuevo ítem **"Fichajes"** en la navegación del supervisor (`/supervisor/fichaj
     - sin conexión;
     - con corrección manual;
     - fichado fuera de rango;
-    - sin almuerzo (no se descontó la hora).
+    - sin almuerzo (no se descontó la hora);
+    - fichó en el reloj sin huella (rojo; ver "Método de identificación").
 - Al hacer clic en una celda se abre el **detalle del día**:
     - en los días hábiles con fichajes, el check **"Almorzó (se descuenta 1 h)"** con quién lo definió (el supervisor, el empleado o nadie). Lo que marca el supervisor gana; con la semana cerrada no se cambia;
     - lista de fichajes con hora, origen (reloj, app o manual), tipo, distancia a la fábrica (nunca el lugar, ver "Ubicación: privada") y marcas;
     - en los fichajes por app a más distancia de la fábrica que el radio configurado, la leyenda **"Fichado fuera de rango"** con la distancia (ej. *"Fichado fuera de rango · 3,2 km"*). Es solo informativa: no bloquea nada ni cambia las horas;
+    - en los fichajes del reloj, con qué se identificó la persona: **"Huella"**, o en rojo **"Sin huella · Clave"** / **"Sin huella · Tarjeta"**. Es solo informativo: no bloquea nada ni cambia las horas;
     - los anulados se muestran **tachados** con su motivo.
 - **Correcciones** (solo el supervisor, **motivo obligatorio** en todas):
     - **Agregar** fichaje manual (tipo + fecha y hora).

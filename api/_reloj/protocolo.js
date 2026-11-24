@@ -118,10 +118,19 @@ export function parsearTiempoReal(cuerpo) {
       invalidas.push(linea)
       continue
     }
-    filas.push({ pin, punched_at: momento.replace('T', ' ') })
+    filas.push({ pin, punched_at: momento.replace('T', ' '), verify_type: leerMetodo(campos.verifytype) })
   }
 
   return { filas, invalidas }
+}
+
+// Con que se identifico la persona (huella, clave, tarjeta...). Se pasa el
+// codigo tal cual: la traduccion depende del firmware y vive en el front
+// (CLOCK_VERIFY_TYPE). Si no viene o no es un numero, el fichaje vale igual y
+// queda sin metodo.
+function leerMetodo(valor) {
+  const texto = String(valor ?? '').trim()
+  return /^\d{1,4}$/.test(texto) ? Number(texto) : null
 }
 
 // Una orden para el reloj viaja como "C:<id>:<orden>". El id es el que el
